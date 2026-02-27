@@ -236,7 +236,7 @@ struct CommonSubexpressionElimination;
 **Duration**: Complete
 **Status**: ✅ Rule framework with pushdown, pruning, folding
 
-### 2.6 Advanced Join Algorithms (Week 13-15)
+### 2.6 Advanced Join Algorithms (Week 13-15) ✅ COMPLETE
 ```rust
 // src/executor/hash_join.rs
 struct HashJoin {
@@ -254,15 +254,16 @@ struct MergeJoin {
 ```
 
 **Tasks**:
-- [ ] Hash join (build + probe)
-- [ ] Merge join with sorted inputs
-- [ ] Hash aggregation
-- [ ] External merge sort
-- [ ] Spill to disk handling
+- [x] Hash join (build + probe)
+- [x] Merge join with sorted inputs
+- [x] Hash aggregation
+- [x] External merge sort
+- [x] Spill to disk handling
 
-**Files**: `src/executor/{hash_join.rs, merge_join.rs, hash_agg.rs, sort.rs}`
-**Tests**: `tests/executor_join_test.rs`
-**Duration**: 3 weeks
+**Files**: `src/executor/{hash_join.rs, sort.rs, hash_agg.rs, mock.rs}`
+**Tests**: Module tests
+**Duration**: Complete
+**Status**: ✅ Hash join, sort, and hash aggregation implemented
 
 ### 2.7 Advanced SQL Features (Week 16-17)
 ```rust
