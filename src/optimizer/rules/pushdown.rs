@@ -66,4 +66,69 @@ mod tests {
             _ => panic!("Expected scan with filter"),
         }
     }
+    
+    #[test]
+    fn test_pushdown_to_join() {
+        let rule = PredicatePushdown;
+        let left = LogicalPlan::scan("users".to_string());
+        let right = LogicalPlan::scan("orders".to_string());
+        let join = LogicalPlan::join(left, right);
+        let filter = LogicalPlan::filter(join, Expr::Column("id".to_string()));
+        
+        let optimized = rule.apply(filter);
+        match optimized {
+            LogicalPlan::Join { left, .. } => {
+                match *left {
+                    LogicalPlan::Filter { .. } => {},
+                    _ => panic!("Expected filter pushed to left"),
+                }
+            }
+            _ => panic!("Expected join"),
+        }
+    }
+    
+    #[test]
+    fn test_apply_project() {
+        let rule = PredicatePushdown;
+        let scan = LogicalPlan::scan("users".to_string());
+        let proj = LogicalPlan::project(scan, vec!["id".to_string()]);
+        
+        let optimized = rule.apply(proj);
+        match optimized {
+            LogicalPlan::Project { .. } => {},
+            _ => panic!("Expected project"),
+        }
+    }
+    
+    #[test]
+    fn test_apply_join() {
+        let rule = PredicatePushdown;
+        let left = LogicalPlan::scan("users".to_string());
+        let right = LogicalPlan::scan("orders".to_string());
+        let join = LogicalPlan::join(left, right);
+        
+        let optimized = rule.apply(join);
+        match optimized {
+            LogicalPlan::Join { .. } => {},
+            _ => panic!("Expected join"),
+        }
+    }
+    
+    #[test]
+    fn test_apply_scan() {
+        let rule = PredicatePushdown;
+        let scan = LogicalPlan::scan("users".to_string());
+        
+        let optimized = rule.apply(scan.clone());
+        match optimized {
+            LogicalPlan::Scan { .. } => {},
+            _ => panic!("Expected scan"),
+        }
+    }
+    
+    #[test]
+    fn test_name() {
+        let rule = PredicatePushdown;
+        assert_eq!(rule.name(), "PredicatePushdown");
+    }
 }

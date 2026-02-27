@@ -1,5 +1,7 @@
 use rustgres::protocol::{Message, Response, Connection, Server};
+use rustgres::catalog::Catalog;
 use std::io::Cursor;
+use std::sync::Arc;
 
 #[test]
 fn test_message_parsing() {
@@ -29,7 +31,8 @@ fn test_response_serialization() {
 #[test]
 fn test_connection_creation() {
     let stream = Cursor::new(Vec::new());
-    let _conn = Connection::new(stream);
+    let catalog = Arc::new(Catalog::new());
+    let _conn = Connection::new(stream, catalog);
 }
 
 #[test]

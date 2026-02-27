@@ -70,3 +70,37 @@ impl SimpleExecutor for HashAgg {
         self.input.close()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor::mock::MockExecutor;
+
+    #[test]
+    fn test_hash_agg_basic() {
+        let input = MockExecutor::new(vec![
+            Tuple { data: vec![1, 10] },
+            Tuple { data: vec![1, 20] },
+            Tuple { data: vec![2, 30] },
+        ]);
+        let mut agg = HashAgg::new(Box::new(input));
+        agg.open().unwrap();
+        
+        let mut results = Vec::new();
+        while let Some(tuple) = agg.next().unwrap() {
+            results.push(tuple);
+        }
+        
+        assert_eq!(results.len(), 2);
+        agg.close().unwrap();
+    }
+    
+    #[test]
+    fn test_hash_agg_empty() {
+        let input = MockExecutor::new(vec![]);
+        let mut agg = HashAgg::new(Box::new(input));
+        agg.open().unwrap();
+        assert!(agg.next().unwrap().is_none());
+        agg.close().unwrap();
+    }
+}

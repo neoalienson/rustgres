@@ -36,6 +36,11 @@ pub enum Token {
     LeftParen,
     RightParen,
     Equals,
+    NotEquals,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
     
     // End of input
     EOF,
@@ -102,6 +107,33 @@ impl Lexer {
             '=' => {
                 self.advance();
                 Ok(Token::Equals)
+            }
+            '!' => {
+                self.advance();
+                if self.current_char() == '=' {
+                    self.advance();
+                    Ok(Token::NotEquals)
+                } else {
+                    Err(ParseError::UnexpectedToken("!".to_string()))
+                }
+            }
+            '<' => {
+                self.advance();
+                if !self.is_eof() && self.current_char() == '=' {
+                    self.advance();
+                    Ok(Token::LessThanOrEqual)
+                } else {
+                    Ok(Token::LessThan)
+                }
+            }
+            '>' => {
+                self.advance();
+                if !self.is_eof() && self.current_char() == '=' {
+                    self.advance();
+                    Ok(Token::GreaterThanOrEqual)
+                } else {
+                    Ok(Token::GreaterThan)
+                }
             }
             '\'' => self.read_string(),
             _ if ch.is_ascii_digit() => self.read_number(),
@@ -235,5 +267,18 @@ mod tests {
         
         assert_eq!(tokens[0], Token::String("hello".to_string()));
         assert_eq!(tokens[1], Token::String("world".to_string()));
+    }
+    
+    #[test]
+    fn test_tokenize_comparison_operators() {
+        let mut lexer = Lexer::new("= != < <= > >=");
+        let tokens = lexer.tokenize().unwrap();
+        
+        assert_eq!(tokens[0], Token::Equals);
+        assert_eq!(tokens[1], Token::NotEquals);
+        assert_eq!(tokens[2], Token::LessThan);
+        assert_eq!(tokens[3], Token::LessThanOrEqual);
+        assert_eq!(tokens[4], Token::GreaterThan);
+        assert_eq!(tokens[5], Token::GreaterThanOrEqual);
     }
 }

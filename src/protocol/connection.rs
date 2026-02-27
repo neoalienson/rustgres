@@ -70,14 +70,16 @@ impl<S: Read + Write> Connection<S> {
     }
     
     fn execute_statement(&self, stmt: Statement) -> Result<String, String> {
+        use crate::parser::ast::Expr;
+        
         match stmt {
             Statement::CreateTable(create) => {
                 self.catalog.create_table(create.table.clone(), create.columns)?;
-                Ok(format!("CREATE TABLE"))
+                Ok("CREATE TABLE".to_string())
             }
             Statement::DropTable(drop) => {
                 self.catalog.drop_table(&drop.table, drop.if_exists)?;
-                Ok(format!("DROP TABLE"))
+                Ok("DROP TABLE".to_string())
             }
             Statement::Describe(desc) => {
                 if let Some(schema) = self.catalog.get_table(&desc.table) {
@@ -88,6 +90,30 @@ impl<S: Read + Write> Connection<S> {
                 } else {
                     Err(format!("Table '{}' does not exist", desc.table))
                 }
+            }
+            Statement::Insert(insert) => {
+                self.catalog.insert(&insert.table, insert.values)?;
+                Ok("INSERT 0 1".to_string())
+            }
+            Statement::Select(select) => {
+                let columns: Vec<String> = select.columns.iter()
+                    .map(|expr| match expr {
+                        Expr::Star => "*".to_string(),
+                        Expr::Column(name) => name.clone(),
+                        _ => "?".to_string(),
+                    })
+                    .collect();
+                
+                let rows = self.catalog.select(&select.from, columns, select.where_clause)?;
+                Ok(format!("SELECT {}", rows.len()))
+            }
+            Statement::Update(update) => {
+                let count = self.catalog.update(&update.table, update.assignments, update.where_clause)?;
+                Ok(format!("UPDATE {}", count))
+            }
+            Statement::Delete(delete) => {
+                let count = self.catalog.delete(&delete.table, delete.where_clause)?;
+                Ok(format!("DELETE {}", count))
             }
             _ => Ok("SELECT 0".to_string()),
         }

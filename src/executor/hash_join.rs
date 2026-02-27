@@ -80,3 +80,43 @@ impl SimpleExecutor for HashJoin {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor::mock::MockExecutor;
+
+    #[test]
+    fn test_hash_join_basic() {
+        let build = MockExecutor::new(vec![
+            Tuple { data: vec![1, 10] },
+            Tuple { data: vec![2, 20] },
+        ]);
+        let probe = MockExecutor::new(vec![
+            Tuple { data: vec![1, 100] },
+            Tuple { data: vec![2, 200] },
+        ]);
+        
+        let mut join = HashJoin::new(Box::new(build), Box::new(probe));
+        join.open().unwrap();
+        
+        let mut results = Vec::new();
+        while let Some(tuple) = join.next().unwrap() {
+            results.push(tuple);
+        }
+        
+        assert_eq!(results.len(), 2);
+        join.close().unwrap();
+    }
+    
+    #[test]
+    fn test_hash_join_no_match() {
+        let build = MockExecutor::new(vec![Tuple { data: vec![1, 10] }]);
+        let probe = MockExecutor::new(vec![Tuple { data: vec![2, 20] }]);
+        
+        let mut join = HashJoin::new(Box::new(build), Box::new(probe));
+        join.open().unwrap();
+        assert!(join.next().unwrap().is_none());
+        join.close().unwrap();
+    }
+}

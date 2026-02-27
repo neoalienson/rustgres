@@ -54,3 +54,38 @@ impl SimpleExecutor for Sort {
         self.input.close()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor::mock::MockExecutor;
+
+    #[test]
+    fn test_sort_basic() {
+        let input = MockExecutor::new(vec![
+            Tuple { data: vec![3] },
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let mut sort = Sort::new(Box::new(input));
+        sort.open().unwrap();
+        
+        let t1 = sort.next().unwrap().unwrap();
+        assert_eq!(t1.data[0], 1);
+        let t2 = sort.next().unwrap().unwrap();
+        assert_eq!(t2.data[0], 2);
+        let t3 = sort.next().unwrap().unwrap();
+        assert_eq!(t3.data[0], 3);
+        
+        sort.close().unwrap();
+    }
+    
+    #[test]
+    fn test_sort_empty() {
+        let input = MockExecutor::new(vec![]);
+        let mut sort = Sort::new(Box::new(input));
+        sort.open().unwrap();
+        assert!(sort.next().unwrap().is_none());
+        sort.close().unwrap();
+    }
+}

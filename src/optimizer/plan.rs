@@ -25,3 +25,57 @@ impl LogicalPlan {
         Self::Join { left: Box::new(left), right: Box::new(right), condition: None }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::ast::{Expr as AstExpr, BinaryOperator};
+
+    #[test]
+    fn test_scan_plan() {
+        let plan = LogicalPlan::scan("users".to_string());
+        match plan {
+            LogicalPlan::Scan { table, .. } => assert_eq!(table, "users"),
+            _ => panic!("Expected Scan plan"),
+        }
+    }
+
+    #[test]
+    fn test_filter_plan() {
+        let scan = LogicalPlan::scan("users".to_string());
+        let predicate = AstExpr::BinaryOp {
+            left: Box::new(AstExpr::Column("id".to_string())),
+            op: BinaryOperator::Equals,
+            right: Box::new(AstExpr::Number(1)),
+        };
+        let plan = LogicalPlan::filter(scan, predicate);
+        
+        match plan {
+            LogicalPlan::Filter { .. } => {},
+            _ => panic!("Expected Filter plan"),
+        }
+    }
+
+    #[test]
+    fn test_project_plan() {
+        let scan = LogicalPlan::scan("users".to_string());
+        let plan = LogicalPlan::project(scan, vec!["id".to_string(), "name".to_string()]);
+        
+        match plan {
+            LogicalPlan::Project { columns, .. } => assert_eq!(columns.len(), 2),
+            _ => panic!("Expected Project plan"),
+        }
+    }
+
+    #[test]
+    fn test_join_plan() {
+        let left = LogicalPlan::scan("users".to_string());
+        let right = LogicalPlan::scan("orders".to_string());
+        let plan = LogicalPlan::join(left, right);
+        
+        match plan {
+            LogicalPlan::Join { .. } => {},
+            _ => panic!("Expected Join plan"),
+        }
+    }
+}

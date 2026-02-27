@@ -15,3 +15,4 @@ mod statistics_test;
 mod optimizer_test;
 mod join_order_test;
 mod rules_test;
+mod catalog_test;

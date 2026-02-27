@@ -266,17 +266,23 @@ impl Parser {
     fn parse_expr(&mut self) -> Result<Expr> {
         let left = self.parse_primary()?;
         
-        if self.current_token() == &Token::Equals {
-            self.advance();
-            let right = self.parse_primary()?;
-            return Ok(Expr::BinaryOp {
-                left: Box::new(left),
-                op: BinaryOperator::Equals,
-                right: Box::new(right),
-            });
-        }
+        let op = match self.current_token() {
+            Token::Equals => BinaryOperator::Equals,
+            Token::NotEquals => BinaryOperator::NotEquals,
+            Token::LessThan => BinaryOperator::LessThan,
+            Token::LessThanOrEqual => BinaryOperator::LessThanOrEqual,
+            Token::GreaterThan => BinaryOperator::GreaterThan,
+            Token::GreaterThanOrEqual => BinaryOperator::GreaterThanOrEqual,
+            _ => return Ok(left),
+        };
         
-        Ok(left)
+        self.advance();
+        let right = self.parse_primary()?;
+        Ok(Expr::BinaryOp {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        })
     }
     
     fn parse_primary(&mut self) -> Result<Expr> {
@@ -499,6 +505,33 @@ mod tests {
                 assert_eq!(s.if_exists, true);
             }
             _ => panic!("Expected DROP TABLE statement"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_where_with_comparison_operators() {
+        let test_cases = vec![
+            ("SELECT * FROM t WHERE x < 10", BinaryOperator::LessThan),
+            ("SELECT * FROM t WHERE x <= 10", BinaryOperator::LessThanOrEqual),
+            ("SELECT * FROM t WHERE x > 10", BinaryOperator::GreaterThan),
+            ("SELECT * FROM t WHERE x >= 10", BinaryOperator::GreaterThanOrEqual),
+            ("SELECT * FROM t WHERE x != 10", BinaryOperator::NotEquals),
+        ];
+        
+        for (sql, expected_op) in test_cases {
+            let mut parser = Parser::new(sql).unwrap();
+            let stmt = parser.parse().unwrap();
+            
+            match stmt {
+                Statement::Select(s) => {
+                    assert!(s.where_clause.is_some());
+                    match s.where_clause.unwrap() {
+                        Expr::BinaryOp { op, .. } => assert_eq!(op, expected_op),
+                        _ => panic!("Expected binary op"),
+                    }
+                }
+                _ => panic!("Expected SELECT statement"),
+            }
         }
     }
 }

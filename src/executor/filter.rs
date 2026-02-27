@@ -17,8 +17,14 @@ impl Filter {
                 let left_val = self.eval_expr(left, tuple)?;
                 let right_val = self.eval_expr(right, tuple)?;
                 
+                use crate::parser::BinaryOperator;
                 match op {
-                    crate::parser::BinaryOperator::Equals => Ok(left_val == right_val),
+                    BinaryOperator::Equals => Ok(left_val == right_val),
+                    BinaryOperator::NotEquals => Ok(left_val != right_val),
+                    BinaryOperator::LessThan => Ok(left_val < right_val),
+                    BinaryOperator::LessThanOrEqual => Ok(left_val <= right_val),
+                    BinaryOperator::GreaterThan => Ok(left_val > right_val),
+                    BinaryOperator::GreaterThanOrEqual => Ok(left_val >= right_val),
                 }
             }
             _ => Err(ExecutorError::TypeMismatch("Invalid predicate".to_string())),

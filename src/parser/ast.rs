@@ -93,6 +93,11 @@ pub enum Expr {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinaryOperator {
     Equals,
+    NotEquals,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
 }
 
 #[cfg(test)]
