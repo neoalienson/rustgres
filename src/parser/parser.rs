@@ -27,6 +27,8 @@ impl Parser {
             Token::Insert => self.parse_insert(),
             Token::Update => self.parse_update(),
             Token::Delete => self.parse_delete(),
+            Token::Create => self.parse_create(),
+            Token::Describe | Token::Desc => self.parse_describe(),
             _ => Err(ParseError::UnexpectedToken(format!("{:?}", self.current_token()))),
         }?;
         
@@ -124,6 +126,83 @@ impl Parser {
             table,
             where_clause,
         }))
+    }
+    
+    fn parse_create(&mut self) -> Result<Statement> {
+        self.expect(Token::Create)?;
+        self.expect(Token::Table)?;
+        
+        let table = self.expect_identifier()?;
+        
+        self.expect(Token::LeftParen)?;
+        
+        let columns = self.parse_column_defs()?;
+        
+        self.expect(Token::RightParen)?;
+        
+        Ok(Statement::CreateTable(CreateTableStmt {
+            table,
+            columns,
+        }))
+    }
+    
+    fn parse_column_defs(&mut self) -> Result<Vec<ColumnDef>> {
+        let mut columns = vec![self.parse_column_def()?];
+        
+        while self.current_token() == &Token::Comma {
+            self.advance();
+            columns.push(self.parse_column_def()?);
+        }
+        
+        Ok(columns)
+    }
+    
+    fn parse_column_def(&mut self) -> Result<ColumnDef> {
+        let name = self.expect_identifier()?;
+        let data_type = self.parse_data_type()?;
+        
+        Ok(ColumnDef { name, data_type })
+    }
+    
+    fn parse_data_type(&mut self) -> Result<DataType> {
+        match self.current_token() {
+            Token::Int => {
+                self.advance();
+                Ok(DataType::Int)
+            }
+            Token::Text => {
+                self.advance();
+                Ok(DataType::Text)
+            }
+            Token::Varchar => {
+                self.advance();
+                if self.current_token() == &Token::LeftParen {
+                    self.advance();
+                    if let Token::Number(n) = self.current_token() {
+                        let size = *n as u32;
+                        self.advance();
+                        self.expect(Token::RightParen)?;
+                        Ok(DataType::Varchar(size))
+                    } else {
+                        Err(ParseError::UnexpectedToken(format!("{:?}", self.current_token())))
+                    }
+                } else {
+                    Ok(DataType::Varchar(255))
+                }
+            }
+            _ => Err(ParseError::UnexpectedToken(format!("{:?}", self.current_token()))),
+        }
+    }
+    
+    fn parse_describe(&mut self) -> Result<Statement> {
+        // Accept both DESCRIBE and DESC
+        if self.current_token() == &Token::Describe || self.current_token() == &Token::Desc {
+            self.advance();
+        }
+        
+        let table = self.expect_identifier()?;
+        
+        Ok(Statement::Describe(DescribeStmt { table }))
     }
     
     fn parse_select_list(&mut self) -> Result<Vec<Expr>> {
@@ -331,6 +410,48 @@ mod tests {
                 assert_eq!(s.columns.len(), 1);
             }
             _ => panic!("Expected SELECT statement"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_create_table() {
+        let mut parser = Parser::new("CREATE TABLE users (id INT, name TEXT)").unwrap();
+        let stmt = parser.parse().unwrap();
+        
+        match stmt {
+            Statement::CreateTable(s) => {
+                assert_eq!(s.table, "users");
+                assert_eq!(s.columns.len(), 2);
+                assert_eq!(s.columns[0].name, "id");
+                assert_eq!(s.columns[1].name, "name");
+            }
+            _ => panic!("Expected CREATE TABLE statement"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_describe() {
+        let mut parser = Parser::new("DESCRIBE users").unwrap();
+        let stmt = parser.parse().unwrap();
+        
+        match stmt {
+            Statement::Describe(s) => {
+                assert_eq!(s.table, "users");
+            }
+            _ => panic!("Expected DESCRIBE statement"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_desc() {
+        let mut parser = Parser::new("DESC products").unwrap();
+        let stmt = parser.parse().unwrap();
+        
+        match stmt {
+            Statement::Describe(s) => {
+                assert_eq!(s.table, "products");
+            }
+            _ => panic!("Expected DESCRIBE statement"),
         }
     }
 }

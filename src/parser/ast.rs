@@ -5,6 +5,36 @@ pub enum Statement {
     Insert(InsertStmt),
     Update(UpdateStmt),
     Delete(DeleteStmt),
+    CreateTable(CreateTableStmt),
+    Describe(DescribeStmt),
+}
+
+/// DESCRIBE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DescribeStmt {
+    pub table: String,
+}
+
+/// CREATE TABLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateTableStmt {
+    pub table: String,
+    pub columns: Vec<ColumnDef>,
+}
+
+/// Column definition
+#[derive(Debug, Clone, PartialEq)]
+pub struct ColumnDef {
+    pub name: String,
+    pub data_type: DataType,
+}
+
+/// Data type
+#[derive(Debug, Clone, PartialEq)]
+pub enum DataType {
+    Int,
+    Text,
+    Varchar(u32),
 }
 
 /// SELECT statement

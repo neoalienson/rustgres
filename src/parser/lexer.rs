@@ -13,6 +13,13 @@ pub enum Token {
     Into,
     Values,
     Set,
+    Create,
+    Table,
+    Int,
+    Text,
+    Varchar,
+    Describe,
+    Desc,
     
     // Identifiers and literals
     Identifier(String),
@@ -118,6 +125,13 @@ impl Lexer {
             "INTO" => Token::Into,
             "VALUES" => Token::Values,
             "SET" => Token::Set,
+            "CREATE" => Token::Create,
+            "TABLE" => Token::Table,
+            "INT" => Token::Int,
+            "TEXT" => Token::Text,
+            "VARCHAR" => Token::Varchar,
+            "DESCRIBE" => Token::Describe,
+            "DESC" => Token::Desc,
             _ => Token::Identifier(ident),
         };
         
