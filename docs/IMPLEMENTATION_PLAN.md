@@ -1,0 +1,705 @@
+# Implementation Plan
+
+Detailed implementation plan for RustGres, organized by version milestones from the roadmap.
+
+## Phase 1: Version 0.1.0 (Alpha) - Foundation 📋 PLANNED
+
+### 1.1 Storage Layer (Week 1-3)
+- [ ] Page structure and layout (8KB pages)
+- [ ] Buffer pool with LRU eviction
+- [ ] Page I/O operations
+- [ ] B+Tree index implementation
+- [ ] Heap file storage
+
+**Files**: `src/storage/{page.rs, buffer_pool.rs, btree.rs, heap.rs}`
+
+### 1.2 Transaction Manager (Week 4-6)
+- [ ] Transaction ID generation
+- [ ] MVCC tuple visibility
+- [ ] Snapshot isolation
+- [ ] Transaction status (CLOG)
+- [ ] Lock manager basics
+
+**Files**: `src/transaction/{manager.rs, mvcc.rs, snapshot.rs, lock.rs}`
+
+### 1.3 WAL & Recovery (Week 7-8)
+- [ ] WAL record format
+- [ ] WAL writing and flushing
+- [ ] ARIES recovery (Analysis, Redo, Undo)
+- [ ] Checkpoint mechanism
+
+**Files**: `src/wal/{writer.rs, recovery.rs, checkpoint.rs}`
+
+### 1.4 SQL Parser (Week 9-10)
+- [ ] Lexer/tokenizer
+- [ ] Parser for SELECT, INSERT, UPDATE, DELETE
+- [ ] AST nodes
+- [ ] Basic semantic analysis
+
+**Files**: `src/parser/{lexer.rs, parser.rs, ast.rs}`
+
+### 1.5 Query Execution (Week 11-12)
+- [ ] Volcano iterator model
+- [ ] SeqScan operator
+- [ ] Filter operator
+- [ ] Project operator
+- [ ] NestedLoop join
+
+**Files**: `src/executor/{executor.rs, scan.rs, join.rs, project.rs}`
+
+### 1.6 Protocol Layer (Week 13-14)
+- [ ] PostgreSQL wire protocol parser
+- [ ] Connection handling
+- [ ] Authentication (MD5)
+- [ ] Result serialization
+
+**Files**: `src/protocol/{wire.rs, connection.rs, auth.rs}`
+
+---
+
+## Phase 2: Version 0.2.0 (Alpha) - Optimization 📋 PLANNED
+
+### 2.1 Statistics Collection (Week 1-2)
+```rust
+// src/statistics/collector.rs
+struct TableStats {
+    row_count: u64,
+    page_count: u64,
+    avg_row_size: u32,
+}
+
+struct ColumnStats {
+    n_distinct: f64,
+    null_frac: f64,
+    most_common_vals: Vec<Value>,
+    histogram: Histogram,
+}
+
+impl Analyzer {
+    fn analyze_table(&mut self, table: &Table) -> TableStats;
+    fn analyze_column(&mut self, column: &Column) -> ColumnStats;
+    fn build_histogram(&self, values: Vec<Value>) -> Histogram;
+}
+```
+
+**Tasks**:
+- [ ] Implement ANALYZE command
+- [ ] Sample rows for statistics
+- [ ] Build histograms (equi-depth)
+- [ ] Store statistics in catalog
+- [ ] Auto-analyze on threshold
+
+**Files**: `src/statistics/{collector.rs, histogram.rs, catalog.rs}`
+**Tests**: `tests/statistics_test.rs`
+**Duration**: 2 weeks
+
+### 2.2 Cost-Based Optimizer (Week 3-5)
+```rust
+// src/optimizer/cost.rs
+struct CostModel {
+    seq_page_cost: f64,
+    random_page_cost: f64,
+    cpu_tuple_cost: f64,
+}
+
+impl CostModel {
+    fn estimate_scan(&self, table: &Table, filter: Option<&Expr>) -> Cost;
+    fn estimate_index_scan(&self, index: &Index, filter: &Expr) -> Cost;
+    fn estimate_join(&self, left: &Cost, right: &Cost) -> Cost;
+    fn estimate_selectivity(&self, expr: &Expr, stats: &Stats) -> f64;
+}
+```
+
+**Tasks**:
+- [ ] Cost estimation for scans
+- [ ] Cost estimation for joins
+- [ ] Selectivity estimation
+- [ ] Cardinality estimation
+- [ ] Index selection logic
+
+**Files**: `src/optimizer/{cost.rs, selectivity.rs, cardinality.rs}`
+**Tests**: `tests/optimizer_cost_test.rs`
+**Duration**: 3 weeks
+
+### 2.3 Join Ordering (Week 6-7)
+```rust
+// src/optimizer/join_order.rs
+impl JoinOptimizer {
+    fn optimize_dp(&self, relations: Vec<Relation>) -> LogicalPlan;
+    fn optimize_greedy(&self, relations: Vec<Relation>) -> LogicalPlan;
+    fn find_join_condition(&self, left: &Relation, right: &Relation) -> Expr;
+}
+```
+
+**Tasks**:
+- [ ] Dynamic programming for ≤12 tables
+- [ ] Greedy algorithm for >12 tables
+- [ ] Join condition detection
+- [ ] Bushy vs left-deep trees
+
+**Files**: `src/optimizer/join_order.rs`
+**Tests**: `tests/join_order_test.rs`
+**Duration**: 2 weeks
+
+### 2.4 Rule-Based Optimization (Week 8-9)
+```rust
+// src/optimizer/rules.rs
+trait OptimizationRule {
+    fn apply(&self, plan: LogicalPlan) -> LogicalPlan;
+}
+
+struct PredicatePushdown;
+struct ProjectionPruning;
+struct ConstantFolding;
+struct CommonSubexpressionElimination;
+```
+
+**Tasks**:
+- [ ] Predicate pushdown
+- [ ] Projection pruning
+- [ ] Constant folding
+- [ ] CSE elimination
+- [ ] Rule application framework
+
+**Files**: `src/optimizer/rules/{pushdown.rs, pruning.rs, folding.rs, cse.rs}`
+**Tests**: `tests/optimizer_rules_test.rs`
+**Duration**: 2 weeks
+
+### 2.5 Advanced Join Algorithms (Week 10-12)
+```rust
+// src/executor/hash_join.rs
+struct HashJoin {
+    build_side: Box<dyn Executor>,
+    probe_side: Box<dyn Executor>,
+    hash_table: HashMap<Key, Vec<Tuple>>,
+}
+
+// src/executor/merge_join.rs
+struct MergeJoin {
+    left: Box<dyn Executor>,
+    right: Box<dyn Executor>,
+    join_keys: Vec<Expr>,
+}
+```
+
+**Tasks**:
+- [ ] Hash join (build + probe)
+- [ ] Merge join with sorted inputs
+- [ ] Hash aggregation
+- [ ] External merge sort
+- [ ] Spill to disk handling
+
+**Files**: `src/executor/{hash_join.rs, merge_join.rs, hash_agg.rs, sort.rs}`
+**Tests**: `tests/executor_join_test.rs`
+**Duration**: 3 weeks
+
+### 2.6 Advanced SQL Features (Week 13-14)
+```rust
+// src/parser/subquery.rs
+enum SubqueryType {
+    Scalar,
+    Exists,
+    In,
+    Any,
+    All,
+}
+
+// src/executor/cte.rs
+struct CTEExecutor {
+    cte_name: String,
+    cte_plan: Box<dyn Executor>,
+    main_plan: Box<dyn Executor>,
+}
+
+// src/executor/window.rs
+struct WindowFunction {
+    func: AggFunc,
+    partition_by: Vec<Expr>,
+    order_by: Vec<SortExpr>,
+}
+```
+
+**Tasks**:
+- [ ] Subquery parsing and execution
+- [ ] CTE implementation
+- [ ] Window function framework
+- [ ] CASE expressions
+
+**Files**: `src/parser/subquery.rs, src/executor/{cte.rs, window.rs, case.rs}`
+**Tests**: `tests/sql_advanced_test.rs`
+**Duration**: 2 weeks
+
+---
+
+## Phase 3: Version 0.3.0 (Beta) - Parallelism 📋 PLANNED
+
+### 3.1 Parallel Framework (Week 1-3)
+```rust
+// src/executor/parallel/mod.rs
+struct ParallelContext {
+    workers: Vec<Worker>,
+    coordinator: Coordinator,
+    shared_state: Arc<SharedState>,
+}
+
+struct Worker {
+    id: usize,
+    task_queue: WorkStealingQueue<Morsel>,
+}
+
+struct Morsel {
+    start_page: PageId,
+    end_page: PageId,
+    tuples: Vec<Tuple>,
+}
+```
+
+**Tasks**:
+- [ ] Work-stealing scheduler
+- [ ] Morsel-driven parallelism
+- [ ] Worker thread pool
+- [ ] Shared state management
+- [ ] Barrier synchronization
+
+**Files**: `src/executor/parallel/{context.rs, worker.rs, scheduler.rs}`
+**Duration**: 3 weeks
+
+### 3.2 Parallel Operators (Week 4-6)
+```rust
+// src/executor/parallel/scan.rs
+struct ParallelSeqScan {
+    table: Table,
+    workers: usize,
+    chunk_size: usize,
+}
+
+// src/executor/parallel/hash_join.rs
+struct ParallelHashJoin {
+    build_workers: usize,
+    probe_workers: usize,
+    partitions: usize,
+}
+```
+
+**Tasks**:
+- [ ] Parallel sequential scan
+- [ ] Parallel hash join
+- [ ] Parallel aggregation
+- [ ] Parallel sort
+- [ ] Exchange operator
+
+**Files**: `src/executor/parallel/{scan.rs, join.rs, agg.rs, sort.rs}`
+**Duration**: 3 weeks
+
+### 3.3 Advanced Indexes (Week 7-10)
+```rust
+// src/storage/index/gist.rs
+trait GiSTEntry {
+    fn union(&self, other: &Self) -> Self;
+    fn penalty(&self, entry: &Self) -> f64;
+    fn consistent(&self, query: &Query) -> bool;
+}
+
+// src/storage/index/gin.rs
+struct GINIndex {
+    posting_tree: BTree<Key, PostingList>,
+    pending_list: Vec<Entry>,
+}
+
+// src/storage/index/brin.rs
+struct BRINIndex {
+    ranges: Vec<BlockRange>,
+    summaries: Vec<Summary>,
+}
+```
+
+**Tasks**:
+- [ ] GiST framework and R-Tree
+- [ ] GIN for full-text search
+- [ ] BRIN for large tables
+- [ ] Hash indexes
+- [ ] Partial/expression indexes
+
+**Files**: `src/storage/index/{gist.rs, gin.rs, brin.rs, hash.rs}`
+**Duration**: 4 weeks
+
+### 3.4 Triggers & Procedures (Week 11-12)
+```rust
+// src/catalog/trigger.rs
+struct Trigger {
+    name: String,
+    timing: TriggerTiming,  // BEFORE/AFTER
+    events: Vec<TriggerEvent>,  // INSERT/UPDATE/DELETE
+    function: FunctionId,
+}
+
+// src/plpgsql/interpreter.rs
+struct PLpgSQLInterpreter {
+    variables: HashMap<String, Value>,
+    statements: Vec<Statement>,
+}
+```
+
+**Tasks**:
+- [ ] Trigger framework
+- [ ] PL/pgSQL parser
+- [ ] PL/pgSQL interpreter
+- [ ] Views and materialized views
+
+**Files**: `src/catalog/trigger.rs, src/plpgsql/{parser.rs, interpreter.rs}`
+**Duration**: 2 weeks
+
+---
+
+## Phase 4: Version 0.4.0 (Beta) - Replication 📋 PLANNED
+
+### 4.1 Streaming Replication (Week 1-4)
+```rust
+// src/replication/sender.rs
+struct WALSender {
+    standby_conn: Connection,
+    start_lsn: LSN,
+    current_lsn: LSN,
+}
+
+// src/replication/receiver.rs
+struct WALReceiver {
+    primary_conn: Connection,
+    replay_lsn: LSN,
+}
+```
+
+**Tasks**:
+- [ ] WAL sender process
+- [ ] WAL receiver process
+- [ ] Replication slots
+- [ ] Streaming protocol
+- [ ] Async replication
+
+**Files**: `src/replication/{sender.rs, receiver.rs, slot.rs}`
+**Duration**: 4 weeks
+
+### 4.2 Backup & Recovery (Week 5-8)
+```rust
+// src/backup/basebackup.rs
+struct BaseBackup {
+    backup_dir: PathBuf,
+    start_lsn: LSN,
+    end_lsn: LSN,
+}
+
+// src/backup/pitr.rs
+struct PointInTimeRecovery {
+    target_time: SystemTime,
+    target_lsn: LSN,
+}
+```
+
+**Tasks**:
+- [ ] Base backup (pg_basebackup)
+- [ ] WAL archiving
+- [ ] Point-in-time recovery
+- [ ] Incremental backups
+- [ ] Backup compression
+
+**Files**: `src/backup/{basebackup.rs, archive.rs, pitr.rs, incremental.rs}`
+**Duration**: 4 weeks
+
+### 4.3 Monitoring (Week 9-12)
+```rust
+// src/monitoring/metrics.rs
+struct Metrics {
+    queries_total: Counter,
+    query_duration: Histogram,
+    buffer_hit_ratio: Gauge,
+    active_connections: Gauge,
+}
+
+// src/monitoring/prometheus.rs
+struct PrometheusExporter {
+    registry: Registry,
+    endpoint: String,
+}
+```
+
+**Tasks**:
+- [ ] Prometheus metrics
+- [ ] pg_stat_statements
+- [ ] Slow query log
+- [ ] Lock monitoring
+- [ ] Statistics views
+
+**Files**: `src/monitoring/{metrics.rs, prometheus.rs, stats.rs}`
+**Duration**: 4 weeks
+
+---
+
+## Phase 5: Version 0.5.0 (Beta) - Performance (Week 1-12)
+
+### 5.1 LSM-Tree Storage (Week 1-3)
+```rust
+// src/storage/lsm/memtable.rs
+struct MemTable {
+    data: SkipList<Key, Value>,
+    size: AtomicUsize,
+}
+
+// src/storage/lsm/sstable.rs
+struct SSTable {
+    data_blocks: Vec<Block>,
+    index_block: IndexBlock,
+    bloom_filter: BloomFilter,
+}
+
+// src/storage/lsm/compaction.rs
+enum CompactionStrategy {
+    SizeTiered,
+    Leveled,
+}
+```
+
+**Tasks**:
+- [ ] MemTable with skip list
+- [ ] SSTable format
+- [ ] Compaction strategies
+- [ ] Bloom filters
+- [ ] Range queries
+
+**Files**: `src/storage/lsm/{memtable.rs, sstable.rs, compaction.rs}`
+**Duration**: 3 weeks
+
+### 5.2 Vectorized Execution (Week 4-6)
+```rust
+// src/executor/vectorized/batch.rs
+struct RecordBatch {
+    schema: Schema,
+    columns: Vec<ArrayRef>,
+    num_rows: usize,
+}
+
+// src/executor/vectorized/operators.rs
+trait VectorizedOperator {
+    fn execute(&mut self, batch: RecordBatch) -> Result<RecordBatch>;
+}
+```
+
+**Tasks**:
+- [ ] Arrow record batches
+- [ ] Vectorized operators
+- [ ] SIMD primitives
+- [ ] Columnar format
+- [ ] Batch processing
+
+**Files**: `src/executor/vectorized/{batch.rs, operators.rs, simd.rs}`
+**Duration**: 3 weeks
+
+### 5.3 JIT Compilation (Week 7-9)
+```rust
+// src/jit/compiler.rs
+struct JITCompiler {
+    context: LLVMContext,
+    module: Module,
+}
+
+impl JITCompiler {
+    fn compile_expression(&mut self, expr: &Expr) -> CompiledExpr;
+    fn compile_filter(&mut self, filter: &Expr) -> CompiledFilter;
+}
+```
+
+**Tasks**:
+- [ ] LLVM integration
+- [ ] Expression compilation
+- [ ] Filter compilation
+- [ ] Code generation
+- [ ] Runtime optimization
+
+**Files**: `src/jit/{compiler.rs, codegen.rs, runtime.rs}`
+**Duration**: 3 weeks
+
+### 5.4 Advanced Data Types (Week 10-12)
+```rust
+// src/types/json.rs
+struct JsonValue {
+    data: Vec<u8>,
+    offsets: Vec<u32>,
+}
+
+// src/types/array.rs
+struct ArrayValue {
+    element_type: DataType,
+    dimensions: Vec<usize>,
+    data: Vec<u8>,
+}
+```
+
+**Tasks**:
+- [ ] JSON/JSONB implementation
+- [ ] Array operations
+- [ ] Range types
+- [ ] Full-text search
+- [ ] Geometric types
+
+**Files**: `src/types/{json.rs, array.rs, range.rs, fulltext.rs, geometric.rs}`
+**Duration**: 3 weeks
+
+---
+
+## Phase 6: Version 0.6.0 (RC) - Production Ready (Week 1-12)
+
+### 6.1 Security (Week 1-4)
+```rust
+// src/security/tls.rs
+struct TLSConfig {
+    cert_file: PathBuf,
+    key_file: PathBuf,
+    ca_file: Option<PathBuf>,
+}
+
+// src/security/auth.rs
+enum AuthMethod {
+    SCRAM_SHA_256,
+    Certificate,
+    LDAP,
+}
+
+// src/security/rls.rs
+struct RowLevelSecurity {
+    policy_name: String,
+    using_expr: Expr,
+    check_expr: Option<Expr>,
+}
+```
+
+**Tasks**:
+- [ ] TLS/SSL support
+- [ ] SCRAM-SHA-256 auth
+- [ ] Certificate auth
+- [ ] Row-level security
+- [ ] Audit logging
+
+**Files**: `src/security/{tls.rs, auth.rs, rls.rs, audit.rs}`
+**Duration**: 4 weeks
+
+### 6.2 Administration (Week 5-8)
+```rust
+// src/admin/schema_change.rs
+struct OnlineSchemaChange {
+    table: Table,
+    operation: DDLOperation,
+    progress: AtomicU64,
+}
+
+// src/admin/vacuum.rs
+struct ParallelVacuum {
+    workers: usize,
+    tables: Vec<Table>,
+}
+```
+
+**Tasks**:
+- [ ] Online schema changes
+- [ ] Parallel vacuum
+- [ ] Connection pooler
+- [ ] Configuration reload
+- [ ] Maintenance commands
+
+**Files**: `src/admin/{schema_change.rs, vacuum.rs, pooler.rs, config.rs}`
+**Duration**: 4 weeks
+
+### 6.3 Testing & Benchmarking (Week 9-12)
+```rust
+// tests/integration/tpcc.rs
+struct TPCCBenchmark {
+    warehouses: usize,
+    terminals: usize,
+}
+
+// tests/fuzz/parser_fuzz.rs
+#[cfg(fuzzing)]
+fn fuzz_parser(data: &[u8]) {
+    let _ = parse_sql(data);
+}
+```
+
+**Tasks**:
+- [ ] TPC-C benchmark
+- [ ] TPC-H benchmark
+- [ ] Fuzz testing
+- [ ] Compatibility tests
+- [ ] Performance regression tests
+
+**Files**: `tests/{integration/, fuzz/, compat/, perf/}`
+**Duration**: 4 weeks
+
+---
+
+## Implementation Guidelines
+
+### Code Organization
+```
+src/
+├── storage/          # Storage layer
+├── transaction/      # Transaction management
+├── wal/             # Write-ahead logging
+├── parser/          # SQL parser
+├── optimizer/       # Query optimizer
+├── executor/        # Query execution
+├── protocol/        # Wire protocol
+├── catalog/         # System catalog
+├── types/           # Data types
+├── replication/     # Replication
+├── backup/          # Backup/recovery
+├── monitoring/      # Metrics
+├── security/        # Security
+└── admin/           # Administration
+```
+
+### Testing Strategy
+- Unit tests: 90%+ coverage
+- Integration tests: All features
+- Fuzz tests: Parser, optimizer
+- Benchmark tests: Performance tracking
+- Compatibility tests: PostgreSQL suite
+
+### Performance Targets
+- OLTP: 100K+ TPS (TPC-C)
+- OLAP: 10x faster than PostgreSQL (TPC-H)
+- Latency: <1ms P99 for point queries
+- Memory: 50% less than PostgreSQL
+- Startup: <100ms cold start
+
+### Dependencies
+```toml
+[dependencies]
+tokio = "1.35"           # Async runtime
+serde = "1.0"            # Serialization
+thiserror = "1.0"        # Error handling
+tracing = "0.1"          # Logging
+dashmap = "5.5"          # Concurrent maps
+parking_lot = "0.12"     # Fast locks
+crossbeam = "0.8"        # Concurrency
+arrow = "50.0"           # Columnar format
+sqlparser = "0.43"       # SQL parsing (optional)
+```
+
+### Milestones
+- **v0.2.0**: Q3 2024 (3 months)
+- **v0.3.0**: Q4 2024 (3 months)
+- **v0.4.0**: Q1 2025 (3 months)
+- **v0.5.0**: Q2 2025 (3 months)
+- **v0.6.0**: Q3 2025 (3 months)
+- **v1.0.0**: Q4 2025 (3 months)
+
+### Team Structure
+- **Core Team**: 3-5 developers
+- **Contributors**: 20-50 active
+- **Reviewers**: 2-3 maintainers
+- **Documentation**: 1-2 writers
+
+### Success Metrics
+- Code coverage: >90%
+- Build time: <5 minutes
+- Test time: <10 minutes
+- Documentation: 100% public APIs
+- Performance: Meet targets above

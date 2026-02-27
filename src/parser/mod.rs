@@ -1,0 +1,23 @@
+//! SQL Parser.
+//!
+//! This module provides:
+//! - Lexer/tokenizer for SQL
+//! - Parser for SELECT, INSERT, UPDATE, DELETE
+//! - AST node definitions
+//! - Basic semantic analysis
+
+pub mod error;
+pub mod lexer;
+pub mod ast;
+pub mod parser;
+
+pub use error::{ParseError, Result};
+pub use lexer::{Lexer, Token};
+pub use ast::*;
+pub use parser::Parser;
+
+/// Parses a SQL statement
+pub fn parse(sql: &str) -> Result<Statement> {
+    let mut parser = Parser::new(sql)?;
+    parser.parse()
+}
