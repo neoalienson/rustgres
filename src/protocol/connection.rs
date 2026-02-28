@@ -101,6 +101,14 @@ impl<S: Read + Write> Connection<S> {
                 self.catalog.drop_materialized_view(&drop.name, drop.if_exists)?;
                 Ok("DROP MATERIALIZED VIEW".to_string())
             }
+            Statement::CreateTrigger(create) => {
+                self.catalog.create_trigger(create)?;
+                Ok("CREATE TRIGGER".to_string())
+            }
+            Statement::DropTrigger(drop) => {
+                self.catalog.drop_trigger(&drop.name, drop.if_exists)?;
+                Ok("DROP TRIGGER".to_string())
+            }
             Statement::Describe(desc) => {
                 if let Some(schema) = self.catalog.get_table(&desc.table) {
                     let cols: Vec<String> = schema.columns.iter()

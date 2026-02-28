@@ -198,7 +198,7 @@ mod tests {
         let mut cte = CTE::new(HashMap::new(), mock);
 
         cte.open().unwrap();
-        assert_eq!(cte.next().unwrap().unwrap().data, vec![]);
+        assert_eq!(cte.next().unwrap().unwrap().data, Vec::<u8>::new());
         cte.close().unwrap();
     }
 

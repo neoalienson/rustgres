@@ -18,3 +18,4 @@ mod rules_test;
 mod catalog_test;
 mod view_test;
 mod materialized_view_test;
+mod trigger_test;

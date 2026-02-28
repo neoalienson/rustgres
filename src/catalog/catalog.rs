@@ -1,4 +1,4 @@
-use crate::parser::ast::{ColumnDef, DataType, Expr, OrderByExpr, SelectStmt};
+use crate::parser::ast::{ColumnDef, DataType, Expr, OrderByExpr, SelectStmt, CreateTriggerStmt};
 use crate::transaction::{TransactionManager, TupleHeader};
 use super::{Value, TableSchema, Tuple};
 use super::predicate::PredicateEvaluator;
@@ -11,6 +11,7 @@ pub struct Catalog {
     tables: Arc<RwLock<HashMap<String, TableSchema>>>,
     views: Arc<RwLock<HashMap<String, SelectStmt>>>,
     materialized_views: Arc<RwLock<HashMap<String, (SelectStmt, Vec<Vec<Value>>)>>>,
+    triggers: Arc<RwLock<HashMap<String, CreateTriggerStmt>>>,
     data: Arc<RwLock<HashMap<String, Vec<Tuple>>>>,
     txn_mgr: Arc<TransactionManager>,
     data_dir: Option<String>,
@@ -22,6 +23,7 @@ impl Catalog {
             tables: Arc::new(RwLock::new(HashMap::new())),
             views: Arc::new(RwLock::new(HashMap::new())),
             materialized_views: Arc::new(RwLock::new(HashMap::new())),
+            triggers: Arc::new(RwLock::new(HashMap::new())),
             data: Arc::new(RwLock::new(HashMap::new())),
             txn_mgr: Arc::new(TransactionManager::new()),
             data_dir: None,
@@ -33,6 +35,7 @@ impl Catalog {
             tables: Arc::new(RwLock::new(HashMap::new())),
             views: Arc::new(RwLock::new(HashMap::new())),
             materialized_views: Arc::new(RwLock::new(HashMap::new())),
+            triggers: Arc::new(RwLock::new(HashMap::new())),
             data: Arc::new(RwLock::new(HashMap::new())),
             txn_mgr: Arc::new(TransactionManager::new()),
             data_dir: Some(data_dir.to_string()),
@@ -159,6 +162,32 @@ impl Catalog {
     pub fn get_materialized_view(&self, name: &str) -> Option<Vec<Vec<Value>>> {
         let mvs = self.materialized_views.read().unwrap();
         mvs.get(name).map(|(_, data)| data.clone())
+    }
+    
+    pub fn create_trigger(&self, trigger: CreateTriggerStmt) -> Result<(), String> {
+        let mut triggers = self.triggers.write().unwrap();
+        
+        if triggers.contains_key(&trigger.name) {
+            return Err(format!("Trigger '{}' already exists", trigger.name));
+        }
+        
+        triggers.insert(trigger.name.clone(), trigger);
+        Ok(())
+    }
+    
+    pub fn drop_trigger(&self, name: &str, if_exists: bool) -> Result<(), String> {
+        let mut triggers = self.triggers.write().unwrap();
+        
+        if triggers.remove(name).is_none() && !if_exists {
+            return Err(format!("Trigger '{}' does not exist", name));
+        }
+        
+        Ok(())
+    }
+    
+    pub fn get_trigger(&self, name: &str) -> Option<CreateTriggerStmt> {
+        let triggers = self.triggers.read().unwrap();
+        triggers.get(name).cloned()
     }
     
     pub fn list_tables(&self) -> Vec<String> {

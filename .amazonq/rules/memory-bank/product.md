@@ -87,6 +87,7 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - CASE expressions (CASE WHEN ... THEN ... ELSE ... END)
 - Views (CREATE VIEW, DROP VIEW)
 - Materialized Views (CREATE MATERIALIZED VIEW, REFRESH MATERIALIZED VIEW, DROP MATERIALIZED VIEW)
+- Triggers (CREATE TRIGGER, DROP TRIGGER with BEFORE/AFTER, FOR EACH ROW/STATEMENT)
 
 **Execution Operators:**
 - Sequential Scan
@@ -106,9 +107,9 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - CASE expressions
 
 **Testing:**
-- 632 comprehensive tests (100% pass rate)
-- Unit tests: 540 tests
-- Edge case tests: 92 tests
+- 651 comprehensive tests (100% pass rate)
+- Unit tests: 553 tests
+- Edge case tests: 98 tests
 - Test execution time: <0.10s
 
 **In Progress**:
@@ -117,7 +118,7 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 **Known Limitations**:
 - No parallel query execution
 - No advanced indexes (GiST, GIN, BRIN, Hash)
-- No stored procedures or triggers
+- No stored procedures
 - No table partitioning
 - No replication
 - No full-text search

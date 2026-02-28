@@ -72,6 +72,14 @@ pub enum Token {
     View,
     Materialized,
     Refresh,
+    Trigger,
+    Before,
+    After,
+    For,
+    Each,
+    Row,
+    Statement,
+    Begin,
     
     // Identifiers and literals
     Identifier(String),
@@ -268,6 +276,14 @@ impl Lexer {
             "VIEW" => Token::View,
             "MATERIALIZED" => Token::Materialized,
             "REFRESH" => Token::Refresh,
+            "TRIGGER" => Token::Trigger,
+            "BEFORE" => Token::Before,
+            "AFTER" => Token::After,
+            "FOR" => Token::For,
+            "EACH" => Token::Each,
+            "ROW" => Token::Row,
+            "STATEMENT" => Token::Statement,
+            "BEGIN" => Token::Begin,
             _ => Token::Identifier(ident),
         };
         

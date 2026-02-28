@@ -12,6 +12,8 @@ pub enum Statement {
     CreateMaterializedView(CreateMaterializedViewStmt),
     RefreshMaterializedView(RefreshMaterializedViewStmt),
     DropMaterializedView(DropMaterializedViewStmt),
+    CreateTrigger(CreateTriggerStmt),
+    DropTrigger(DropTriggerStmt),
     Describe(DescribeStmt),
     Union(UnionStmt),
     Intersect(IntersectStmt),
@@ -94,6 +96,47 @@ pub struct RefreshMaterializedViewStmt {
 pub struct DropMaterializedViewStmt {
     pub name: String,
     pub if_exists: bool,
+}
+
+/// CREATE TRIGGER statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateTriggerStmt {
+    pub name: String,
+    pub timing: TriggerTiming,
+    pub event: TriggerEvent,
+    pub table: String,
+    pub for_each: TriggerFor,
+    pub when: Option<Expr>,
+    pub body: Vec<Statement>,
+}
+
+/// DROP TRIGGER statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropTriggerStmt {
+    pub name: String,
+    pub if_exists: bool,
+}
+
+/// Trigger timing
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerTiming {
+    Before,
+    After,
+}
+
+/// Trigger event
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerEvent {
+    Insert,
+    Update,
+    Delete,
+}
+
+/// Trigger granularity
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerFor {
+    EachRow,
+    EachStatement,
 }
 
 /// DESCRIBE statement
