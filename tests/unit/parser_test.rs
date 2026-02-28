@@ -263,3 +263,75 @@ fn test_parse_where_equals() {
         _ => panic!("Expected SELECT"),
     }
 }
+
+
+#[test]
+fn test_parse_select_distinct() {
+    let mut parser = Parser::new("SELECT DISTINCT name FROM users").unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.distinct);
+            assert_eq!(s.from, "users");
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_group_by() {
+    let mut parser = Parser::new("SELECT category FROM products GROUP BY category").unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.group_by.is_some());
+            assert_eq!(s.group_by.unwrap(), vec!["category"]);
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_having() {
+    let mut parser = Parser::new("SELECT category FROM products GROUP BY category HAVING 1 > 0").unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.having.is_some());
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_order_by() {
+    let mut parser = Parser::new("SELECT * FROM users ORDER BY name ASC").unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.order_by.is_some());
+            let order_by = s.order_by.unwrap();
+            assert_eq!(order_by[0].column, "name");
+            assert!(order_by[0].ascending);
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_limit_offset() {
+    let mut parser = Parser::new("SELECT * FROM users LIMIT 10 OFFSET 5").unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert_eq!(s.limit, Some(10));
+            assert_eq!(s.offset, Some(5));
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
