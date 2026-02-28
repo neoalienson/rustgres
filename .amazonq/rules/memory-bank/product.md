@@ -124,8 +124,90 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - No merge join
 
 **Planned Features**:
-- Parallel query execution
-- Advanced indexes (GiST, GIN, BRIN)
-- Stored procedures and triggers
-- Materialized views
-- Table partitioning
+
+**Version 0.3.0 (Beta) - Parallel Execution & Advanced Indexes:**
+- Parallel sequential scan
+- Parallel hash join and aggregation
+- Parallel sort with work-stealing scheduler
+- Morsel-driven parallelism
+- GiST (Generalized Search Tree) indexes
+- GIN (Generalized Inverted Index) indexes
+- BRIN (Block Range Index) indexes
+- Hash indexes
+- Partial and expression indexes
+- Views and materialized views
+- Triggers (BEFORE/AFTER, FOR EACH ROW/STATEMENT)
+- Stored procedures (PL/pgSQL)
+- User-defined functions
+- Recursive CTEs
+
+**Version 0.4.0 (Beta) - Replication & Operations:**
+- Streaming replication (async and sync)
+- Logical replication with replication slots
+- Automatic failover and read replicas
+- Online backups (pg_basebackup compatible)
+- Point-in-time recovery (PITR)
+- Incremental backups with compression
+- Prometheus metrics exporter
+- Query statistics (pg_stat_statements)
+- Slow query log and lock monitoring
+- Buffer pool statistics
+
+**Version 0.5.0 (Beta) - Storage & Performance:**
+- LSM-Tree storage engine
+- Columnar storage for OLAP workloads
+- Table partitioning (range, hash, list)
+- Compression (LZ4, Zstd)
+- TOAST (large object storage)
+- Vectorized execution with SIMD
+- JIT compilation for expressions
+- Adaptive query execution
+- Query result caching
+- Prepared statement caching
+- Full-text search with ranking
+- JSON/JSONB operators and functions
+- Array operations and range types
+
+**Version 0.6.0 (RC) - Security & Administration:**
+- TLS/SSL support
+- SCRAM-SHA-256 authentication
+- Certificate authentication
+- Row-level security (RLS)
+- Column-level encryption
+- Audit logging
+- Online schema changes
+- Parallel vacuum and autovacuum tuning
+- Built-in connection pooler
+- PostgreSQL 16 compatibility
+- Foreign data wrappers (FDW)
+- Extensions API
+- pg_dump/pg_restore compatibility
+
+**Version 1.0.0 (Stable) - Production Ready:**
+- Comprehensive integration and fuzz testing
+- Performance benchmarks (TPC-C, TPC-H)
+- Complete documentation (user, admin, internals)
+- Migration tools from PostgreSQL
+- Production deployment guides
+- Client libraries (Rust, Python, Node.js, Go)
+- GUI tools (pgAdmin compatibility)
+- Monitoring dashboards
+- Cloud deployment templates
+
+**Future (1.1.0+) - Distributed & Advanced:**
+- Horizontal sharding
+- Distributed transactions (2PC, Raft)
+- Cross-shard queries and automatic rebalancing
+- Multi-region support
+- Columnar execution engine
+- Approximate query processing
+- Machine learning integration (SQL/ML)
+- Time-series optimizations
+- Kubernetes operator
+- Auto-scaling and serverless mode
+- Multi-tenancy
+- Cloud storage integration (S3, GCS)
+- NUMA-aware memory allocation
+- GPU acceleration for analytics
+- Persistent memory (PMEM) support
+- Zero-copy networking (io_uring)
