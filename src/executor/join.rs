@@ -3,6 +3,8 @@ use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
 pub enum JoinType {
     Inner,
     Left,
+    Right,
+    Full,
 }
 
 pub struct Join {
@@ -15,6 +17,9 @@ pub struct Join {
     right_index: usize,
     right_loaded: bool,
     found_match: bool,
+    right_matched: Vec<bool>,
+    emitting_unmatched_right: bool,
+    unmatched_right_index: usize,
 }
 
 impl Join {
@@ -34,6 +39,9 @@ impl Join {
             right_index: 0,
             right_loaded: false,
             found_match: false,
+            right_matched: Vec::new(),
+            emitting_unmatched_right: false,
+            unmatched_right_index: 0,
         }
     }
 
@@ -42,6 +50,7 @@ impl Join {
             while let Some(tuple) = self.right.next()? {
                 self.right_tuples.push(tuple);
             }
+            self.right_matched = vec![false; self.right_tuples.len()];
             self.right_loaded = true;
         }
         Ok(())
@@ -60,14 +69,29 @@ impl SimpleExecutor for Join {
         self.right.open()?;
         self.right_loaded = false;
         self.right_tuples.clear();
+        self.right_matched.clear();
         self.right_index = 0;
         self.left_tuple = None;
         self.found_match = false;
+        self.emitting_unmatched_right = false;
+        self.unmatched_right_index = 0;
         Ok(())
     }
 
     fn next(&mut self) -> Result<Option<Tuple>, ExecutorError> {
         self.load_right()?;
+
+        // For RIGHT and FULL joins, emit unmatched right tuples after processing all left tuples
+        if self.emitting_unmatched_right {
+            while self.unmatched_right_index < self.right_tuples.len() {
+                let idx = self.unmatched_right_index;
+                self.unmatched_right_index += 1;
+                if !self.right_matched[idx] {
+                    return Ok(Some(self.right_tuples[idx].clone()));
+                }
+            }
+            return Ok(None);
+        }
 
         loop {
             if self.left_tuple.is_none() {
@@ -76,6 +100,11 @@ impl SimpleExecutor for Join {
                 self.found_match = false;
                 
                 if self.left_tuple.is_none() {
+                    // For RIGHT and FULL joins, start emitting unmatched right tuples
+                    if matches!(self.join_type, JoinType::Right | JoinType::Full) {
+                        self.emitting_unmatched_right = true;
+                        return self.next();
+                    }
                     return Ok(None);
                 }
             }
@@ -83,16 +112,18 @@ impl SimpleExecutor for Join {
             let left = self.left_tuple.as_ref().unwrap();
 
             while self.right_index < self.right_tuples.len() {
-                let right = &self.right_tuples[self.right_index];
+                let right_idx = self.right_index;
+                let right = &self.right_tuples[right_idx];
                 self.right_index += 1;
 
                 if (self.condition)(left, right) {
                     self.found_match = true;
+                    self.right_matched[right_idx] = true;
                     return Ok(Some(self.merge_tuples(left, right)));
                 }
             }
 
-            if matches!(self.join_type, JoinType::Left) && !self.found_match {
+            if matches!(self.join_type, JoinType::Left | JoinType::Full) && !self.found_match {
                 let result = left.clone();
                 self.left_tuple = None;
                 return Ok(Some(result));
@@ -228,6 +259,55 @@ mod tests {
         );
         join.open().unwrap();
         assert!(join.next().unwrap().is_none());
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_right_join_basic() {
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Right,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+
+        let r1 = join.next().unwrap().unwrap();
+        assert_eq!(r1.data, vec![1, 1]);
+        let r2 = join.next().unwrap().unwrap();
+        assert_eq!(r2.data, vec![2]);
+        assert!(join.next().unwrap().is_none());
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_full_join_basic() {
+        let left = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![3] },
+        ]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Full,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+
+        let mut results = Vec::new();
+        while let Some(tuple) = join.next().unwrap() {
+            results.push(tuple);
+        }
+        assert_eq!(results.len(), 3);
         join.close().unwrap();
     }
 }

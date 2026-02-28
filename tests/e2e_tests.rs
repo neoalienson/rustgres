@@ -894,3 +894,37 @@ fn test_multiple_joins_e2e() {
         _ => panic!("Expected SELECT statement"),
     }
 }
+
+#[test]
+fn test_right_join_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT * FROM users RIGHT JOIN orders ON id = user_id";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert_eq!(s.joins.len(), 1);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_full_join_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT * FROM users FULL JOIN orders ON id = user_id";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert_eq!(s.joins.len(), 1);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}

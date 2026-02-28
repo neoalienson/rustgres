@@ -257,4 +257,165 @@ mod tests {
         assert!(count > 0);
         join.close().unwrap();
     }
+
+    #[test]
+    fn test_right_join_all_match() {
+        let left = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Right,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+        let mut count = 0;
+        while join.next().unwrap().is_some() {
+            count += 1;
+        }
+        assert_eq!(count, 2);
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_right_join_no_match() {
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![2] },
+            Tuple { data: vec![3] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Right,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+        let mut count = 0;
+        while join.next().unwrap().is_some() {
+            count += 1;
+        }
+        assert_eq!(count, 2);
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_right_join_empty_left() {
+        let left = MockExecutor::new(vec![]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Right,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+        let mut count = 0;
+        while join.next().unwrap().is_some() {
+            count += 1;
+        }
+        assert_eq!(count, 2);
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_full_join_all_match() {
+        let left = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Full,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+        let mut count = 0;
+        while join.next().unwrap().is_some() {
+            count += 1;
+        }
+        assert_eq!(count, 2);
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_full_join_no_match() {
+        let left = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+        ]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![3] },
+            Tuple { data: vec![4] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Full,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+        let mut count = 0;
+        while join.next().unwrap().is_some() {
+            count += 1;
+        }
+        assert_eq!(count, 4);
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_full_join_partial_match() {
+        let left = MockExecutor::new(vec![
+            Tuple { data: vec![1] },
+            Tuple { data: vec![2] },
+            Tuple { data: vec![3] },
+        ]);
+        let right = MockExecutor::new(vec![
+            Tuple { data: vec![2] },
+            Tuple { data: vec![3] },
+            Tuple { data: vec![4] },
+        ]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Full,
+            Box::new(|l, r| l.data[0] == r.data[0]),
+        );
+        join.open().unwrap();
+        let mut count = 0;
+        while join.next().unwrap().is_some() {
+            count += 1;
+        }
+        assert_eq!(count, 4);
+        join.close().unwrap();
+    }
+
+    #[test]
+    fn test_full_join_empty_both() {
+        let left = MockExecutor::new(vec![]);
+        let right = MockExecutor::new(vec![]);
+        let mut join = Join::new(
+            Box::new(left),
+            Box::new(right),
+            JoinType::Full,
+            Box::new(|_, _| true),
+        );
+        join.open().unwrap();
+        assert!(join.next().unwrap().is_none());
+        join.close().unwrap();
+    }
 }

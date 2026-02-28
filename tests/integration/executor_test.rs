@@ -867,3 +867,67 @@ fn test_left_join_integration() {
     assert_eq!(results.len(), 3);
     join.close().unwrap();
 }
+
+#[test]
+fn test_right_join_integration() {
+    use rustgres::executor::{SimpleExecutor, SimpleTuple as SimpleTuple, Join, JoinType};
+    use rustgres::executor::MockExecutor;
+    
+    let left = MockExecutor::new(vec![
+        SimpleTuple { data: vec![1] },
+        SimpleTuple { data: vec![2] },
+    ]);
+    let right = MockExecutor::new(vec![
+        SimpleTuple { data: vec![1] },
+        SimpleTuple { data: vec![2] },
+        SimpleTuple { data: vec![3] },
+    ]);
+    
+    let mut join = Join::new(
+        Box::new(left),
+        Box::new(right),
+        JoinType::Right,
+        Box::new(|l, r| l.data[0] == r.data[0]),
+    );
+    join.open().unwrap();
+    
+    let mut results = Vec::new();
+    while let Some(tuple) = join.next().unwrap() {
+        results.push(tuple);
+    }
+    
+    assert_eq!(results.len(), 3);
+    join.close().unwrap();
+}
+
+#[test]
+fn test_full_join_integration() {
+    use rustgres::executor::{SimpleExecutor, SimpleTuple as SimpleTuple, Join, JoinType};
+    use rustgres::executor::MockExecutor;
+    
+    let left = MockExecutor::new(vec![
+        SimpleTuple { data: vec![1] },
+        SimpleTuple { data: vec![2] },
+        SimpleTuple { data: vec![4] },
+    ]);
+    let right = MockExecutor::new(vec![
+        SimpleTuple { data: vec![1] },
+        SimpleTuple { data: vec![3] },
+    ]);
+    
+    let mut join = Join::new(
+        Box::new(left),
+        Box::new(right),
+        JoinType::Full,
+        Box::new(|l, r| l.data[0] == r.data[0]),
+    );
+    join.open().unwrap();
+    
+    let mut results = Vec::new();
+    while let Some(tuple) = join.next().unwrap() {
+        results.push(tuple);
+    }
+    
+    assert_eq!(results.len(), 4);
+    join.close().unwrap();
+}
