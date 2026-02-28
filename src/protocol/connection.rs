@@ -100,6 +100,21 @@ impl<S: Read + Write> Connection<S> {
                     .map(|expr| match expr {
                         Expr::Star => "*".to_string(),
                         Expr::Column(name) => name.clone(),
+                        Expr::Aggregate { func, arg } => {
+                            let func_name = match func {
+                                crate::parser::ast::AggregateFunc::Count => "COUNT",
+                                crate::parser::ast::AggregateFunc::Sum => "SUM",
+                                crate::parser::ast::AggregateFunc::Avg => "AVG",
+                                crate::parser::ast::AggregateFunc::Min => "MIN",
+                                crate::parser::ast::AggregateFunc::Max => "MAX",
+                            };
+                            let col = match **arg {
+                                Expr::Star => "*",
+                                Expr::Column(ref name) => name.as_str(),
+                                _ => "?",
+                            };
+                            format!("AGG:{}:{}", func_name, col)
+                        }
                         _ => "?".to_string(),
                     })
                     .collect();

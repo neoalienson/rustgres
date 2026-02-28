@@ -97,6 +97,20 @@ pub enum Expr {
         op: BinaryOperator,
         right: Box<Expr>,
     },
+    Aggregate {
+        func: AggregateFunc,
+        arg: Box<Expr>,
+    },
+}
+
+/// Aggregate functions
+#[derive(Debug, Clone, PartialEq)]
+pub enum AggregateFunc {
+    Count,
+    Sum,
+    Avg,
+    Min,
+    Max,
 }
 
 /// Binary operator

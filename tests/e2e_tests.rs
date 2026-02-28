@@ -418,3 +418,31 @@ fn test_limit_offset_clause() {
     let result = server.execute_sql("SELECT * FROM items LIMIT 3 OFFSET 2");
     assert!(result.is_ok(), "SELECT with LIMIT OFFSET failed: {:?}", result);
 }
+
+#[test]
+fn test_aggregate_functions() {
+    let server = TestServer::start();
+    
+    server.execute_sql("CREATE TABLE sales (id INT, amount INT)")
+        .expect("CREATE failed");
+    
+    for i in 1..=5 {
+        server.execute_sql(&format!("INSERT INTO sales VALUES ({}, {})", i, i * 10))
+            .expect("INSERT failed");
+    }
+    
+    let result = server.execute_sql("SELECT COUNT(*) FROM sales");
+    assert!(result.is_ok(), "COUNT failed: {:?}", result);
+    
+    let result = server.execute_sql("SELECT SUM(amount) FROM sales");
+    assert!(result.is_ok(), "SUM failed: {:?}", result);
+    
+    let result = server.execute_sql("SELECT AVG(amount) FROM sales");
+    assert!(result.is_ok(), "AVG failed: {:?}", result);
+    
+    let result = server.execute_sql("SELECT MIN(amount) FROM sales");
+    assert!(result.is_ok(), "MIN failed: {:?}", result);
+    
+    let result = server.execute_sql("SELECT MAX(amount) FROM sales");
+    assert!(result.is_ok(), "MAX failed: {:?}", result);
+}

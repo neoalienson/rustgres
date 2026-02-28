@@ -496,3 +496,74 @@ use crate::parser::ast::{ColumnDef, DataType, Expr, BinaryOperator, OrderByExpr}
         assert_eq!(rows[0][0], Value::Int(2));
         assert_eq!(rows[1][0], Value::Int(3));
     }
+
+    
+    #[test]
+    fn test_aggregate_count() {
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(1)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(2)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(3)]).unwrap();
+        
+        let rows = catalog.select("data", vec!["AGG:COUNT:*".to_string()], None, None, None, None).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0][0], Value::Int(3));
+    }
+    
+    #[test]
+    fn test_aggregate_sum() {
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "value".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(10)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(20)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(30)]).unwrap();
+        
+        let rows = catalog.select("data", vec!["AGG:SUM:value".to_string()], None, None, None, None).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0][0], Value::Int(60));
+    }
+    
+    #[test]
+    fn test_aggregate_avg() {
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "value".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(10)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(20)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(30)]).unwrap();
+        
+        let rows = catalog.select("data", vec!["AGG:AVG:value".to_string()], None, None, None, None).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0][0], Value::Int(20));
+    }
+    
+    #[test]
+    fn test_aggregate_min_max() {
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "value".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(10)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(50)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(30)]).unwrap();
+        
+        let rows = catalog.select("data", vec!["AGG:MIN:value".to_string()], None, None, None, None).unwrap();
+        assert_eq!(rows[0][0], Value::Int(10));
+        
+        let rows = catalog.select("data", vec!["AGG:MAX:value".to_string()], None, None, None, None).unwrap();
+        assert_eq!(rows[0][0], Value::Int(50));
+    }

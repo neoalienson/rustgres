@@ -27,6 +27,9 @@ pub fn parse_expr(parser: &mut Parser) -> Result<Expr> {
 
 pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
     match parser.current_token().clone() {
+        Token::Count | Token::Sum | Token::Avg | Token::Min | Token::Max => {
+            parse_aggregate(parser)
+        }
         Token::Identifier(name) => {
             parser.advance();
             Ok(Expr::Column(name))
@@ -45,6 +48,33 @@ pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
         }
         _ => Err(ParseError::UnexpectedToken(format!("{:?}", parser.current_token()))),
     }
+}
+
+fn parse_aggregate(parser: &mut Parser) -> Result<Expr> {
+    use crate::parser::ast::AggregateFunc;
+    
+    let func = match parser.current_token() {
+        Token::Count => AggregateFunc::Count,
+        Token::Sum => AggregateFunc::Sum,
+        Token::Avg => AggregateFunc::Avg,
+        Token::Min => AggregateFunc::Min,
+        Token::Max => AggregateFunc::Max,
+        _ => return Err(ParseError::UnexpectedToken(format!("{:?}", parser.current_token()))),
+    };
+    
+    parser.advance();
+    parser.expect(Token::LeftParen)?;
+    
+    let arg = if parser.current_token() == &Token::Star {
+        parser.advance();
+        Box::new(Expr::Star)
+    } else {
+        Box::new(parse_expr(parser)?)
+    };
+    
+    parser.expect(Token::RightParen)?;
+    
+    Ok(Expr::Aggregate { func, arg })
 }
 
 pub fn parse_expr_list(parser: &mut Parser) -> Result<Vec<Expr>> {

@@ -29,6 +29,11 @@ pub enum Token {
     Descending,
     Limit,
     Offset,
+    Count,
+    Sum,
+    Avg,
+    Min,
+    Max,
     
     // Identifiers and literals
     Identifier(String),
@@ -182,6 +187,11 @@ impl Lexer {
             "DESC" => Token::Descending,
             "LIMIT" => Token::Limit,
             "OFFSET" => Token::Offset,
+            "COUNT" => Token::Count,
+            "SUM" => Token::Sum,
+            "AVG" => Token::Avg,
+            "MIN" => Token::Min,
+            "MAX" => Token::Max,
             _ => Token::Identifier(ident),
         };
         

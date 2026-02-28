@@ -1,4 +1,4 @@
-use crate::parser::ast::{ColumnDef, DataType, Expr, OrderByExpr};
+use crate::parser::ast::{ColumnDef, DataType, Expr, OrderByExpr, AggregateFunc};
 use crate::transaction::{TransactionManager, TupleHeader};
 use super::{Value, TableSchema, Tuple};
 use std::collections::HashMap;
@@ -101,6 +101,11 @@ impl Catalog {
     pub fn select(&self, table: &str, columns: Vec<String>, where_clause: Option<Expr>, order_by: Option<Vec<OrderByExpr>>, limit: Option<usize>, offset: Option<usize>) -> Result<Vec<Vec<Value>>, String> {
         let schema = self.get_table(table)
             .ok_or_else(|| format!("Table '{}' does not exist", table))?;
+        
+        // Check if this is an aggregate query
+        if columns.len() == 1 && columns[0].starts_with("AGG:") {
+            return self.execute_aggregate(table, &columns[0], where_clause);
+        }
         
         let data = self.data.read().unwrap();
         let tuples = data.get(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
@@ -279,6 +284,73 @@ impl Catalog {
         self.txn_mgr.commit(txn.xid).map_err(|e| e.to_string())?;
         Ok(deleted)
     }
+    
+    fn execute_aggregate(&self, table: &str, agg_spec: &str, where_clause: Option<Expr>) -> Result<Vec<Vec<Value>>, String> {
+        let schema = self.get_table(table)
+            .ok_or_else(|| format!("Table '{}' does not exist", table))?;
+        
+        let data = self.data.read().unwrap();
+        let tuples = data.get(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
+        
+        let snapshot = self.txn_mgr.get_snapshot();
+        
+        // Parse aggregate spec: "AGG:FUNC:COLUMN"
+        let parts: Vec<&str> = agg_spec.split(':').collect();
+        if parts.len() < 2 {
+            return Err("Invalid aggregate specification".to_string());
+        }
+        
+        let func = parts[1];
+        let col_name = if parts.len() > 2 { Some(parts[2]) } else { None };
+        
+        let mut values = Vec::new();
+        for tuple in tuples {
+            if tuple.header.is_visible(&snapshot, &self.txn_mgr) {
+                if let Some(ref predicate) = where_clause {
+                    if !self.evaluate_predicate(predicate, &tuple.data, &schema)? {
+                        continue;
+                    }
+                }
+                
+                if func == "COUNT" {
+                    values.push(Value::Int(1));
+                } else if let Some(col) = col_name {
+                    let idx = schema.columns.iter().position(|c| c.name == col)
+                        .ok_or_else(|| format!("Column '{}' not found", col))?;
+                    values.push(tuple.data[idx].clone());
+                }
+            }
+        }
+        
+        let result = match func {
+            "COUNT" => Value::Int(values.len() as i64),
+            "SUM" => {
+                let sum: i64 = values.iter().filter_map(|v| {
+                    if let Value::Int(n) = v { Some(*n) } else { None }
+                }).sum();
+                Value::Int(sum)
+            }
+            "AVG" => {
+                let nums: Vec<i64> = values.iter().filter_map(|v| {
+                    if let Value::Int(n) = v { Some(*n) } else { None }
+                }).collect();
+                if nums.is_empty() {
+                    Value::Int(0)
+                } else {
+                    Value::Int(nums.iter().sum::<i64>() / nums.len() as i64)
+                }
+            }
+            "MIN" => {
+                values.iter().min().cloned().unwrap_or(Value::Int(0))
+            }
+            "MAX" => {
+                values.iter().max().cloned().unwrap_or(Value::Int(0))
+            }
+            _ => return Err(format!("Unknown aggregate function: {}", func)),
+        };
+        
+        Ok(vec![vec![result]])
+    }
 }
 
 impl Default for Catalog {
@@ -286,4 +358,3 @@ impl Default for Catalog {
         Self::new()
     }
 }
-
