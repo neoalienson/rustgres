@@ -75,6 +75,7 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - HAVING clause
 - DISTINCT
 - JOIN (INNER, LEFT, RIGHT, FULL)
+- UNION / UNION ALL
 
 **In Progress**:
 - Advanced SQL features (subqueries, CTEs)
