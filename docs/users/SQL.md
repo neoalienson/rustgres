@@ -2,7 +2,12 @@
 
 RustGres implements SQL:2016 standard with PostgreSQL compatibility.
 
-## Data Definition Language (DDL)
+**Legend:**
+- ✅ Fully supported
+- 🚧 Partially supported
+- ❌ Not yet supported
+
+## Data Definition Language (DDL) ❌
 
 ### CREATE TABLE
 
@@ -101,7 +106,7 @@ DROP DATABASE mydb;
 
 ## Data Manipulation Language (DML)
 
-### INSERT
+### INSERT ✅
 
 ```sql
 -- Single row
@@ -112,13 +117,13 @@ INSERT INTO users (email, name) VALUES
     ('user1@example.com', 'Alice'),
     ('user2@example.com', 'Bob');
 
--- From SELECT
+-- From SELECT ❌
 INSERT INTO users_backup SELECT * FROM users;
 
--- RETURNING clause
+-- RETURNING clause ❌
 INSERT INTO users (email) VALUES ('new@example.com') RETURNING id;
 
--- ON CONFLICT (upsert)
+-- ON CONFLICT (upsert) ❌
 INSERT INTO users (id, email, name) VALUES (1, 'user@example.com', 'John')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
@@ -126,24 +131,24 @@ INSERT INTO users (email) VALUES ('user@example.com')
 ON CONFLICT (email) DO NOTHING;
 ```
 
-### SELECT
+### SELECT 🚧
 
 ```sql
--- Basic query
+-- Basic query ✅
 SELECT id, email FROM users WHERE age > 18;
 
--- Joins
+-- Joins ✅ (INNER, LEFT, RIGHT, FULL)
 SELECT u.name, o.total 
 FROM users u
 JOIN orders o ON u.id = o.user_id;
 
--- Aggregation
+-- Aggregation ✅ (COUNT, SUM, AVG, MIN, MAX, GROUP BY, HAVING)
 SELECT country, COUNT(*), AVG(age)
 FROM users
 GROUP BY country
 HAVING COUNT(*) > 10;
 
--- Window functions
+-- Window functions ❌
 SELECT 
     name,
     salary,
@@ -151,13 +156,13 @@ SELECT
     RANK() OVER (ORDER BY salary DESC) as salary_rank
 FROM employees;
 
--- CTEs
+-- CTEs ❌
 WITH active_users AS (
     SELECT * FROM users WHERE last_login > NOW() - INTERVAL '30 days'
 )
 SELECT * FROM active_users WHERE age > 18;
 
--- Recursive CTE
+-- Recursive CTE ❌
 WITH RECURSIVE subordinates AS (
     SELECT id, name, manager_id FROM employees WHERE manager_id IS NULL
     UNION ALL
@@ -167,7 +172,7 @@ WITH RECURSIVE subordinates AS (
 )
 SELECT * FROM subordinates;
 
--- LATERAL join
+-- LATERAL join ❌
 SELECT u.name, o.* 
 FROM users u
 CROSS JOIN LATERAL (
@@ -175,7 +180,7 @@ CROSS JOIN LATERAL (
 ) o;
 ```
 
-### UPDATE
+### UPDATE ✅
 
 ```sql
 -- Simple update
@@ -184,33 +189,33 @@ UPDATE users SET age = 30 WHERE id = 1;
 -- Multiple columns
 UPDATE users SET age = 30, name = 'John' WHERE id = 1;
 
--- From another table
+-- From another table ❌
 UPDATE users u SET balance = o.total
 FROM orders o
 WHERE u.id = o.user_id;
 
--- RETURNING clause
+-- RETURNING clause ❌
 UPDATE users SET age = age + 1 WHERE id = 1 RETURNING age;
 ```
 
-### DELETE
+### DELETE ✅
 
 ```sql
 -- Simple delete
 DELETE FROM users WHERE id = 1;
 
--- With subquery
+-- With subquery ❌
 DELETE FROM users WHERE id IN (SELECT user_id FROM banned_users);
 
--- RETURNING clause
+-- RETURNING clause ❌
 DELETE FROM users WHERE age < 18 RETURNING id, email;
 
--- TRUNCATE (faster)
+-- TRUNCATE (faster) ❌
 TRUNCATE TABLE users;
 TRUNCATE TABLE users RESTART IDENTITY CASCADE;
 ```
 
-## Data Types
+## Data Types 🚧
 
 ### Numeric Types
 
@@ -289,9 +294,9 @@ POLYGON         -- Polygon
 CIRCLE          -- Circle
 ```
 
-## Operators
+## Operators 🚧
 
-### Comparison
+### Comparison ✅
 
 ```sql
 =, <>, !=       -- Equal, not equal
@@ -302,13 +307,13 @@ IS NULL         -- NULL check
 IS DISTINCT FROM -- NULL-safe comparison
 ```
 
-### Logical
+### Logical ✅
 
 ```sql
 AND, OR, NOT
 ```
 
-### Pattern Matching
+### Pattern Matching ❌
 
 ```sql
 LIKE            -- Pattern matching with % and _
@@ -317,7 +322,7 @@ SIMILAR TO      -- SQL regex
 ~, ~*           -- POSIX regex (case-sensitive, insensitive)
 ```
 
-### Array
+### Array ❌
 
 ```sql
 @>              -- Contains
@@ -326,7 +331,7 @@ SIMILAR TO      -- SQL regex
 ||              -- Concatenation
 ```
 
-### JSON
+### JSON ❌
 
 ```sql
 ->              -- Get JSON object field
@@ -340,22 +345,22 @@ SIMILAR TO      -- SQL regex
 ?&              -- All keys exist
 ```
 
-## Functions
+## Functions 🚧
 
-### Aggregate Functions
+### Aggregate Functions 🚧
 
 ```sql
-COUNT(*)        -- Count rows
-SUM(column)     -- Sum values
-AVG(column)     -- Average
-MIN(column)     -- Minimum
-MAX(column)     -- Maximum
-ARRAY_AGG(column) -- Aggregate to array
-STRING_AGG(column, delimiter) -- Concatenate strings
-JSON_AGG(column) -- Aggregate to JSON array
+COUNT(*)        -- Count rows ✅
+SUM(column)     -- Sum values ✅
+AVG(column)     -- Average ✅
+MIN(column)     -- Minimum ✅
+MAX(column)     -- Maximum ✅
+ARRAY_AGG(column) -- Aggregate to array ❌
+STRING_AGG(column, delimiter) -- Concatenate strings ❌
+JSON_AGG(column) -- Aggregate to JSON array ❌
 ```
 
-### Window Functions
+### Window Functions ❌
 
 ```sql
 ROW_NUMBER()    -- Sequential number
@@ -368,7 +373,7 @@ FIRST_VALUE(column) -- First value in window
 LAST_VALUE(column) -- Last value in window
 ```
 
-### String Functions
+### String Functions ❌
 
 ```sql
 CONCAT(str1, str2, ...) -- Concatenate
@@ -381,7 +386,7 @@ REPLACE(str, from, to) -- Replace substring
 SPLIT_PART(str, delimiter, field) -- Split and extract
 ```
 
-### Date/Time Functions
+### Date/Time Functions ❌
 
 ```sql
 NOW()           -- Current timestamp
@@ -392,7 +397,7 @@ DATE_TRUNC(precision, timestamp) -- Truncate to precision
 AGE(timestamp)  -- Interval from now
 ```
 
-### JSON Functions
+### JSON Functions ❌
 
 ```sql
 JSON_BUILD_OBJECT(key, value, ...) -- Build JSON object
@@ -402,9 +407,9 @@ JSONB_SET(jsonb, path, value) -- Set value at path
 JSONB_INSERT(jsonb, path, value) -- Insert value
 ```
 
-## Advanced Features
+## Advanced Features ❌
 
-### Views
+### Views ❌
 
 ```sql
 CREATE VIEW active_users AS
@@ -419,7 +424,7 @@ CREATE MATERIALIZED VIEW user_stats AS
 REFRESH MATERIALIZED VIEW user_stats;
 ```
 
-### Triggers
+### Triggers ❌
 
 ```sql
 CREATE TRIGGER update_timestamp
@@ -436,7 +441,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### Stored Procedures
+### Stored Procedures ❌
 
 ```sql
 CREATE FUNCTION add_user(email TEXT, name TEXT)
@@ -454,7 +459,7 @@ $$ LANGUAGE plpgsql;
 SELECT add_user('user@example.com', 'John');
 ```
 
-### Transactions
+### Transactions ✅
 
 ```sql
 BEGIN;
@@ -474,7 +479,7 @@ COMMIT;
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 ```
 
-### Full-Text Search
+### Full-Text Search ❌
 
 ```sql
 -- Create text search vector
@@ -493,9 +498,9 @@ WHERE tsv @@ query
 ORDER BY rank DESC;
 ```
 
-## Performance Hints
+## Performance Hints ❌
 
-### EXPLAIN
+### EXPLAIN ❌
 
 ```sql
 EXPLAIN SELECT * FROM users WHERE age > 18;
@@ -503,14 +508,14 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 18;
 EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM users WHERE age > 18;
 ```
 
-### Index Hints (via configuration)
+### Index Hints (via configuration) ❌
 
 ```sql
 SET enable_seqscan = off;  -- Force index usage
 SET enable_hashjoin = off; -- Disable hash joins
 ```
 
-### Parallel Query
+### Parallel Query ❌
 
 ```sql
 SET max_parallel_workers_per_gather = 4;

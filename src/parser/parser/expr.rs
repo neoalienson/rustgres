@@ -124,6 +124,18 @@ pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
         Token::Count | Token::Sum | Token::Avg | Token::Min | Token::Max => {
             parse_aggregate(parser)
         }
+        Token::LeftParen => {
+            parser.advance();
+            if parser.current_token() == &Token::Select {
+                let subquery = super::select::parse_select_stmt(parser)?;
+                parser.expect(Token::RightParen)?;
+                Ok(Expr::Subquery(Box::new(subquery)))
+            } else {
+                let expr = parse_expr(parser)?;
+                parser.expect(Token::RightParen)?;
+                Ok(expr)
+            }
+        }
         Token::Identifier(name) => {
             parser.advance();
             Ok(Expr::Column(name))

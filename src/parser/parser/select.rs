@@ -4,6 +4,11 @@ use crate::parser::lexer::Token;
 use crate::parser::ast::{Statement, SelectStmt, OrderByExpr, JoinClause, JoinType};
 
 pub fn parse_select(parser: &mut Parser) -> Result<Statement> {
+    let stmt = parse_select_stmt(parser)?;
+    Ok(Statement::Select(stmt))
+}
+
+pub fn parse_select_stmt(parser: &mut Parser) -> Result<SelectStmt> {
     parser.expect(Token::Select)?;
     
     let distinct = if parser.current_token() == &Token::Distinct {
@@ -83,7 +88,7 @@ pub fn parse_select(parser: &mut Parser) -> Result<Statement> {
         None
     };
     
-    Ok(Statement::Select(SelectStmt {
+    Ok(SelectStmt {
         distinct,
         columns,
         from,
@@ -94,7 +99,7 @@ pub fn parse_select(parser: &mut Parser) -> Result<Statement> {
         order_by,
         limit,
         offset,
-    }))
+    })
 }
 
 fn parse_join(parser: &mut Parser) -> Result<JoinClause> {

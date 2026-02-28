@@ -154,6 +154,7 @@ pub enum Expr {
     List(Vec<Expr>),
     IsNull(Box<Expr>),
     IsNotNull(Box<Expr>),
+    Subquery(Box<SelectStmt>),
 }
 
 /// Aggregate functions

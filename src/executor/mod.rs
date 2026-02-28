@@ -15,6 +15,7 @@ mod join;
 mod union;
 mod intersect;
 mod except;
+mod subquery;
 mod mock;
 
 #[cfg(test)]
@@ -37,6 +38,8 @@ mod union_edge_tests;
 mod intersect_edge_tests;
 #[cfg(test)]
 mod except_edge_tests;
+#[cfg(test)]
+mod subquery_edge_tests;
 
 pub use executor::{Executor, ExecutorError, Tuple, Value, SimpleTuple, SimpleExecutor};
 pub use seq_scan::SeqScan;
@@ -55,4 +58,5 @@ pub use join::{Join, JoinType};
 pub use union::Union;
 pub use intersect::Intersect;
 pub use except::Except;
+pub use subquery::Subquery;
 pub use mock::MockExecutor;

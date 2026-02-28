@@ -2,7 +2,7 @@
 mod directory_test;
 mod disk_test;
 mod end_to_end_test;
-mod executor_test;
+mod executor;
 mod integration_test;
 mod parser_test;
 mod protocol_test;
