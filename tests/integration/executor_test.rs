@@ -261,3 +261,229 @@ fn test_pipeline_integration() {
     
     assert!(project.next().unwrap().is_none());
 }
+
+#[test]
+fn test_limit_integration() {
+    struct MockExecutor {
+        tuples: Vec<Tuple>,
+        index: usize,
+    }
+
+    impl MockExecutor {
+        fn new() -> Self {
+            let mut tuples = Vec::new();
+            for i in 1..=10 {
+                let mut t = HashMap::new();
+                t.insert("id".to_string(), vec![i]);
+                tuples.push(t);
+            }
+            Self { tuples, index: 0 }
+        }
+    }
+
+    impl Executor for MockExecutor {
+        fn open(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            self.index = 0;
+            Ok(())
+        }
+
+        fn next(&mut self) -> Result<Option<Tuple>, rustgres::executor::ExecutorError> {
+            if self.index < self.tuples.len() {
+                let tuple = self.tuples[self.index].clone();
+                self.index += 1;
+                Ok(Some(tuple))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn close(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            Ok(())
+        }
+    }
+
+    use rustgres::executor::Limit;
+    
+    let mut limit = Limit::new(Box::new(MockExecutor::new()), Some(3), Some(2));
+    limit.open().unwrap();
+    
+    let t1 = limit.next().unwrap().unwrap();
+    assert_eq!(t1.get("id").unwrap()[0], 3);
+    let t2 = limit.next().unwrap().unwrap();
+    assert_eq!(t2.get("id").unwrap()[0], 4);
+    let t3 = limit.next().unwrap().unwrap();
+    assert_eq!(t3.get("id").unwrap()[0], 5);
+    assert!(limit.next().unwrap().is_none());
+}
+
+#[test]
+fn test_limit_with_filter_integration() {
+    struct MockExecutor {
+        tuples: Vec<Tuple>,
+        index: usize,
+    }
+
+    impl MockExecutor {
+        fn new() -> Self {
+            let mut tuples = Vec::new();
+            for i in 1..=20 {
+                let mut t = HashMap::new();
+                t.insert("value".to_string(), i.to_string().into_bytes());
+                tuples.push(t);
+            }
+            Self { tuples, index: 0 }
+        }
+    }
+
+    impl Executor for MockExecutor {
+        fn open(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            self.index = 0;
+            Ok(())
+        }
+
+        fn next(&mut self) -> Result<Option<Tuple>, rustgres::executor::ExecutorError> {
+            if self.index < self.tuples.len() {
+                let tuple = self.tuples[self.index].clone();
+                self.index += 1;
+                Ok(Some(tuple))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn close(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            Ok(())
+        }
+    }
+
+    use rustgres::executor::Limit;
+    
+    let predicate = Expr::BinaryOp {
+        left: Box::new(Expr::Column("value".to_string())),
+        op: rustgres::parser::BinaryOperator::GreaterThan,
+        right: Box::new(Expr::String("10".to_string())),
+    };
+    
+    let filter = Filter::new(Box::new(MockExecutor::new()), predicate);
+    let mut limit = Limit::new(Box::new(filter), Some(3), None);
+    
+    limit.open().unwrap();
+    let mut count = 0;
+    while let Some(_) = limit.next().unwrap() {
+        count += 1;
+    }
+    assert_eq!(count, 3);
+}
+
+#[test]
+fn test_aggregate_integration() {
+    struct MockExecutor {
+        tuples: Vec<Tuple>,
+        index: usize,
+    }
+
+    impl MockExecutor {
+        fn new() -> Self {
+            let mut tuples = Vec::new();
+            for i in 1..=5 {
+                let mut t = HashMap::new();
+                t.insert("amount".to_string(), vec![i * 10]);
+                tuples.push(t);
+            }
+            Self { tuples, index: 0 }
+        }
+    }
+
+    impl Executor for MockExecutor {
+        fn open(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            self.index = 0;
+            Ok(())
+        }
+
+        fn next(&mut self) -> Result<Option<Tuple>, rustgres::executor::ExecutorError> {
+            if self.index < self.tuples.len() {
+                let tuple = self.tuples[self.index].clone();
+                self.index += 1;
+                Ok(Some(tuple))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn close(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            Ok(())
+        }
+    }
+
+    use rustgres::executor::{Aggregate, AggregateFunction};
+    
+    let mut agg = Aggregate::new(
+        Box::new(MockExecutor::new()),
+        AggregateFunction::Sum,
+        Some("amount".to_string()),
+    );
+    
+    agg.open().unwrap();
+    let result = agg.next().unwrap().unwrap();
+    assert_eq!(result.get("sum").unwrap()[0], 150); // 10+20+30+40+50
+}
+
+#[test]
+fn test_aggregate_with_filter_integration() {
+    struct MockExecutor {
+        tuples: Vec<Tuple>,
+        index: usize,
+    }
+
+    impl MockExecutor {
+        fn new() -> Self {
+            let mut tuples = Vec::new();
+            for i in 1..=10 {
+                let mut t = HashMap::new();
+                t.insert("value".to_string(), i.to_string().into_bytes());
+                tuples.push(t);
+            }
+            Self { tuples, index: 0 }
+        }
+    }
+
+    impl Executor for MockExecutor {
+        fn open(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            self.index = 0;
+            Ok(())
+        }
+
+        fn next(&mut self) -> Result<Option<Tuple>, rustgres::executor::ExecutorError> {
+            if self.index < self.tuples.len() {
+                let tuple = self.tuples[self.index].clone();
+                self.index += 1;
+                Ok(Some(tuple))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn close(&mut self) -> Result<(), rustgres::executor::ExecutorError> {
+            Ok(())
+        }
+    }
+
+    use rustgres::executor::{Aggregate, AggregateFunction};
+    
+    let predicate = Expr::BinaryOp {
+        left: Box::new(Expr::Column("value".to_string())),
+        op: rustgres::parser::BinaryOperator::Equals,
+        right: Box::new(Expr::String("5".to_string())),
+    };
+    
+    let filter = Filter::new(Box::new(MockExecutor::new()), predicate);
+    let mut agg = Aggregate::new(
+        Box::new(filter),
+        AggregateFunction::Count,
+        None,
+    );
+    
+    agg.open().unwrap();
+    let result = agg.next().unwrap().unwrap();
+    assert_eq!(result.get("count").unwrap()[0], 1);
+}
