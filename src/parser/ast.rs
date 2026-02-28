@@ -166,6 +166,12 @@ pub enum Expr {
         func: AggregateFunc,
         arg: Box<Expr>,
     },
+    Window {
+        func: WindowFunc,
+        arg: Box<Expr>,
+        partition_by: Vec<String>,
+        order_by: Vec<OrderByExpr>,
+    },
     List(Vec<Expr>),
     IsNull(Box<Expr>),
     IsNotNull(Box<Expr>),
@@ -180,6 +186,16 @@ pub enum AggregateFunc {
     Avg,
     Min,
     Max,
+}
+
+/// Window functions
+#[derive(Debug, Clone, PartialEq)]
+pub enum WindowFunc {
+    RowNumber,
+    Rank,
+    DenseRank,
+    Lag,
+    Lead,
 }
 
 /// Binary operator

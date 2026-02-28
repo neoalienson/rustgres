@@ -17,6 +17,7 @@ mod intersect;
 mod except;
 mod subquery;
 mod cte;
+mod window;
 mod mock;
 
 #[cfg(test)]
@@ -43,6 +44,8 @@ mod except_edge_tests;
 mod subquery_edge_tests;
 #[cfg(test)]
 mod cte_edge_tests;
+#[cfg(test)]
+mod window_edge_tests;
 
 pub use executor::{Executor, ExecutorError, Tuple, Value, SimpleTuple, SimpleExecutor};
 pub use seq_scan::SeqScan;
@@ -63,4 +66,5 @@ pub use intersect::Intersect;
 pub use except::Except;
 pub use subquery::Subquery;
 pub use cte::CTE;
+pub use window::{Window, WindowFunction};
 pub use mock::MockExecutor;

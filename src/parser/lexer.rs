@@ -57,6 +57,13 @@ pub enum Token {
     Except,
     With,
     As,
+    Over,
+    Partition,
+    RowNumber,
+    Rank,
+    DenseRank,
+    Lag,
+    Lead,
     
     // Identifiers and literals
     Identifier(String),
@@ -238,6 +245,13 @@ impl Lexer {
             "EXCEPT" => Token::Except,
             "WITH" => Token::With,
             "AS" => Token::As,
+            "OVER" => Token::Over,
+            "PARTITION" => Token::Partition,
+            "ROW_NUMBER" => Token::RowNumber,
+            "RANK" => Token::Rank,
+            "DENSE_RANK" => Token::DenseRank,
+            "LAG" => Token::Lag,
+            "LEAD" => Token::Lead,
             _ => Token::Identifier(ident),
         };
         

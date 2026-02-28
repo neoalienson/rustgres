@@ -124,6 +124,9 @@ pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
         Token::Count | Token::Sum | Token::Avg | Token::Min | Token::Max => {
             parse_aggregate(parser)
         }
+        Token::RowNumber | Token::Rank | Token::DenseRank | Token::Lag | Token::Lead => {
+            parse_window(parser)
+        }
         Token::LeftParen => {
             parser.advance();
             if parser.current_token() == &Token::Select {
@@ -181,6 +184,79 @@ fn parse_aggregate(parser: &mut Parser) -> Result<Expr> {
     parser.expect(Token::RightParen)?;
     
     Ok(Expr::Aggregate { func, arg })
+}
+
+fn parse_window(parser: &mut Parser) -> Result<Expr> {
+    use crate::parser::ast::{WindowFunc, OrderByExpr};
+    
+    let func = match parser.current_token() {
+        Token::RowNumber => WindowFunc::RowNumber,
+        Token::Rank => WindowFunc::Rank,
+        Token::DenseRank => WindowFunc::DenseRank,
+        Token::Lag => WindowFunc::Lag,
+        Token::Lead => WindowFunc::Lead,
+        _ => return Err(ParseError::UnexpectedToken(format!("{:?}", parser.current_token()))),
+    };
+    
+    parser.advance();
+    parser.expect(Token::LeftParen)?;
+    
+    let arg = if parser.current_token() == &Token::RightParen {
+        Box::new(Expr::Star)
+    } else {
+        Box::new(parse_expr(parser)?)
+    };
+    
+    parser.expect(Token::RightParen)?;
+    parser.expect(Token::Over)?;
+    parser.expect(Token::LeftParen)?;
+    
+    let mut partition_by = Vec::new();
+    if parser.current_token() == &Token::Partition {
+        parser.advance();
+        parser.expect(Token::By)?;
+        loop {
+            partition_by.push(parser.expect_identifier()?);
+            if parser.current_token() != &Token::Comma {
+                break;
+            }
+            parser.advance();
+        }
+    }
+    
+    let mut order_by = Vec::new();
+    if parser.current_token() == &Token::Order {
+        parser.advance();
+        parser.expect(Token::By)?;
+        loop {
+            let column = parser.expect_identifier()?;
+            let ascending = match parser.current_token() {
+                Token::Descending => {
+                    parser.advance();
+                    false
+                }
+                Token::Asc => {
+                    parser.advance();
+                    true
+                }
+                _ => true,
+            };
+            order_by.push(OrderByExpr { column, ascending });
+            if parser.current_token() != &Token::Comma {
+                break;
+            }
+            parser.advance();
+        }
+    }
+    
+    parser.expect(Token::RightParen)?;
+    
+    Ok(Expr::Window {
+        func,
+        arg,
+        partition_by,
+        order_by,
+    })
 }
 
 pub fn parse_expr_list(parser: &mut Parser) -> Result<Vec<Expr>> {
