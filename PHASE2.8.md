@@ -231,45 +231,8 @@ SELECT * FROM logs WHERE level = 'error' ORDER BY timestamp DESC LIMIT 100;
 
 ---
 
-### 2.8.5 Basic Aggregates ⏳ PLANNED
 
-**Goal**: COUNT, SUM, AVG, MIN, MAX functions
-
-```rust
-// Planned implementation
-enum AggregateFunc {
-    Count,
-    Sum(String),    // column name
-    Avg(String),
-    Min(String),
-    Max(String),
-}
-
-pub fn aggregate(&self, table: &str, func: AggregateFunc, where_clause: Option<Expr>) -> Result<Value, String>
-```
-
-**Features**:
-- COUNT(*): Count all rows
-- COUNT(column): Count non-null values
-- SUM(column): Sum numeric column
-- AVG(column): Average of numeric column
-- MIN/MAX(column): Min/max values
-- Uses existing HashAgg operator
-
-**Examples**:
-```sql
-SELECT COUNT(*) FROM users;
-SELECT SUM(price) FROM products;
-SELECT AVG(salary) FROM employees;
-SELECT MIN(date), MAX(date) FROM orders;
-```
-
-**Estimated Effort**: 3-4 hours
-**Priority**: Medium
-
----
-
-### 2.8.5 Basic Aggregates ⏳ PLANNED
+### 2.8.5 Basic Aggregates 🟡 PARTIAL
 
 **Goal**: COUNT, SUM, AVG, MIN, MAX functions
 

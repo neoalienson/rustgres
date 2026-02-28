@@ -423,26 +423,26 @@ fn test_limit_offset_clause() {
 fn test_aggregate_functions() {
     let server = TestServer::start();
     
-    server.execute_sql("CREATE TABLE sales (id INT, amount INT)")
+    server.execute_sql("CREATE TABLE agg_test (id INT, amount INT)")
         .expect("CREATE failed");
     
     for i in 1..=5 {
-        server.execute_sql(&format!("INSERT INTO sales VALUES ({}, {})", i, i * 10))
+        server.execute_sql(&format!("INSERT INTO agg_test VALUES ({}, {})", i, i * 10))
             .expect("INSERT failed");
     }
     
-    let result = server.execute_sql("SELECT COUNT(*) FROM sales");
+    let result = server.execute_sql("SELECT COUNT(*) FROM agg_test");
     assert!(result.is_ok(), "COUNT failed: {:?}", result);
     
-    let result = server.execute_sql("SELECT SUM(amount) FROM sales");
+    let result = server.execute_sql("SELECT SUM(amount) FROM agg_test");
     assert!(result.is_ok(), "SUM failed: {:?}", result);
     
-    let result = server.execute_sql("SELECT AVG(amount) FROM sales");
+    let result = server.execute_sql("SELECT AVG(amount) FROM agg_test");
     assert!(result.is_ok(), "AVG failed: {:?}", result);
     
-    let result = server.execute_sql("SELECT MIN(amount) FROM sales");
+    let result = server.execute_sql("SELECT MIN(amount) FROM agg_test");
     assert!(result.is_ok(), "MIN failed: {:?}", result);
     
-    let result = server.execute_sql("SELECT MAX(amount) FROM sales");
+    let result = server.execute_sql("SELECT MAX(amount) FROM agg_test");
     assert!(result.is_ok(), "MAX failed: {:?}", result);
 }
