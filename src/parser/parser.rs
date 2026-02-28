@@ -29,11 +29,13 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Statement> {
         if self.current_token() == &Token::Select {
             let select = select::parse_select(self)?;
-            // Check for UNION
-            if self.current_token() == &Token::Union {
-                return self.parse_union(select);
+            // Check for set operations
+            match self.current_token() {
+                Token::Union => return self.parse_union(select),
+                Token::Intersect => return self.parse_intersect(select),
+                Token::Except => return self.parse_except(select),
+                _ => return Ok(select),
             }
-            return Ok(select);
         }
         
         let stmt = match self.current_token() {
@@ -110,6 +112,49 @@ impl Parser {
         if self.position < self.tokens.len() - 1 {
             self.position += 1;
         }
+    }
+    fn parse_intersect(&mut self, left: Statement) -> Result<Statement> {
+        use crate::parser::ast::{IntersectStmt, SelectStmt};
+        
+        let left_select = match left {
+            Statement::Select(s) => s,
+            _ => return Err(ParseError::InvalidSyntax("INTERSECT requires SELECT".to_string())),
+        };
+        
+        self.expect(Token::Intersect)?;
+        
+        let right = select::parse_select(self)?;
+        let right_select = match right {
+            Statement::Select(s) => s,
+            _ => return Err(ParseError::InvalidSyntax("INTERSECT requires SELECT".to_string())),
+        };
+        
+        Ok(Statement::Intersect(IntersectStmt {
+            left: Box::new(left_select),
+            right: Box::new(right_select),
+        }))
+    }
+    
+    fn parse_except(&mut self, left: Statement) -> Result<Statement> {
+        use crate::parser::ast::{ExceptStmt, SelectStmt};
+        
+        let left_select = match left {
+            Statement::Select(s) => s,
+            _ => return Err(ParseError::InvalidSyntax("EXCEPT requires SELECT".to_string())),
+        };
+        
+        self.expect(Token::Except)?;
+        
+        let right = select::parse_select(self)?;
+        let right_select = match right {
+            Statement::Select(s) => s,
+            _ => return Err(ParseError::InvalidSyntax("EXCEPT requires SELECT".to_string())),
+        };
+        
+        Ok(Statement::Except(ExceptStmt {
+            left: Box::new(left_select),
+            right: Box::new(right_select),
+        }))
     }
 }
 
@@ -311,3 +356,5 @@ mod tests {
         }
     }
 }
+
+    

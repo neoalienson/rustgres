@@ -9,6 +9,8 @@ pub enum Statement {
     DropTable(DropTableStmt),
     Describe(DescribeStmt),
     Union(UnionStmt),
+    Intersect(IntersectStmt),
+    Except(ExceptStmt),
 }
 
 /// UNION statement
@@ -17,6 +19,20 @@ pub struct UnionStmt {
     pub left: Box<SelectStmt>,
     pub right: Box<SelectStmt>,
     pub all: bool,
+}
+
+/// INTERSECT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct IntersectStmt {
+    pub left: Box<SelectStmt>,
+    pub right: Box<SelectStmt>,
+}
+
+/// EXCEPT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExceptStmt {
+    pub left: Box<SelectStmt>,
+    pub right: Box<SelectStmt>,
 }
 
 /// DROP TABLE statement

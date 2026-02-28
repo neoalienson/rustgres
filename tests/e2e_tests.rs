@@ -962,3 +962,33 @@ fn test_union_all_e2e() {
         _ => panic!("Expected UNION statement"),
     }
 }
+
+#[test]
+fn test_intersect_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT id FROM users INTERSECT SELECT id FROM orders";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Intersect(_) => {},
+        _ => panic!("Expected INTERSECT statement"),
+    }
+}
+
+#[test]
+fn test_except_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT name FROM employees EXCEPT SELECT name FROM contractors";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Except(_) => {},
+        _ => panic!("Expected EXCEPT statement"),
+    }
+}
