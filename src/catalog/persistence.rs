@@ -200,3 +200,108 @@ fn read_value<R: Read>(reader: &mut R) -> Result<Value, String> {
         _ => Err(format!("Unknown value type: {}", buf[0])),
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::ast::ColumnDef;
+    use crate::transaction::TupleHeader;
+    use std::fs;
+
+    #[test]
+    fn test_save_and_load() {
+        let test_dir = "/tmp/rustgres_test_persistence";
+        let _ = fs::remove_dir_all(test_dir);
+        fs::create_dir_all(test_dir).unwrap();
+        
+        let mut tables = HashMap::new();
+        let mut data = HashMap::new();
+        
+        let schema = TableSchema {
+            name: "users".to_string(),
+            columns: vec![
+                ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+                ColumnDef { name: "name".to_string(), data_type: DataType::Text },
+            ],
+        };
+        
+        let txn_mgr = Arc::new(TransactionManager::new());
+        let txn = txn_mgr.begin();
+        let header = TupleHeader::new(txn.xid);
+        txn_mgr.commit(txn.xid).unwrap();
+        
+        let tuples = vec![
+            Tuple { header: header.clone(), data: vec![Value::Int(1), Value::Text("Alice".to_string())] },
+            Tuple { header: header.clone(), data: vec![Value::Int(2), Value::Text("Bob".to_string())] },
+        ];
+        
+        tables.insert("users".to_string(), schema);
+        data.insert("users".to_string(), tuples);
+        
+        Persistence::save(test_dir, &tables, &data).unwrap();
+        
+        let mut loaded_tables = HashMap::new();
+        let mut loaded_data = HashMap::new();
+        Persistence::load(test_dir, &mut loaded_tables, &mut loaded_data, &txn_mgr).unwrap();
+        
+        assert_eq!(loaded_tables.len(), 1);
+        assert_eq!(loaded_data.get("users").unwrap().len(), 2);
+        
+        fs::remove_dir_all(test_dir).unwrap();
+    }
+
+    #[test]
+    fn test_save_with_null_values() {
+        let test_dir = "/tmp/rustgres_test_null";
+        let _ = fs::remove_dir_all(test_dir);
+        fs::create_dir_all(test_dir).unwrap();
+        
+        let mut tables = HashMap::new();
+        let mut data = HashMap::new();
+        
+        let schema = TableSchema {
+            name: "test".to_string(),
+            columns: vec![
+                ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+                ColumnDef { name: "value".to_string(), data_type: DataType::Int },
+            ],
+        };
+        
+        let txn_mgr = Arc::new(TransactionManager::new());
+        let txn = txn_mgr.begin();
+        let header = TupleHeader::new(txn.xid);
+        txn_mgr.commit(txn.xid).unwrap();
+        
+        let tuples = vec![
+            Tuple { header: header.clone(), data: vec![Value::Int(1), Value::Null] },
+        ];
+        
+        tables.insert("test".to_string(), schema);
+        data.insert("test".to_string(), tuples);
+        
+        Persistence::save(test_dir, &tables, &data).unwrap();
+        
+        let mut loaded_tables = HashMap::new();
+        let mut loaded_data = HashMap::new();
+        Persistence::load(test_dir, &mut loaded_tables, &mut loaded_data, &txn_mgr).unwrap();
+        
+        assert_eq!(loaded_data.get("test").unwrap()[0].data[1], Value::Null);
+        
+        fs::remove_dir_all(test_dir).unwrap();
+    }
+
+    #[test]
+    fn test_load_nonexistent_catalog() {
+        let test_dir = "/tmp/rustgres_test_nonexistent";
+        let _ = fs::remove_dir_all(test_dir);
+        
+        let mut tables = HashMap::new();
+        let mut data = HashMap::new();
+        let txn_mgr = Arc::new(TransactionManager::new());
+        
+        let result = Persistence::load(test_dir, &mut tables, &mut data, &txn_mgr);
+        assert!(result.is_ok());
+        assert_eq!(tables.len(), 0);
+    }
+}

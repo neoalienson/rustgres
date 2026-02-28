@@ -163,3 +163,134 @@ impl PredicateEvaluator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::ast::ColumnDef;
+    use crate::parser::ast::DataType;
+
+    fn create_test_schema() -> TableSchema {
+        TableSchema {
+            name: "test".to_string(),
+            columns: vec![
+                ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+                ColumnDef { name: "name".to_string(), data_type: DataType::Text },
+                ColumnDef { name: "age".to_string(), data_type: DataType::Int },
+            ],
+        }
+    }
+
+    #[test]
+    fn test_evaluate_equals() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("id".to_string())),
+            op: BinaryOperator::Equals,
+            right: Box::new(Expr::Number(1)),
+        };
+        
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_not_operator() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        
+        let expr = Expr::UnaryOp {
+            op: UnaryOperator::Not,
+            expr: Box::new(Expr::BinaryOp {
+                left: Box::new(Expr::Column("id".to_string())),
+                op: BinaryOperator::Equals,
+                right: Box::new(Expr::Number(2)),
+            }),
+        };
+        
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_is_null() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Null, Value::Text("Alice".to_string()), Value::Int(25)];
+        
+        let expr = Expr::IsNull(Box::new(Expr::Column("id".to_string())));
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_is_not_null() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        
+        let expr = Expr::IsNotNull(Box::new(Expr::Column("id".to_string())));
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_in_operator() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(2), Value::Text("Bob".to_string()), Value::Int(30)];
+        
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("id".to_string())),
+            op: BinaryOperator::In,
+            right: Box::new(Expr::List(vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)])),
+        };
+        
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_between() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("age".to_string())),
+            op: BinaryOperator::Between,
+            right: Box::new(Expr::List(vec![Expr::Number(20), Expr::Number(30)])),
+        };
+        
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_like() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("name".to_string())),
+            op: BinaryOperator::Like,
+            right: Box::new(Expr::String("%lic%".to_string())),
+        };
+        
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_and_or() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::BinaryOp {
+                left: Box::new(Expr::Column("id".to_string())),
+                op: BinaryOperator::Equals,
+                right: Box::new(Expr::Number(1)),
+            }),
+            op: BinaryOperator::And,
+            right: Box::new(Expr::BinaryOp {
+                left: Box::new(Expr::Column("age".to_string())),
+                op: BinaryOperator::GreaterThan,
+                right: Box::new(Expr::Number(20)),
+            }),
+        };
+        
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+}

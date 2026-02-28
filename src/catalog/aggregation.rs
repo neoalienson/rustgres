@@ -106,3 +106,101 @@ impl Aggregator {
         Ok(result)
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::ast::{ColumnDef, DataType};
+    use crate::transaction::TupleHeader;
+
+    fn create_test_data() -> (TableSchema, Vec<Tuple>, Arc<TransactionManager>) {
+        let schema = TableSchema {
+            name: "test".to_string(),
+            columns: vec![
+                ColumnDef { name: "category".to_string(), data_type: DataType::Text },
+                ColumnDef { name: "value".to_string(), data_type: DataType::Int },
+            ],
+        };
+        
+        let txn_mgr = Arc::new(TransactionManager::new());
+        let txn = txn_mgr.begin();
+        let header = TupleHeader::new(txn.xid);
+        txn_mgr.commit(txn.xid).unwrap();
+        
+        let tuples = vec![
+            Tuple { header: header.clone(), data: vec![Value::Text("A".to_string()), Value::Int(10)] },
+            Tuple { header: header.clone(), data: vec![Value::Text("B".to_string()), Value::Int(20)] },
+            Tuple { header: header.clone(), data: vec![Value::Text("A".to_string()), Value::Int(30)] },
+        ];
+        
+        (schema, tuples, txn_mgr)
+    }
+
+    #[test]
+    fn test_count_aggregate() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        
+        let result = Aggregator::execute("test", "AGG:COUNT:*", None, &tuples, &schema, &txn_mgr).unwrap();
+        
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0][0], Value::Int(3));
+    }
+
+    #[test]
+    fn test_sum_aggregate() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        
+        let result = Aggregator::execute("test", "AGG:SUM:value", None, &tuples, &schema, &txn_mgr).unwrap();
+        
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0][0], Value::Int(60));
+    }
+
+    #[test]
+    fn test_avg_aggregate() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        
+        let result = Aggregator::execute("test", "AGG:AVG:value", None, &tuples, &schema, &txn_mgr).unwrap();
+        
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0][0], Value::Int(20));
+    }
+
+    #[test]
+    fn test_min_max_aggregate() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        
+        let result = Aggregator::execute("test", "AGG:MIN:value", None, &tuples, &schema, &txn_mgr).unwrap();
+        assert_eq!(result[0][0], Value::Int(10));
+        
+        let result = Aggregator::execute("test", "AGG:MAX:value", None, &tuples, &schema, &txn_mgr).unwrap();
+        assert_eq!(result[0][0], Value::Int(30));
+    }
+
+    #[test]
+    fn test_group_by() {
+        let schema = TableSchema {
+            name: "test".to_string(),
+            columns: vec![
+                ColumnDef { name: "category".to_string(), data_type: DataType::Text },
+                ColumnDef { name: "value".to_string(), data_type: DataType::Int },
+            ],
+        };
+        
+        let rows = vec![
+            vec![Value::Text("A".to_string()), Value::Int(10)],
+            vec![Value::Text("B".to_string()), Value::Int(20)],
+            vec![Value::Text("A".to_string()), Value::Int(30)],
+        ];
+        
+        let result = Aggregator::apply_group_by(
+            rows,
+            &["category".to_string()],
+            &["category".to_string()],
+            &schema,
+        ).unwrap();
+        
+        assert_eq!(result.len(), 2);
+    }
+}
