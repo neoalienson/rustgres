@@ -567,3 +567,70 @@ use crate::parser::ast::{ColumnDef, DataType, Expr, BinaryOperator, OrderByExpr}
         let rows = catalog.select("data", vec!["AGG:MAX:value".to_string()], None, None, None, None).unwrap();
         assert_eq!(rows[0][0], Value::Int(50));
     }
+
+    
+    #[test]
+    fn test_where_with_and() {
+        use crate::parser::ast::BinaryOperator;
+        
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+            ColumnDef { name: "value".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(1), Expr::Number(10)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(2), Expr::Number(20)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(3), Expr::Number(30)]).unwrap();
+        
+        let where_clause = Some(Expr::BinaryOp {
+            left: Box::new(Expr::BinaryOp {
+                left: Box::new(Expr::Column("id".to_string())),
+                op: BinaryOperator::GreaterThan,
+                right: Box::new(Expr::Number(1)),
+            }),
+            op: BinaryOperator::And,
+            right: Box::new(Expr::BinaryOp {
+                left: Box::new(Expr::Column("value".to_string())),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expr::Number(30)),
+            }),
+        });
+        
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0][0], Value::Int(2));
+    }
+    
+    #[test]
+    fn test_where_with_or() {
+        use crate::parser::ast::BinaryOperator;
+        
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(1)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(2)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(3)]).unwrap();
+        
+        let where_clause = Some(Expr::BinaryOp {
+            left: Box::new(Expr::BinaryOp {
+                left: Box::new(Expr::Column("id".to_string())),
+                op: BinaryOperator::Equals,
+                right: Box::new(Expr::Number(1)),
+            }),
+            op: BinaryOperator::Or,
+            right: Box::new(Expr::BinaryOp {
+                left: Box::new(Expr::Column("id".to_string())),
+                op: BinaryOperator::Equals,
+                right: Box::new(Expr::Number(3)),
+            }),
+        });
+        
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
+        assert_eq!(rows.len(), 2);
+    }

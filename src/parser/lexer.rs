@@ -34,6 +34,8 @@ pub enum Token {
     Avg,
     Min,
     Max,
+    And,
+    Or,
     
     // Identifiers and literals
     Identifier(String),
@@ -192,6 +194,8 @@ impl Lexer {
             "AVG" => Token::Avg,
             "MIN" => Token::Min,
             "MAX" => Token::Max,
+            "AND" => Token::And,
+            "OR" => Token::Or,
             _ => Token::Identifier(ident),
         };
         

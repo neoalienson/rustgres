@@ -122,6 +122,8 @@ pub enum BinaryOperator {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+    And,
+    Or,
 }
 
 #[cfg(test)]

@@ -164,32 +164,47 @@ impl Catalog {
         
         match expr {
             Expr::BinaryOp { left, op, right } => {
-                let left_val = self.evaluate_expr(left, tuple, schema)?;
-                let right_val = self.evaluate_expr(right, tuple, schema)?;
-                
                 match op {
-                    BinaryOperator::Equals => Ok(left_val == right_val),
-                    BinaryOperator::NotEquals => Ok(left_val != right_val),
-                    BinaryOperator::LessThan => match (&left_val, &right_val) {
-                        (Value::Int(l), Value::Int(r)) => Ok(l < r),
-                        (Value::Text(l), Value::Text(r)) => Ok(l < r),
-                        _ => Err("Type mismatch in comparison".to_string()),
+                    BinaryOperator::And => {
+                        let left_result = self.evaluate_predicate(left, tuple, schema)?;
+                        let right_result = self.evaluate_predicate(right, tuple, schema)?;
+                        Ok(left_result && right_result)
                     },
-                    BinaryOperator::LessThanOrEqual => match (&left_val, &right_val) {
-                        (Value::Int(l), Value::Int(r)) => Ok(l <= r),
-                        (Value::Text(l), Value::Text(r)) => Ok(l <= r),
-                        _ => Err("Type mismatch in comparison".to_string()),
+                    BinaryOperator::Or => {
+                        let left_result = self.evaluate_predicate(left, tuple, schema)?;
+                        let right_result = self.evaluate_predicate(right, tuple, schema)?;
+                        Ok(left_result || right_result)
                     },
-                    BinaryOperator::GreaterThan => match (&left_val, &right_val) {
-                        (Value::Int(l), Value::Int(r)) => Ok(l > r),
-                        (Value::Text(l), Value::Text(r)) => Ok(l > r),
-                        _ => Err("Type mismatch in comparison".to_string()),
-                    },
-                    BinaryOperator::GreaterThanOrEqual => match (&left_val, &right_val) {
-                        (Value::Int(l), Value::Int(r)) => Ok(l >= r),
-                        (Value::Text(l), Value::Text(r)) => Ok(l >= r),
-                        _ => Err("Type mismatch in comparison".to_string()),
-                    },
+                    _ => {
+                        let left_val = self.evaluate_expr(left, tuple, schema)?;
+                        let right_val = self.evaluate_expr(right, tuple, schema)?;
+                        
+                        match op {
+                            BinaryOperator::Equals => Ok(left_val == right_val),
+                            BinaryOperator::NotEquals => Ok(left_val != right_val),
+                            BinaryOperator::LessThan => match (&left_val, &right_val) {
+                                (Value::Int(l), Value::Int(r)) => Ok(l < r),
+                                (Value::Text(l), Value::Text(r)) => Ok(l < r),
+                                _ => Err("Type mismatch in comparison".to_string()),
+                            },
+                            BinaryOperator::LessThanOrEqual => match (&left_val, &right_val) {
+                                (Value::Int(l), Value::Int(r)) => Ok(l <= r),
+                                (Value::Text(l), Value::Text(r)) => Ok(l <= r),
+                                _ => Err("Type mismatch in comparison".to_string()),
+                            },
+                            BinaryOperator::GreaterThan => match (&left_val, &right_val) {
+                                (Value::Int(l), Value::Int(r)) => Ok(l > r),
+                                (Value::Text(l), Value::Text(r)) => Ok(l > r),
+                                _ => Err("Type mismatch in comparison".to_string()),
+                            },
+                            BinaryOperator::GreaterThanOrEqual => match (&left_val, &right_val) {
+                                (Value::Int(l), Value::Int(r)) => Ok(l >= r),
+                                (Value::Text(l), Value::Text(r)) => Ok(l >= r),
+                                _ => Err("Type mismatch in comparison".to_string()),
+                            },
+                            _ => unreachable!(),
+                        }
+                    }
                 }
             }
             _ => Err("Unsupported predicate expression".to_string()),

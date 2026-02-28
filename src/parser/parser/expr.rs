@@ -4,6 +4,42 @@ use crate::parser::lexer::Token;
 use crate::parser::ast::{Expr, BinaryOperator};
 
 pub fn parse_expr(parser: &mut Parser) -> Result<Expr> {
+    parse_or(parser)
+}
+
+fn parse_or(parser: &mut Parser) -> Result<Expr> {
+    let mut left = parse_and(parser)?;
+    
+    while parser.current_token() == &Token::Or {
+        parser.advance();
+        let right = parse_and(parser)?;
+        left = Expr::BinaryOp {
+            left: Box::new(left),
+            op: BinaryOperator::Or,
+            right: Box::new(right),
+        };
+    }
+    
+    Ok(left)
+}
+
+fn parse_and(parser: &mut Parser) -> Result<Expr> {
+    let mut left = parse_comparison(parser)?;
+    
+    while parser.current_token() == &Token::And {
+        parser.advance();
+        let right = parse_comparison(parser)?;
+        left = Expr::BinaryOp {
+            left: Box::new(left),
+            op: BinaryOperator::And,
+            right: Box::new(right),
+        };
+    }
+    
+    Ok(left)
+}
+
+fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
     let left = parse_primary(parser)?;
     
     let op = match parser.current_token() {

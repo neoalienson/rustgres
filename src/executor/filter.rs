@@ -25,6 +25,8 @@ impl Filter {
                     BinaryOperator::LessThanOrEqual => Ok(left_val <= right_val),
                     BinaryOperator::GreaterThan => Ok(left_val > right_val),
                     BinaryOperator::GreaterThanOrEqual => Ok(left_val >= right_val),
+                    BinaryOperator::And => Ok(left_val == b"1" && right_val == b"1"),
+                    BinaryOperator::Or => Ok(left_val == b"1" || right_val == b"1"),
                 }
             }
             _ => Err(ExecutorError::TypeMismatch("Invalid predicate".to_string())),
