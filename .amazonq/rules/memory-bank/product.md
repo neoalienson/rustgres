@@ -92,6 +92,7 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - Project (column selection)
 - Nested Loop Join
 - Hash Join
+- Merge Join
 - Sort (with external merge sort)
 - Hash Aggregation
 - Limit/Offset
@@ -103,10 +104,10 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - CASE expressions
 
 **Testing:**
-- 573 comprehensive tests (100% pass rate)
-- Unit tests: 494 tests
+- 593 comprehensive tests (100% pass rate)
+- Unit tests: 514 tests
 - Edge case tests: 79 tests
-- Test execution time: <0.12s
+- Test execution time: <0.11s
 
 **In Progress**:
 - None
@@ -122,7 +123,6 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - No JSON/JSONB operators
 - No recursive CTEs
 - No correlated subqueries
-- No merge join
 
 **Planned Features**:
 
