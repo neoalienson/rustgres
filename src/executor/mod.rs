@@ -12,6 +12,10 @@ mod mock;
 
 #[cfg(test)]
 mod edge_tests;
+#[cfg(test)]
+mod limit_edge_tests;
+#[cfg(test)]
+mod aggregate_edge_tests;
 
 pub use executor::{Executor, ExecutorError, Tuple, Value, SimpleTuple, SimpleExecutor};
 pub use seq_scan::SeqScan;

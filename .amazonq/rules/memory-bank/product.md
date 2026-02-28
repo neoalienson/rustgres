@@ -64,18 +64,21 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - Storage engine with B+Tree indexes
 - MVCC transaction manager
 - SQL parser (SELECT, INSERT, UPDATE, DELETE)
-- Basic query optimizer
+- Query optimizer (cost-based and rule-based)
 - PostgreSQL wire protocol
 - WAL and crash recovery
+- WHERE clause with comparison operators (<, >, <=, >=, !=, =)
+- ORDER BY (ASC/DESC)
+- LIMIT/OFFSET
+- Aggregate functions (COUNT, SUM, AVG, MIN, MAX)
 
 **In Progress**:
-- Advanced optimizer (join reordering, subquery optimization)
-- Parallel query execution
-- Streaming replication
-- Full-text search
+- GROUP BY clause
+- Advanced SQL features (subqueries, CTEs)
 
 **Planned Features**:
+- Parallel query execution
+- Advanced indexes (GiST, GIN, BRIN)
 - Stored procedures and triggers
 - Materialized views
 - Table partitioning
-- Foreign data wrappers
