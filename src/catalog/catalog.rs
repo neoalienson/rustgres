@@ -218,7 +218,7 @@ impl Catalog {
         
         let start = offset.unwrap_or(0);
         let end = limit.map(|l| start + l).unwrap_or(results.len());
-        results = results.into_iter().skip(start).take(end - start).collect();
+        results = results.into_iter().skip(start).take(end.saturating_sub(start)).collect();
         
         if distinct {
             let mut seen = std::collections::HashSet::new();
