@@ -47,10 +47,22 @@ fn main() -> std::io::Result<()> {
     log::info!("✅ Ready for connections");
     log::info!("\nConnect with: psql -h {} -p {} -U postgres -d testdb\n", config.server.host, config.server.port);
     
-    let server = Server::bind(&addr)?;
+    let server = Server::bind_with_data_dir(&addr, config.storage.data_dir.clone())?;
+    
+    // Setup signal handler for graceful shutdown
+    let server_clone = std::sync::Arc::new(server);
+    let server_for_handler = server_clone.clone();
+    
+    ctrlc::set_handler(move || {
+        log::info!("\n🛑 Shutdown signal received");
+        if let Err(e) = server_for_handler.shutdown() {
+            log::error!("Failed to save catalog: {}", e);
+        }
+        std::process::exit(0);
+    }).expect("Error setting Ctrl-C handler");
     
     loop {
-        match server.accept() {
+        match server_clone.accept() {
             Ok(mut conn) => {
                 thread::spawn(move || {
                     if let Err(e) = conn.run() {

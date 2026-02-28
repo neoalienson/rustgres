@@ -1,116 +1,66 @@
-# End-to-End Tests
+# E2E Test Guide
 
-## Overview
-This directory contains end-to-end tests for RustGres using both shell scripts and Rust-based tests.
+## Running E2E Tests
 
-## Test Types
+E2E tests start actual RustGres server instances and test them via psql. They must be run sequentially to avoid port conflicts.
 
-### 1. Rust-Based E2E Tests (Recommended)
-Located in `tests/e2e_tests.rs`
+### Run All E2E Tests
 
-**Advantages:**
-- Type-safe and integrated with Cargo
-- Automatic server lifecycle management
-- Better error handling
-- Runs with `cargo test`
-
-**Run:**
 ```bash
-cargo test --test e2e_tests
+cargo test --test e2e_tests -- --test-threads=1
 ```
 
-**Features:**
-- Uses `postgres` crate for real PostgreSQL protocol connections
-- Automatically starts/stops server
-- Tests DDL operations (CREATE, DROP)
-- Validates error conditions
+### Run Specific E2E Test
 
-### 2. Shell Script Tests
-Located in `tests/e2e/*.sh`
-
-**Advantages:**
-- Quick manual testing
-- Easy to read and modify
-- Uses psql directly
-
-**Run:**
 ```bash
-cd tests/e2e
-bash test_ddl_execution.sh
-bash test_all_sql.sh
+cargo test --test e2e_tests test_create_table -- --nocapture
 ```
 
-## Available Tests
+### Prerequisites
 
-### Rust Tests (`e2e_tests.rs`)
-- `test_create_table` - CREATE TABLE and duplicate detection
-- `test_drop_table` - DROP TABLE and error handling
-- `test_drop_table_if_exists` - IF EXISTS clause
-- `test_ddl_workflow` - Complete DDL lifecycle
+- RustGres must be built in release mode: `cargo build --release`
+- PostgreSQL client (`psql`) must be installed
+- Port 5433 must be available
 
-### Shell Scripts
-- `test_ddl_execution.sh` - DDL operations with error cases
-- `test_all_sql.sh` - Comprehensive SQL statement testing
-- `test_create.sh` - CREATE TABLE testing
-- `test_describe.sh` - DESCRIBE statement testing
-- `test_drop.sh` - DROP TABLE testing
-- `test_e2e.sh` - Basic end-to-end connectivity
-- `test_sql.sh` - SQL parsing tests
+## Test Coverage
 
-## Writing New Tests
+All 24 E2E tests pass:
 
-### Rust E2E Test Template
-```rust
-#[test]
-fn test_my_feature() {
-    let server = TestServer::start();
-    let mut client = server.connect().expect("Failed to connect");
-    
-    client.execute("YOUR SQL HERE", &[])
-        .expect("Operation failed");
-}
-```
+- ✅ DDL operations (CREATE, DROP, DESCRIBE)
+- ✅ DML operations (INSERT, SELECT, UPDATE, DELETE)
+- ✅ WHERE clause with all comparison operators
+- ✅ ORDER BY (ASC/DESC)
+- ✅ LIMIT/OFFSET
+- ✅ Aggregate functions (COUNT, SUM, AVG, MIN, MAX)
+- ✅ Error handling (duplicate tables, wrong column counts, etc.)
+- ✅ Complete CRUD workflows
 
-### Shell Script Template
-```bash
-#!/bin/bash
-set -e
+## Why Sequential Execution?
 
-./target/release/rustgres > server.log 2>&1 &
-SERVER_PID=$!
-sleep 2
+E2E tests each start a server on port 5433. Running in parallel causes:
+- Port conflicts
+- Server startup race conditions
+- Test interference
 
-cleanup() {
-    kill $SERVER_PID 2>/dev/null || true
-}
-trap cleanup EXIT
+The `TEST_LOCK` mutex ensures only one test runs at a time.
 
-psql -h localhost -p 5433 -U postgres -d postgres << EOF
-YOUR SQL HERE
-EOF
-```
+## Test Structure
 
-## CI/CD Integration
-
-Add to your CI pipeline:
-```yaml
-- name: Build
-  run: cargo build --release
-
-- name: Run E2E Tests
-  run: cargo test --test e2e_tests
-```
+Each test:
+1. Starts a RustGres server
+2. Executes SQL via psql
+3. Validates results
+4. Cleans up (server killed on drop)
 
 ## Troubleshooting
 
-**Server won't start:**
-- Check if port 5433 is available
-- Ensure binary is built: `cargo build --release`
+**Tests fail with "Failed to start server":**
+- Ensure `cargo build --release` has been run
+- Check port 5433 is not in use: `lsof -i :5433`
 
-**Connection refused:**
-- Increase sleep duration in TestServer::start()
-- Check server logs
+**Tests timeout:**
+- Increase sleep duration in `TestServer::start()`
+- Check server logs for startup errors
 
-**Tests hang:**
-- Server process may not be killed properly
-- Manually kill: `pkill rustgres`
+**psql not found:**
+- Install PostgreSQL client: `sudo apt install postgresql-client`

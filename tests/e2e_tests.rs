@@ -1,20 +1,65 @@
 use std::process::{Command, Child, Stdio};
 use std::thread;
 use std::time::Duration;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU16, Ordering};
+use tempfile::TempDir;
 
-static TEST_LOCK: Mutex<()> = Mutex::new(());
+static PORT_COUNTER: AtomicU16 = AtomicU16::new(15433);
 
 struct TestServer {
+    port: u16,
     process: Child,
-    _lock: std::sync::MutexGuard<'static, ()>,
+    _data_dir: TempDir,
+    _wal_dir: TempDir,
 }
 
 impl TestServer {
     fn start() -> Self {
-        let lock = TEST_LOCK.lock().unwrap();
+        let port = PORT_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let data_dir = TempDir::new().expect("Failed to create temp data dir");
+        let wal_dir = TempDir::new().expect("Failed to create temp WAL dir");
+        
+        // Create config file for this test instance
+        let config_content = format!(
+            r#"
+server:
+  host: "127.0.0.1"
+  port: {}
+  max_connections: 10
+
+storage:
+  data_dir: "{}"
+  wal_dir: "{}"
+  buffer_pool_size: 100
+  page_size: 8192
+
+logging:
+  level: "error"
+  scope: "*"
+
+transaction:
+  timeout: 300
+  mvcc_enabled: true
+
+wal:
+  segment_size: 16
+  compression: false
+  sync_on_commit: true
+
+performance:
+  worker_threads: 2
+  query_cache: false
+"#,
+            port,
+            data_dir.path().display(),
+            wal_dir.path().display()
+        );
+        
+        let config_path = data_dir.path().join("config.yaml");
+        std::fs::write(&config_path, config_content).expect("Failed to write config");
         
         let process = Command::new("./target/release/rustgres")
+            .env("RUSTGRES_CONFIG", config_path.to_str().unwrap())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
@@ -22,12 +67,23 @@ impl TestServer {
         
         thread::sleep(Duration::from_secs(2));
         
-        Self { process, _lock: lock }
+        Self {
+            port,
+            process,
+            _data_dir: data_dir,
+            _wal_dir: wal_dir,
+        }
     }
     
     fn execute_sql(&self, sql: &str) -> Result<String, String> {
         let output = Command::new("psql")
-            .args(&["-h", "localhost", "-p", "5433", "-U", "postgres", "-d", "postgres", "-c", sql])
+            .args(&[
+                "-h", "localhost",
+                "-p", &self.port.to_string(),
+                "-U", "postgres",
+                "-d", "postgres",
+                "-c", sql,
+            ])
             .output()
             .map_err(|e| format!("Failed to execute psql: {}", e))?;
         
@@ -43,6 +99,8 @@ impl Drop for TestServer {
     fn drop(&mut self) {
         let _ = self.process.kill();
         let _ = self.process.wait();
+        thread::sleep(Duration::from_millis(100));
+        // TempDir automatically cleans up data and WAL directories
     }
 }
 
