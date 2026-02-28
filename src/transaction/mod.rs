@@ -17,3 +17,6 @@ pub use manager::{TransactionManager, Transaction, TransactionId, TransactionSta
 pub use snapshot::Snapshot;
 pub use mvcc::TupleHeader;
 pub use lock::{LockManager, LockMode, LockKey};
+
+#[cfg(test)]
+mod edge_tests;

@@ -28,3 +28,6 @@ pub use error::{StorageError, Result};
 pub use page::{Page, PageId, PAGE_SIZE};
 pub use buffer_pool::BufferPool;
 pub use disk::DiskManager;
+
+#[cfg(test)]
+mod edge_tests;

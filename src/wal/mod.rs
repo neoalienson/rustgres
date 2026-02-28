@@ -17,3 +17,6 @@ pub use writer::{WALWriter, WALRecord, RecordType, LSN};
 pub use recovery::{RecoveryManager, RecoveryState};
 pub use checkpoint::CheckpointManager;
 pub use disk::WALDiskWriter;
+
+#[cfg(test)]
+mod edge_tests;

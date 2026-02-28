@@ -5,6 +5,9 @@ pub mod plan;
 pub mod rules;
 pub mod error;
 
+#[cfg(test)]
+mod edge_tests;
+
 pub use cost::{CostModel, Cost};
 pub use selectivity::SelectivityEstimator;
 pub use join_order::{JoinOptimizer, Relation, JoinPlan};

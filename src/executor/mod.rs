@@ -8,6 +8,9 @@ mod sort;
 mod hash_agg;
 mod mock;
 
+#[cfg(test)]
+mod edge_tests;
+
 pub use executor::{Executor, ExecutorError, Tuple, Value, SimpleTuple, SimpleExecutor};
 pub use seq_scan::SeqScan;
 pub use filter::Filter;
