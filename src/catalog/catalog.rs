@@ -360,6 +360,24 @@ impl Catalog {
                     }
                 }
             }
+            Expr::UnaryOp { op, expr } => {
+                use crate::parser::ast::UnaryOperator;
+                match op {
+                    UnaryOperator::Not => {
+                        let result = self.evaluate_predicate(expr, tuple, schema)?;
+                        Ok(!result)
+                    }
+                    _ => Err("Unsupported unary operator".to_string()),
+                }
+            }
+            Expr::IsNull(expr) => {
+                let val = self.evaluate_expr(expr, tuple, schema)?;
+                Ok(matches!(val, Value::Null))
+            }
+            Expr::IsNotNull(expr) => {
+                let val = self.evaluate_expr(expr, tuple, schema)?;
+                Ok(!matches!(val, Value::Null))
+            }
             _ => Err("Unsupported predicate expression".to_string()),
         }
     }
@@ -719,6 +737,9 @@ fn write_value<W: Write>(writer: &mut W, value: &Value) -> Result<(), String> {
             writer.write_all(&[1]).map_err(|e| format!("Write error: {}", e))?;
             write_string(writer, s)?;
         }
+        Value::Null => {
+            writer.write_all(&[2]).map_err(|e| format!("Write error: {}", e))?;
+        }
     }
     Ok(())
 }
@@ -739,6 +760,7 @@ fn read_value<R: Read>(reader: &mut R) -> Result<Value, String> {
             let s = read_string(reader)?;
             Ok(Value::Text(s))
         }
+        2 => Ok(Value::Null),
         _ => Err(format!("Unknown value type: {}", buf[0])),
     }
 }

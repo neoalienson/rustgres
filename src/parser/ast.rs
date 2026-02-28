@@ -100,11 +100,17 @@ pub enum Expr {
         op: BinaryOperator,
         right: Box<Expr>,
     },
+    UnaryOp {
+        op: UnaryOperator,
+        expr: Box<Expr>,
+    },
     Aggregate {
         func: AggregateFunc,
         arg: Box<Expr>,
     },
     List(Vec<Expr>),
+    IsNull(Box<Expr>),
+    IsNotNull(Box<Expr>),
 }
 
 /// Aggregate functions
@@ -131,6 +137,13 @@ pub enum BinaryOperator {
     Like,
     In,
     Between,
+}
+
+/// Unary operator
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UnaryOperator {
+    Not,
+    Minus,
 }
 
 #[cfg(test)]

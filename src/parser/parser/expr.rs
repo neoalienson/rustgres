@@ -24,11 +24,11 @@ fn parse_or(parser: &mut Parser) -> Result<Expr> {
 }
 
 fn parse_and(parser: &mut Parser) -> Result<Expr> {
-    let mut left = parse_comparison(parser)?;
+    let mut left = parse_not(parser)?;
     
     while parser.current_token() == &Token::And {
         parser.advance();
-        let right = parse_comparison(parser)?;
+        let right = parse_not(parser)?;
         left = Expr::BinaryOp {
             left: Box::new(left),
             op: BinaryOperator::And,
@@ -39,8 +39,37 @@ fn parse_and(parser: &mut Parser) -> Result<Expr> {
     Ok(left)
 }
 
+fn parse_not(parser: &mut Parser) -> Result<Expr> {
+    if parser.current_token() == &Token::Not {
+        parser.advance();
+        let expr = parse_comparison(parser)?;
+        return Ok(Expr::UnaryOp {
+            op: crate::parser::ast::UnaryOperator::Not,
+            expr: Box::new(expr),
+        });
+    }
+    parse_comparison(parser)
+}
+
 fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
     let left = parse_primary(parser)?;
+    
+    // Handle IS NULL and IS NOT NULL
+    if parser.current_token() == &Token::Is {
+        parser.advance();
+        let is_not = if parser.current_token() == &Token::Not {
+            parser.advance();
+            true
+        } else {
+            false
+        };
+        parser.expect(Token::Null)?;
+        return Ok(if is_not {
+            Expr::IsNotNull(Box::new(left))
+        } else {
+            Expr::IsNull(Box::new(left))
+        });
+    }
     
     if parser.current_token() == &Token::In {
         parser.advance();

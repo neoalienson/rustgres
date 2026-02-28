@@ -42,6 +42,9 @@ pub enum Token {
     Like,
     In,
     Between,
+    Not,
+    Is,
+    Null,
     
     // Identifiers and literals
     Identifier(String),
@@ -208,6 +211,9 @@ impl Lexer {
             "LIKE" => Token::Like,
             "IN" => Token::In,
             "BETWEEN" => Token::Between,
+            "NOT" => Token::Not,
+            "IS" => Token::Is,
+            "NULL" => Token::Null,
             _ => Token::Identifier(ident),
         };
         
