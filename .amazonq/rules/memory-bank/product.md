@@ -72,6 +72,7 @@ RustGres is a high-performance, PostgreSQL-compatible relational database manage
 - LIMIT/OFFSET
 - Aggregate functions (COUNT, SUM, AVG, MIN, MAX)
 - GROUP BY clause
+- HAVING clause
 
 **In Progress**:
 - Advanced SQL features (subqueries, CTEs)
