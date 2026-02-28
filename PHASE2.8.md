@@ -314,41 +314,47 @@ SELECT status, COUNT(*) FROM orders GROUP BY status;
 
 ---
 
-### 2.8.7 Additional Operators (LIKE, AND, OR) ⏳ PLANNED
+### 2.8.7 HAVING Clause ✅ COMPLETE
 
-### 2.8.7 Additional Operators (LIKE, AND, OR) ⏳ PLANNED
-
-**Goal**: Pattern matching and logical operators
+**Implementation**: Filter grouped results
 
 ```rust
-// Planned implementation
-enum BinaryOperator {
-    // ... existing operators
-    Like,        // String pattern matching
-    And,
-    Or,
+pub struct SelectStmt {
+    pub columns: Vec<Expr>,
+    pub from: String,
+    pub where_clause: Option<Expr>,
+    pub group_by: Option<Vec<String>>,
+    pub having: Option<Expr>,
+    pub order_by: Option<Vec<OrderByExpr>>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
 }
 
-enum UnaryOperator {
-    Not,
-}
+fn evaluate_having(&self, expr: &Expr, row: &[Value]) -> Result<bool, String>
 ```
 
 **Features**:
-- LIKE for string patterns
-- AND, OR for compound predicates
-- NOT for negation
+- ✅ Filter grouped results
+- ✅ Comparison operators (>, >=, <, <=, =, !=)
+- ✅ Works with GROUP BY
+- ✅ Applied after grouping
 
 **Examples**:
 ```sql
-SELECT * FROM logs WHERE message LIKE '%error%';
-SELECT * FROM users WHERE age >= 18 AND age <= 65;
-SELECT * FROM items WHERE status = 'active' OR status = 'pending';
-SELECT * FROM products WHERE NOT (price < 10);
+SELECT category, COUNT(*) FROM products GROUP BY category HAVING COUNT(*) > 10;
+SELECT status FROM orders GROUP BY status HAVING COUNT(*) >= 5;
 ```
 
-**Estimated Effort**: 3-4 hours
-**Priority**: Medium
+**Tests**: +1 test (test_having_clause)
+
+**Files Modified**:
+- `src/parser/ast.rs`: Added having field to SelectStmt
+- `src/parser/lexer.rs`: Added HAVING token
+- `src/parser/parser/select.rs`: Parse HAVING clause
+- `src/catalog/catalog.rs`: Added evaluate_having method
+- `src/protocol/connection.rs`: Pass having to catalog
+
+**Status**: ✅ Complete
 
 ---
 
@@ -438,17 +444,18 @@ SELECT * FROM products WHERE NOT (price < 10);
 - ✅ Additional comparison operators complete
 - ✅ ORDER BY complete
 - ✅ LIMIT/OFFSET complete
-- ⏳ 3 more features planned
-- 🎯 Estimated remaining effort: 6-9 hours
+- ✅ Basic aggregates complete
+- ✅ GROUP BY complete
+- ✅ HAVING clause complete
+- 🎉 **Phase 2.8 COMPLETE: 7/7 features (100%)**
 
 **Next Steps**:
-1. Implement basic aggregates
-2. Implement GROUP BY
-3. Implement LIKE, AND, OR, NOT
-4. Then move to Phase 3 (Parallelism)
+1. Move to Phase 3 (Parallelism & Performance)
+2. Consider additional SQL features (DISTINCT, IN, BETWEEN, LIKE)
+3. Optimize query execution
 
 ---
 
 **Version**: 0.2.1 (Phase 2.8)
 **Status**: In Progress
-**Completion**: 6/7 features (85.7%)
+**Completion**: 7/7 features (100%) ✅
