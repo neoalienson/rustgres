@@ -396,3 +396,25 @@ fn test_order_by_clause() {
     let result = server.execute_sql("SELECT * FROM products ORDER BY price DESC");
     assert!(result.is_ok(), "SELECT with ORDER BY DESC failed: {:?}", result);
 }
+
+#[test]
+fn test_limit_offset_clause() {
+    let server = TestServer::start();
+    
+    server.execute_sql("CREATE TABLE items (id INT, name TEXT)")
+        .expect("CREATE failed");
+    
+    for i in 1..=10 {
+        server.execute_sql(&format!("INSERT INTO items VALUES ({}, 'item{}')", i, i))
+            .expect("INSERT failed");
+    }
+    
+    let result = server.execute_sql("SELECT * FROM items LIMIT 3");
+    assert!(result.is_ok(), "SELECT with LIMIT failed: {:?}", result);
+    
+    let result = server.execute_sql("SELECT * FROM items OFFSET 5");
+    assert!(result.is_ok(), "SELECT with OFFSET failed: {:?}", result);
+    
+    let result = server.execute_sql("SELECT * FROM items LIMIT 3 OFFSET 2");
+    assert!(result.is_ok(), "SELECT with LIMIT OFFSET failed: {:?}", result);
+}

@@ -52,6 +52,8 @@ pub struct SelectStmt {
     pub from: String,
     pub where_clause: Option<Expr>,
     pub order_by: Option<Vec<OrderByExpr>>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
 }
 
 /// ORDER BY expression
@@ -119,6 +121,8 @@ mod tests {
             from: "users".to_string(),
             where_clause: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
         
         assert_eq!(stmt.from, "users");

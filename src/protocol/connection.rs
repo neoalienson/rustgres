@@ -104,7 +104,7 @@ impl<S: Read + Write> Connection<S> {
                     })
                     .collect();
                 
-                let rows = self.catalog.select(&select.from, columns, select.where_clause, select.order_by)?;
+                let rows = self.catalog.select(&select.from, columns, select.where_clause, select.order_by, select.limit, select.offset)?;
                 Ok(format!("SELECT {}", rows.len()))
             }
             Statement::Update(update) => {

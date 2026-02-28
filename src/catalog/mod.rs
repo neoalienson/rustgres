@@ -115,7 +115,7 @@ impl Catalog {
         data.get(table).map(|rows| rows.len()).unwrap_or(0)
     }
     
-    pub fn select(&self, table: &str, columns: Vec<String>, where_clause: Option<Expr>, order_by: Option<Vec<OrderByExpr>>) -> Result<Vec<Vec<Value>>, String> {
+    pub fn select(&self, table: &str, columns: Vec<String>, where_clause: Option<Expr>, order_by: Option<Vec<OrderByExpr>>, limit: Option<usize>, offset: Option<usize>) -> Result<Vec<Vec<Value>>, String> {
         let schema = self.get_table(table)
             .ok_or_else(|| format!("Table '{}' does not exist", table))?;
         
@@ -162,6 +162,11 @@ impl Catalog {
                 });
             }
         }
+        
+        // Apply OFFSET and LIMIT
+        let start = offset.unwrap_or(0);
+        let end = limit.map(|l| start + l).unwrap_or(results.len());
+        results = results.into_iter().skip(start).take(end - start).collect();
         
         Ok(results)
     }
@@ -415,7 +420,7 @@ mod tests {
         catalog.insert("users", vec![Expr::Number(1), Expr::String("Alice".to_string())]).unwrap();
         catalog.insert("users", vec![Expr::Number(2), Expr::String("Bob".to_string())]).unwrap();
         
-        let rows = catalog.select("users", vec!["*".to_string()], None, None).unwrap();
+        let rows = catalog.select("users", vec!["*".to_string()], None, None, None, None).unwrap();
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].len(), 2);
     }
@@ -431,7 +436,7 @@ mod tests {
         catalog.create_table("users".to_string(), columns).unwrap();
         catalog.insert("users", vec![Expr::Number(1), Expr::String("Alice".to_string())]).unwrap();
         
-        let rows = catalog.select("users", vec!["id".to_string()], None, None).unwrap();
+        let rows = catalog.select("users", vec!["id".to_string()], None, None, None, None).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].len(), 1);
     }
@@ -439,7 +444,7 @@ mod tests {
     #[test]
     fn test_select_nonexistent_table() {
         let catalog = Catalog::new();
-        let result = catalog.select("nonexistent", vec!["*".to_string()], None, None);
+        let result = catalog.select("nonexistent", vec!["*".to_string()], None, None, None, None);
         assert!(result.is_err());
     }
     
@@ -451,7 +456,7 @@ mod tests {
         ];
         
         catalog.create_table("empty".to_string(), columns).unwrap();
-        let rows = catalog.select("empty", vec!["*".to_string()], None, None).unwrap();
+        let rows = catalog.select("empty", vec!["*".to_string()], None, None, None, None).unwrap();
         assert_eq!(rows.len(), 0);
     }
     
@@ -476,7 +481,7 @@ mod tests {
             right: Box::new(Expr::Number(2)),
         });
         
-        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0][0], Value::Int(2));
         assert_eq!(rows[0][1], Value::Int(200));
@@ -502,7 +507,7 @@ mod tests {
             right: Box::new(Expr::Number(2)),
         });
         
-        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
         assert_eq!(rows.len(), 2);
     }
     
@@ -526,7 +531,7 @@ mod tests {
             right: Box::new(Expr::Number(25)),
         });
         
-        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
         assert_eq!(rows.len(), 2);
     }
     
@@ -550,7 +555,7 @@ mod tests {
             right: Box::new(Expr::Number(15)),
         });
         
-        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
         assert_eq!(rows.len(), 2);
     }
     
@@ -574,7 +579,7 @@ mod tests {
             right: Box::new(Expr::Number(20)),
         });
         
-        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
         assert_eq!(rows.len(), 2);
     }
     
@@ -598,7 +603,7 @@ mod tests {
             right: Box::new(Expr::Number(20)),
         });
         
-        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], where_clause, None, None, None).unwrap();
         assert_eq!(rows.len(), 2);
     }
     
@@ -715,7 +720,7 @@ mod tests {
         catalog.insert("data", vec![Expr::Number(2), Expr::Number(200)]).unwrap();
         
         let order_by = Some(vec![OrderByExpr { column: "id".to_string(), ascending: true }]);
-        let rows = catalog.select("data", vec!["*".to_string()], None, order_by).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], None, order_by, None, None).unwrap();
         
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0][0], Value::Int(1));
@@ -736,11 +741,66 @@ mod tests {
         catalog.insert("data", vec![Expr::Number(2)]).unwrap();
         
         let order_by = Some(vec![OrderByExpr { column: "id".to_string(), ascending: false }]);
-        let rows = catalog.select("data", vec!["*".to_string()], None, order_by).unwrap();
+        let rows = catalog.select("data", vec!["*".to_string()], None, order_by, None, None).unwrap();
         
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0][0], Value::Int(3));
         assert_eq!(rows[1][0], Value::Int(2));
         assert_eq!(rows[2][0], Value::Int(1));
+    }
+
+    #[test]
+    fn test_select_with_limit() {
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(1)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(2)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(3)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(4)]).unwrap();
+        
+        let rows = catalog.select("data", vec!["*".to_string()], None, None, Some(2), None).unwrap();
+        assert_eq!(rows.len(), 2);
+    }
+    
+    #[test]
+    fn test_select_with_offset() {
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(1)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(2)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(3)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(4)]).unwrap();
+        
+        let rows = catalog.select("data", vec!["*".to_string()], None, None, None, Some(2)).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0][0], Value::Int(3));
+    }
+    
+    #[test]
+    fn test_select_with_limit_and_offset() {
+        let catalog = Catalog::new();
+        let columns = vec![
+            ColumnDef { name: "id".to_string(), data_type: DataType::Int },
+        ];
+        
+        catalog.create_table("data".to_string(), columns).unwrap();
+        catalog.insert("data", vec![Expr::Number(1)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(2)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(3)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(4)]).unwrap();
+        catalog.insert("data", vec![Expr::Number(5)]).unwrap();
+        
+        let rows = catalog.select("data", vec!["*".to_string()], None, None, Some(2), Some(1)).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0][0], Value::Int(2));
+        assert_eq!(rows[1][0], Value::Int(3));
     }
 }

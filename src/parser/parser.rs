@@ -69,11 +69,39 @@ impl Parser {
             None
         };
         
+        let limit = if self.current_token() == &Token::Limit {
+            self.advance();
+            if let Token::Number(n) = self.current_token() {
+                let limit_val = *n as usize;
+                self.advance();
+                Some(limit_val)
+            } else {
+                return Err(ParseError::UnexpectedToken(format!("{:?}", self.current_token())));
+            }
+        } else {
+            None
+        };
+        
+        let offset = if self.current_token() == &Token::Offset {
+            self.advance();
+            if let Token::Number(n) = self.current_token() {
+                let offset_val = *n as usize;
+                self.advance();
+                Some(offset_val)
+            } else {
+                return Err(ParseError::UnexpectedToken(format!("{:?}", self.current_token())));
+            }
+        } else {
+            None
+        };
+        
         Ok(Statement::Select(SelectStmt {
             columns,
             from,
             where_clause,
             order_by,
+            limit,
+            offset,
         }))
     }
     

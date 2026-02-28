@@ -27,6 +27,8 @@ pub enum Token {
     By,
     Asc,
     Descending,
+    Limit,
+    Offset,
     
     // Identifiers and literals
     Identifier(String),
@@ -178,6 +180,8 @@ impl Lexer {
             "BY" => Token::By,
             "ASC" => Token::Asc,
             "DESC" => Token::Descending,
+            "LIMIT" => Token::Limit,
+            "OFFSET" => Token::Offset,
             _ => Token::Identifier(ident),
         };
         

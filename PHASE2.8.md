@@ -190,29 +190,44 @@ SELECT * FROM logs ORDER BY timestamp DESC LIMIT 100;
 
 ---
 
-### 2.8.4 LIMIT/OFFSET ⏳ PLANNED
+### 2.8.4 LIMIT/OFFSET ✅ COMPLETE
 
-**Goal**: Pagination support
+**Implementation**: Pagination support
 
 ```rust
-// Planned implementation
-pub fn select(&self, table: &str, columns: Vec<String>, where_clause: Option<Expr>, limit: Option<usize>, offset: Option<usize>) -> Result<Vec<Vec<Value>>, String>
+pub struct SelectStmt {
+    pub columns: Vec<Expr>,
+    pub from: String,
+    pub where_clause: Option<Expr>,
+    pub order_by: Option<Vec<OrderByExpr>>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
 ```
 
 **Features**:
-- LIMIT n: Return first n rows
-- OFFSET n: Skip first n rows
-- Combined: LIMIT 10 OFFSET 20
+- ✅ LIMIT n: Return first n rows
+- ✅ OFFSET n: Skip first n rows
+- ✅ Combined: LIMIT 10 OFFSET 20
+- ✅ Works with WHERE and ORDER BY
 
 **Examples**:
 ```sql
 SELECT * FROM users LIMIT 10;
 SELECT * FROM products LIMIT 10 OFFSET 20;
-SELECT * FROM logs ORDER BY timestamp DESC LIMIT 100;
+SELECT * FROM logs WHERE level = 'error' ORDER BY timestamp DESC LIMIT 100;
 ```
 
-**Estimated Effort**: 1-2 hours
-**Priority**: High
+**Tests**: +4 tests (3 catalog, 1 e2e)
+
+**Files Modified**:
+- `src/parser/ast.rs`: Added limit and offset fields to SelectStmt
+- `src/parser/lexer.rs`: Added LIMIT, OFFSET tokens
+- `src/parser/parser.rs`: Added LIMIT/OFFSET parsing
+- `src/catalog/mod.rs`: Added pagination logic using skip/take
+- `src/protocol/connection.rs`: Pass limit/offset to catalog
+
+**Status**: ✅ Complete
 
 ---
 
@@ -469,17 +484,18 @@ SELECT * FROM products WHERE NOT (price < 10);
 - ✅ WHERE clause execution complete
 - ✅ Additional comparison operators complete
 - ✅ ORDER BY complete
-- ⏳ 4 more features planned
-- 🎯 Estimated remaining effort: 8-12 hours
+- ✅ LIMIT/OFFSET complete
+- ⏳ 3 more features planned
+- 🎯 Estimated remaining effort: 6-9 hours
 
 **Next Steps**:
-1. Implement LIMIT/OFFSET
-2. Implement basic aggregates
-3. Implement GROUP BY
+1. Implement basic aggregates
+2. Implement GROUP BY
+3. Implement LIKE, AND, OR, NOT
 4. Then move to Phase 3 (Parallelism)
 
 ---
 
 **Version**: 0.2.1 (Phase 2.8)
 **Status**: In Progress
-**Completion**: 3/7 features (42.9%)
+**Completion**: 4/7 features (57.1%)
