@@ -45,6 +45,12 @@ pub enum Token {
     Not,
     Is,
     Null,
+    Join,
+    Inner,
+    Left,
+    Right,
+    Full,
+    On,
     
     // Identifiers and literals
     Identifier(String),
@@ -214,6 +220,12 @@ impl Lexer {
             "NOT" => Token::Not,
             "IS" => Token::Is,
             "NULL" => Token::Null,
+            "JOIN" => Token::Join,
+            "INNER" => Token::Inner,
+            "LEFT" => Token::Left,
+            "RIGHT" => Token::Right,
+            "FULL" => Token::Full,
+            "ON" => Token::On,
             _ => Token::Identifier(ident),
         };
         

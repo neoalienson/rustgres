@@ -51,12 +51,30 @@ pub struct SelectStmt {
     pub distinct: bool,
     pub columns: Vec<Expr>,
     pub from: String,
+    pub joins: Vec<JoinClause>,
     pub where_clause: Option<Expr>,
     pub group_by: Option<Vec<String>>,
     pub having: Option<Expr>,
     pub order_by: Option<Vec<OrderByExpr>>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+}
+
+/// JOIN clause
+#[derive(Debug, Clone, PartialEq)]
+pub struct JoinClause {
+    pub join_type: JoinType,
+    pub table: String,
+    pub on: Expr,
+}
+
+/// JOIN type
+#[derive(Debug, Clone, PartialEq)]
+pub enum JoinType {
+    Inner,
+    Left,
+    Right,
+    Full,
 }
 
 /// ORDER BY expression
@@ -156,6 +174,7 @@ mod tests {
             distinct: false,
             columns: vec![Expr::Star],
             from: "users".to_string(),
+            joins: vec![],
             where_clause: None,
             group_by: None,
             having: None,

@@ -11,6 +11,7 @@ mod aggregate;
 mod group_by;
 mod having;
 mod distinct;
+mod join;
 mod mock;
 
 #[cfg(test)]
@@ -25,6 +26,8 @@ mod group_by_edge_tests;
 mod having_edge_tests;
 #[cfg(test)]
 mod distinct_edge_tests;
+#[cfg(test)]
+mod join_edge_tests;
 
 pub use executor::{Executor, ExecutorError, Tuple, Value, SimpleTuple, SimpleExecutor};
 pub use seq_scan::SeqScan;
@@ -39,4 +42,5 @@ pub use aggregate::{Aggregate, AggregateFunction};
 pub use group_by::GroupBy;
 pub use having::Having;
 pub use distinct::Distinct;
+pub use join::{Join, JoinType};
 pub use mock::MockExecutor;
