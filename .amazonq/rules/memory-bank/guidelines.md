@@ -377,10 +377,135 @@ pub(crate)               // Crate-visible (used sparingly)
 - [ ] Public APIs have documentation
 - [ ] Error cases are handled with Result types
 - [ ] Resources are properly cleaned up (Drop trait)
-- [ ] Edge cases have dedicated tests
-- [ ] Integration tests added for cross-module features
+- [ ] **Unit tests added for all new functions/methods**
+- [ ] **Edge case tests added in dedicated `*_edge_tests.rs` files**
+- [ ] **Integration tests added for cross-module features**
+- [ ] **E2E tests added for user-facing features**
 - [ ] No unwrap() in production code (use ? or expect in tests)
 - [ ] Concurrency primitives used correctly (parking_lot, dashmap)
+
+### Testing Requirements (MANDATORY)
+
+Every implementation MUST include:
+
+#### 1. Unit Tests
+- Test individual functions and methods in isolation
+- Located in `#[cfg(test)] mod tests` blocks within the same file
+- Cover happy path, error cases, and boundary conditions
+- Minimum 3-5 tests per public function
+- Example:
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_basic_functionality() {
+        // Test normal operation
+    }
+    
+    #[test]
+    fn test_error_handling() {
+        // Test error cases
+    }
+    
+    #[test]
+    fn test_empty_input() {
+        // Test boundary condition
+    }
+}
+```
+
+#### 2. Edge Case Tests
+- Dedicated `*_edge_tests.rs` files for each module
+- Test boundary conditions, extreme values, and corner cases
+- Examples: empty input, single element, maximum values, overflow
+- Minimum 10-15 edge case tests per module
+- Example:
+```rust
+// src/executor/limit_edge_tests.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_limit_larger_than_data() { /* ... */ }
+    
+    #[test]
+    fn test_offset_beyond_data() { /* ... */ }
+    
+    #[test]
+    fn test_zero_limit() { /* ... */ }
+    
+    #[test]
+    fn test_empty_input() { /* ... */ }
+}
+```
+
+#### 3. Integration Tests
+- Located in `tests/integration/` directory
+- Test interaction between multiple modules
+- Use real components, not mocks
+- Cover complete workflows
+- Example:
+```rust
+// tests/integration/executor_test.rs
+#[test]
+fn test_limit_with_filter() {
+    // Test LIMIT operator with Filter operator
+}
+
+#[test]
+fn test_aggregate_with_sort() {
+    // Test Aggregate with Sort operator
+}
+```
+
+#### 4. End-to-End Tests
+- Located in `tests/e2e_tests.rs`
+- Test complete user workflows via PostgreSQL protocol
+- Use actual server process and psql client
+- Cover SQL statements from parsing to execution
+- Example:
+```rust
+#[test]
+fn test_select_with_limit_offset() {
+    let server = TestServer::start();
+    server.execute_sql("CREATE TABLE t (id INT)").unwrap();
+    server.execute_sql("INSERT INTO t VALUES (1), (2), (3)").unwrap();
+    let result = server.execute_sql("SELECT * FROM t LIMIT 2 OFFSET 1");
+    assert!(result.is_ok());
+}
+```
+
+### Test Coverage Requirements
+
+**Minimum Coverage per Feature:**
+- Unit tests: 5+ tests
+- Edge case tests: 10+ tests
+- Integration tests: 2+ tests
+- E2E tests: 1+ test
+
+**Example: LIMIT/OFFSET Implementation**
+- Unit tests: 5 tests (basic limit, offset, combinations)
+- Edge tests: 11 tests (empty, large values, boundaries)
+- Integration tests: 3 tests (with filter, sort, aggregate)
+- E2E tests: 2 tests (SQL execution via psql)
+- **Total: 21 tests**
+
+### Test Organization
+
+```
+src/
+├── executor/
+│   ├── limit.rs              # Implementation + unit tests
+│   ├── limit_edge_tests.rs   # Edge case tests
+│   └── mod.rs
+tests/
+├── integration/
+│   └── executor_test.rs      # Integration tests
+└── e2e_tests.rs              # E2E tests
+```
 
 ### Performance Considerations
 - [ ] Avoid unnecessary clones (use references when possible)
