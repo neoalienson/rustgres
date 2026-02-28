@@ -48,6 +48,7 @@ pub enum DataType {
 /// SELECT statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelectStmt {
+    pub distinct: bool,
     pub columns: Vec<Expr>,
     pub from: String,
     pub where_clause: Option<Expr>,
@@ -126,6 +127,9 @@ pub enum BinaryOperator {
     GreaterThanOrEqual,
     And,
     Or,
+    Like,
+    In,
+    Between,
 }
 
 #[cfg(test)]
@@ -135,6 +139,7 @@ mod tests {
     #[test]
     fn test_select_stmt_creation() {
         let stmt = SelectStmt {
+            distinct: false,
             columns: vec![Expr::Star],
             from: "users".to_string(),
             where_clause: None,

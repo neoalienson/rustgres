@@ -6,6 +6,13 @@ use crate::parser::ast::{Statement, SelectStmt, OrderByExpr};
 pub fn parse_select(parser: &mut Parser) -> Result<Statement> {
     parser.expect(Token::Select)?;
     
+    let distinct = if parser.current_token() == &Token::Distinct {
+        parser.advance();
+        true
+    } else {
+        false
+    };
+    
     let columns = parse_select_list(parser)?;
     
     let from = if parser.current_token() == &Token::From {
@@ -72,6 +79,7 @@ pub fn parse_select(parser: &mut Parser) -> Result<Statement> {
     };
     
     Ok(Statement::Select(SelectStmt {
+        distinct,
         columns,
         from,
         where_clause,

@@ -38,6 +38,10 @@ pub enum Token {
     Or,
     Group,
     Having,
+    Distinct,
+    Like,
+    In,
+    Between,
     
     // Identifiers and literals
     Identifier(String),
@@ -200,6 +204,10 @@ impl Lexer {
             "OR" => Token::Or,
             "GROUP" => Token::Group,
             "HAVING" => Token::Having,
+            "DISTINCT" => Token::Distinct,
+            "LIKE" => Token::Like,
+            "IN" => Token::In,
+            "BETWEEN" => Token::Between,
             _ => Token::Identifier(ident),
         };
         

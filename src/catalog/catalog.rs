@@ -98,7 +98,7 @@ impl Catalog {
         data.get(table).map(|rows| rows.len()).unwrap_or(0)
     }
     
-    pub fn select(&self, table: &str, columns: Vec<String>, where_clause: Option<Expr>, group_by: Option<Vec<String>>, having: Option<Expr>, order_by: Option<Vec<OrderByExpr>>, limit: Option<usize>, offset: Option<usize>) -> Result<Vec<Vec<Value>>, String> {
+    pub fn select(&self, table: &str, distinct: bool, columns: Vec<String>, where_clause: Option<Expr>, group_by: Option<Vec<String>>, having: Option<Expr>, order_by: Option<Vec<OrderByExpr>>, limit: Option<usize>, offset: Option<usize>) -> Result<Vec<Vec<Value>>, String> {
         let schema = self.get_table(table)
             .ok_or_else(|| format!("Table '{}' does not exist", table))?;
         
@@ -167,6 +167,12 @@ impl Catalog {
         let start = offset.unwrap_or(0);
         let end = limit.map(|l| start + l).unwrap_or(results.len());
         results = results.into_iter().skip(start).take(end - start).collect();
+        
+        // Apply DISTINCT if specified
+        if distinct {
+            let mut seen = std::collections::HashSet::new();
+            results.retain(|row| seen.insert(row.clone()));
+        }
         
         Ok(results)
     }
@@ -274,6 +280,12 @@ impl Catalog {
                                 (Value::Int(l), Value::Int(r)) => Ok(l >= r),
                                 (Value::Text(l), Value::Text(r)) => Ok(l >= r),
                                 _ => Err("Type mismatch in comparison".to_string()),
+                            },
+                            BinaryOperator::Like => match (&left_val, &right_val) {
+                                (Value::Text(s), Value::Text(pattern)) => {
+                                    Ok(s.contains(&pattern.replace('%', "")))
+                                }
+                                _ => Err("LIKE requires text values".to_string()),
                             },
                             _ => unreachable!(),
                         }

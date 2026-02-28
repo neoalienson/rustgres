@@ -49,6 +49,9 @@ fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
         Token::LessThanOrEqual => BinaryOperator::LessThanOrEqual,
         Token::GreaterThan => BinaryOperator::GreaterThan,
         Token::GreaterThanOrEqual => BinaryOperator::GreaterThanOrEqual,
+        Token::Like => BinaryOperator::Like,
+        Token::In => BinaryOperator::In,
+        Token::Between => BinaryOperator::Between,
         _ => return Ok(left),
     };
     
