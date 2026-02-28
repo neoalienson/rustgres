@@ -597,3 +597,105 @@ fn test_limit_with_order_by() {
     let result = server.execute_sql("SELECT * FROM items ORDER BY value DESC LIMIT 1");
     assert!(result.is_ok(), "LIMIT with ORDER BY DESC failed: {:?}", result);
 }
+
+#[test]
+fn test_group_by_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT category, COUNT(*) FROM products GROUP BY category";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.group_by.is_some());
+            assert_eq!(s.group_by.unwrap(), vec!["category"]);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_group_by_multiple_columns_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT dept, year, SUM(salary) FROM employees GROUP BY dept, year";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.group_by.is_some());
+            assert_eq!(s.group_by.unwrap(), vec!["dept", "year"]);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_group_by_with_where_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT status, COUNT(*) FROM orders WHERE amount > 100 GROUP BY status";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.where_clause.is_some());
+            assert!(s.group_by.is_some());
+            assert_eq!(s.group_by.unwrap(), vec!["status"]);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_group_by_with_order_by_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    let sql = "SELECT region, SUM(sales) FROM data GROUP BY region ORDER BY region";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    
+    match stmt {
+        Statement::Select(s) => {
+            assert!(s.group_by.is_some());
+            assert!(s.order_by.is_some());
+            assert_eq!(s.group_by.unwrap(), vec!["region"]);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_group_by_edge_cases_e2e() {
+    use rustgres::parser::Parser;
+    use rustgres::parser::ast::Statement;
+    
+    // Single column
+    let sql = "SELECT id FROM users GROUP BY id";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    match stmt {
+        Statement::Select(s) => {
+            assert_eq!(s.group_by.unwrap().len(), 1);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+    
+    // Three columns
+    let sql = "SELECT a, b, c FROM t GROUP BY a, b, c";
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    match stmt {
+        Statement::Select(s) => {
+            assert_eq!(s.group_by.unwrap().len(), 3);
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}

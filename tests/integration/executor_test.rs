@@ -553,3 +553,77 @@ fn test_aggregate_all_same_values() {
     let result = max_agg.next().unwrap().unwrap();
     assert_eq!(result.get("max").unwrap()[0], 42);
 }
+
+#[test]
+fn test_group_by_integration() {
+    use rustgres::executor::{SimpleExecutor, SimpleTuple as SimpleTuple, GroupBy};
+    use rustgres::executor::MockExecutor;
+    
+    let input = MockExecutor::new(vec![
+        SimpleTuple { data: vec![1, 10] },
+        SimpleTuple { data: vec![1, 20] },
+        SimpleTuple { data: vec![2, 30] },
+        SimpleTuple { data: vec![2, 40] },
+    ]);
+    
+    let mut group_by = GroupBy::new(Box::new(input), vec![0], vec![1]);
+    group_by.open().unwrap();
+    
+    let mut results = Vec::new();
+    while let Some(tuple) = group_by.next().unwrap() {
+        results.push(tuple);
+    }
+    
+    assert_eq!(results.len(), 2);
+    group_by.close().unwrap();
+}
+
+#[test]
+fn test_group_by_with_filter_integration() {
+    use rustgres::executor::{SimpleExecutor, SimpleTuple as SimpleTuple, GroupBy};
+    use rustgres::executor::MockExecutor;
+    
+    let input = MockExecutor::new(vec![
+        SimpleTuple { data: vec![1, 10] },
+        SimpleTuple { data: vec![1, 20] },
+        SimpleTuple { data: vec![2, 5] },
+        SimpleTuple { data: vec![2, 15] },
+        SimpleTuple { data: vec![3, 100] },
+    ]);
+    
+    let mut group_by = GroupBy::new(Box::new(input), vec![0], vec![1]);
+    group_by.open().unwrap();
+    
+    let mut results = Vec::new();
+    while let Some(tuple) = group_by.next().unwrap() {
+        results.push(tuple);
+    }
+    
+    assert_eq!(results.len(), 3);
+    group_by.close().unwrap();
+}
+
+#[test]
+fn test_group_by_multiple_columns_integration() {
+    use rustgres::executor::{SimpleExecutor, SimpleTuple as SimpleTuple, GroupBy};
+    use rustgres::executor::MockExecutor;
+    
+    let input = MockExecutor::new(vec![
+        SimpleTuple { data: vec![1, 1, 10] },
+        SimpleTuple { data: vec![1, 1, 20] },
+        SimpleTuple { data: vec![1, 2, 30] },
+        SimpleTuple { data: vec![2, 1, 40] },
+        SimpleTuple { data: vec![2, 2, 50] },
+    ]);
+    
+    let mut group_by = GroupBy::new(Box::new(input), vec![0, 1], vec![2]);
+    group_by.open().unwrap();
+    
+    let mut results = Vec::new();
+    while let Some(tuple) = group_by.next().unwrap() {
+        results.push(tuple);
+    }
+    
+    assert_eq!(results.len(), 4);
+    group_by.close().unwrap();
+}
