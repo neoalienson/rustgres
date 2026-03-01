@@ -1,0 +1,107 @@
+services:
+  rustgres:
+    image: rustgres:latest
+    container_name: rustgres-test
+    ports:
+      - "5432:5432"
+    volumes:
+      - rustgres-data:/var/lib/rustgres/data
+      - rustgres-wal:/var/lib/rustgres/wal
+      - ./rustgres-config.yaml:/etc/rustgres/config.yaml:ro
+    environment:
+      - RUST_LOG=info
+      - RUSTGRES_CONFIG=/etc/rustgres/config.yaml
+    command: ["start", "--config", "/etc/rustgres/config.yaml"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - test-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-test
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=testdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - test-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-test
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+    networks:
+      - test-network
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor-test
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    networks:
+      - test-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-test
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - test-network
+
+volumes:
+  rustgres-data:
+  rustgres-wal:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  test-network:
+    driver: bridge

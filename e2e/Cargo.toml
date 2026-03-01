@@ -1,0 +1,31 @@
+[package]
+name = "e2e"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "lib.rs"
+
+[[test]]
+name = "smoke"
+path = "scenarios/smoke_tests.rs"
+
+[[test]]
+name = "scenarios"
+path = "scenarios/oltp_workload.rs"
+
+[[test]]
+name = "comparison"
+path = "comparison/benchmark.rs"
+
+[[test]]
+name = "load"
+path = "load/ramp_up.rs"
+
+[[test]]
+name = "soak"
+path = "soak/memory_leak.rs"
+
+[dependencies]
+
+[dev-dependencies]
