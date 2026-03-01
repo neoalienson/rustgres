@@ -20,6 +20,10 @@ criterion = "0.5"
 proptest = "1.4"
 tempfile = "3.8"
 
+[[test]]
+name = "persistence_tests"
+path = "e2e/persistence_tests.rs"
+
 [[bench]]
 name = "storage_bench"
 harness = false
