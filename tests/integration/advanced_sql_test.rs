@@ -1,5 +1,5 @@
 use rustgres::catalog::{
-    Function, FunctionLanguage, FunctionRegistry, FunctionVolatility, Parameter, Value,
+    Function, FunctionLanguage, FunctionRegistry, Parameter, Value,
 };
 use rustgres::executor::{
     BuiltinFunctions, CorrelatedExecutor, PlPgSqlInterpreter, RecursiveCTEExecutor, UnnestExecutor,
@@ -331,7 +331,7 @@ fn test_builtin_split_part() {
 fn test_builtin_random() {
     let result = BuiltinFunctions::execute("random", vec![]).unwrap();
     if let Value::Int(n) = result {
-        assert!(n >= 0 && n < 1000);
+        assert!((0..1000).contains(&n));
     } else {
         panic!("Expected Int");
     }
@@ -339,7 +339,7 @@ fn test_builtin_random() {
 
 #[test]
 fn test_perform_statement() {
-    use std::collections::HashMap;
+    
     let mut interp = PlPgSqlInterpreter::new().with_query_executor(|_| Ok(vec![]));
 
     let func = PlPgSqlFunction {
@@ -720,7 +720,7 @@ mod advanced_sql_new_tests {
 mod advanced_sql_new_tests2 {
 
     use rustgres::catalog::{FunctionRegistry, Value};
-    use rustgres::executor::{FunctionCache, LateralSubqueryExecutor};
+    
     use std::collections::HashMap;
 
     #[test]

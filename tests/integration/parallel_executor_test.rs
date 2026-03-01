@@ -116,7 +116,7 @@ fn test_parallel_aggregation_integration() {
     }
 
     let result = agg.global_combine().unwrap();
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 }
 
 #[test]

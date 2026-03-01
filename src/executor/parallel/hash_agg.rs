@@ -12,6 +12,12 @@ pub struct AggregateState {
     pub max: Option<Vec<u8>>,
 }
 
+impl Default for AggregateState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AggregateState {
     pub fn new() -> Self {
         Self { count: 0, sum: 0.0, min: None, max: None }
@@ -77,7 +83,7 @@ impl ParallelHashAgg {
 
         for tuple in result.tuples {
             let key = tuple.data.clone();
-            let state = hash_table.entry(key.clone()).or_insert_with(AggregateState::new);
+            let state = hash_table.entry(key.clone()).or_default();
             state.update(&key);
         }
 
@@ -91,7 +97,7 @@ impl ParallelHashAgg {
             let local_map = hash_table.lock().unwrap();
             for (key, state) in local_map.iter() {
                 let global_state =
-                    global_map.entry(key.clone()).or_insert_with(AggregateState::new);
+                    global_map.entry(key.clone()).or_default();
                 global_state.merge(state);
             }
         }

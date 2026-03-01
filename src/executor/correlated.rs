@@ -33,7 +33,7 @@ impl CorrelatedExecutor {
             let subquery_results = subquery_fn(outer_row)?;
             let outer_value = &outer_row[outer_col_idx];
 
-            if subquery_results.iter().any(|row| row.get(0) == Some(outer_value)) {
+            if subquery_results.iter().any(|row| row.first() == Some(outer_value)) {
                 result.push(outer_row.clone());
             }
         }

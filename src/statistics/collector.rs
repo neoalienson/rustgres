@@ -3,17 +3,13 @@ use super::histogram::Histogram;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct TableStats {
     pub row_count: u64,
     pub page_count: u64,
     pub avg_row_size: u32,
 }
 
-impl Default for TableStats {
-    fn default() -> Self {
-        Self { row_count: 0, page_count: 0, avg_row_size: 0 }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct ColumnStats {

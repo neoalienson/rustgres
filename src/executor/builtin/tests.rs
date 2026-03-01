@@ -204,7 +204,7 @@ mod tests {
     fn test_random() {
         let result = BuiltinFunctions::execute("random", vec![]).unwrap();
         if let Value::Int(n) = result {
-            assert!(n >= 0 && n < 1000);
+            assert!((0..1000).contains(&n));
         } else {
             panic!("Expected Int");
         }

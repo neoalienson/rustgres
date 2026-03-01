@@ -27,17 +27,14 @@ pub struct Function {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default)]
 pub enum FunctionVolatility {
     Immutable,
     Stable,
+    #[default]
     Volatile,
 }
 
-impl Default for FunctionVolatility {
-    fn default() -> Self {
-        FunctionVolatility::Volatile
-    }
-}
 
 pub struct FunctionRegistry {
     functions: HashMap<String, Vec<Function>>,
@@ -57,7 +54,7 @@ impl FunctionRegistry {
     }
 
     pub fn register(&mut self, func: Function) -> Result<(), String> {
-        self.functions.entry(func.name.clone()).or_insert_with(Vec::new).push(func);
+        self.functions.entry(func.name.clone()).or_default().push(func);
         Ok(())
     }
 

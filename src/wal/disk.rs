@@ -91,7 +91,7 @@ mod tests {
 
         let lsn = writer.write(&record).unwrap();
         // Verify LSN was assigned
-        assert!(lsn == 0 || lsn > 0);
+        assert!(lsn >= 0);
     }
 
     #[test]

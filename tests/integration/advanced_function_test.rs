@@ -1,13 +1,12 @@
 use rustgres::catalog::{
-    Function, FunctionLanguage, FunctionRegistry, FunctionVolatility, Parameter, Value,
+    Function, FunctionLanguage, FunctionRegistry, FunctionVolatility, Parameter,
 };
 use rustgres::executor::{
     CursorManager, Executor, MockTupleExecutor, SetReturningFunctionExecutor,
     TableValuedFunctionExecutor,
 };
 use rustgres::parser::ast::{
-    CloseCursorStmt, CreateFunctionStmt, DeclareCursorStmt, DropFunctionStmt, FetchCursorStmt,
-    FetchDirection, FunctionParameter, FunctionReturnType, ParameterMode, SelectStmt, Statement,
+    FetchDirection, FunctionReturnType, ParameterMode, Statement,
 };
 use rustgres::parser::Parser;
 use std::collections::HashMap;

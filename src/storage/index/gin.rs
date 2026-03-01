@@ -9,6 +9,12 @@ struct PostingList {
     tids: Vec<TupleId>,
 }
 
+impl Default for GINIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GINIndex {
     pub fn new() -> Self {
         Self { posting_lists: HashMap::new() }

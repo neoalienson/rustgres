@@ -24,7 +24,7 @@ impl ConcurrentHashTable {
 
     pub fn insert(&self, partition_id: usize, key: Vec<u8>, tuple: SimpleTuple) {
         let mut partition = self.partitions[partition_id].lock().unwrap();
-        partition.entry(key).or_insert_with(Vec::new).push(tuple);
+        partition.entry(key).or_default().push(tuple);
     }
 
     pub fn probe(&self, partition_id: usize, key: &[u8]) -> Vec<SimpleTuple> {

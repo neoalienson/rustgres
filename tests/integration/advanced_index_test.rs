@@ -46,11 +46,11 @@ fn test_brin_index_integration() {
 
     // Range search
     let result = index.range_search(b"00000100", b"00000200").unwrap();
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 
     // Point search
     let result = index.search(b"00000500").unwrap();
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 }
 
 #[test]

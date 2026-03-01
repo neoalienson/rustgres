@@ -136,9 +136,9 @@ mod tests {
         txn_mgr.commit(txn.xid).unwrap();
 
         let tuples = vec![
-            Tuple { header: header, data: vec![Value::Text("A".to_string()), Value::Int(10)] },
-            Tuple { header: header, data: vec![Value::Text("B".to_string()), Value::Int(20)] },
-            Tuple { header: header, data: vec![Value::Text("A".to_string()), Value::Int(30)] },
+            Tuple { header, data: vec![Value::Text("A".to_string()), Value::Int(10)] },
+            Tuple { header, data: vec![Value::Text("B".to_string()), Value::Int(20)] },
+            Tuple { header, data: vec![Value::Text("A".to_string()), Value::Int(30)] },
         ];
 
         (schema, tuples, txn_mgr)

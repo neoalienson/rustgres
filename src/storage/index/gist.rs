@@ -47,6 +47,12 @@ impl BoundingBox {
     }
 }
 
+impl Default for GiSTIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GiSTIndex {
     pub fn new() -> Self {
         Self { root: None, max_entries: 50 }

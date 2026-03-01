@@ -277,7 +277,7 @@ impl Catalog {
 
     pub fn create_function(&self, func: Function) -> Result<(), String> {
         let mut functions = self.functions.write().unwrap();
-        functions.entry(func.name.clone()).or_insert_with(Vec::new).push(func);
+        functions.entry(func.name.clone()).or_default().push(func);
         drop(functions);
         self.auto_save();
         Ok(())

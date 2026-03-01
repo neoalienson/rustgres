@@ -652,11 +652,11 @@ impl BuiltinFunctions {
             }
             "random" => {
                 use std::collections::hash_map::RandomState;
-                use std::hash::{BuildHasher, Hash, Hasher};
+                use std::hash::BuildHasher;
                 let s = RandomState::new();
-                let mut hasher = s.build_hasher();
-                std::time::SystemTime::now().hash(&mut hasher);
-                Ok(Value::Int((hasher.finish() % 1000) as i64))
+                
+                
+                Ok(Value::Int((s.hash_one(std::time::SystemTime::now()) % 1000) as i64))
             }
             "now" => {
                 use std::time::{SystemTime, UNIX_EPOCH};
@@ -695,8 +695,7 @@ impl BuiltinFunctions {
                 if let (Value::Json(json), Value::Text(path)) = (&args[0], &args[1]) {
                     if path == "$" {
                         Ok(Value::Text(json.clone()))
-                    } else if path.starts_with("$.") {
-                        let key = &path[2..];
+                    } else if let Some(key) = path.strip_prefix("$.") {
                         if json.contains(&format!("\"{}\":", key)) {
                             let start =
                                 json.find(&format!("\"{}\":", key)).unwrap() + key.len() + 3;
