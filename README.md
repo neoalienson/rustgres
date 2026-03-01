@@ -70,6 +70,21 @@ cargo build --release
 sudo cp target/release/rustgres /usr/local/bin/
 ```
 
+**Using Docker:**
+```bash
+# Pull and run
+docker run -d -p 5432:5432 --name rustgres rustgres:latest
+
+# Or build locally
+docker build -f docker/Dockerfile -t rustgres:latest .
+docker run -d -p 5432:5432 rustgres:latest
+
+# With persistent data
+docker run -d -p 5432:5432 \
+  -v rustgres-data:/var/lib/rustgres/data \
+  rustgres:latest
+```
+
 ### Initialize Database
 
 ```bash

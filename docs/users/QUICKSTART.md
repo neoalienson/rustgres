@@ -4,16 +4,56 @@ Get started with RustGres in 5 minutes.
 
 ## Installation
 
+### Option 1: Docker (Recommended)
+
+```bash
+# Pull and run
+docker run -d \
+  --name rustgres \
+  -p 5432:5432 \
+  -v rustgres-data:/var/lib/rustgres/data \
+  rustgres:latest
+
+# Check logs
+docker logs rustgres
+
+# Connect
+psql -h localhost -p 5432 -U postgres
+```
+
+**Using Docker Compose:**
+
+```bash
+cd docker
+docker-compose up -d
+```
+
+See [docker/README.md](../../docker/README.md) for more details.
+
+### Option 2: Binary Installation
+
+### Option 2: Binary Installation
+
 ```bash
 # Download and install
 curl -L https://github.com/rustgres/rustgres/releases/latest/download/rustgres-linux-x64.tar.gz | tar xz
 sudo mv rustgres /usr/local/bin/
-
-# Verify installation
-rustgres --version
 ```
 
-## Initialize Database
+### Option 3: Build from Source
+
+```bash
+git clone https://github.com/rustgres/rustgres.git
+cd rustgres
+cargo build --release
+sudo cp target/release/rustgres /usr/local/bin/
+```
+
+---
+
+## Initialize Database (Binary/Source Only)
+
+**Note:** Skip this section if using Docker.
 
 ```bash
 # Create data directory
@@ -366,6 +406,21 @@ rustgres reload -D ~/rustgres-data
 ```
 
 ## Stop Server
+
+### Docker
+
+```bash
+# Stop container
+docker stop rustgres
+
+# Remove container
+docker rm rustgres
+
+# Or with docker-compose
+cd docker && docker-compose down
+```
+
+### Binary/Source
 
 ```bash
 # Graceful shutdown
