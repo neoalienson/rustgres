@@ -310,8 +310,8 @@ mod tests {
         txn_mgr.commit(txn.xid).unwrap();
         
         let tuples = vec![
-            Tuple { header: header.clone(), data: vec![Value::Int(1), Value::Text("Alice".to_string())] },
-            Tuple { header: header.clone(), data: vec![Value::Int(2), Value::Text("Bob".to_string())] },
+            Tuple { header: header, data: vec![Value::Int(1), Value::Text("Alice".to_string())] },
+            Tuple { header: header, data: vec![Value::Int(2), Value::Text("Bob".to_string())] },
         ];
         
         tables.insert("users".to_string(), schema);
@@ -352,7 +352,7 @@ mod tests {
         txn_mgr.commit(txn.xid).unwrap();
         
         let tuples = vec![
-            Tuple { header: header.clone(), data: vec![Value::Int(1), Value::Null] },
+            Tuple { header: header, data: vec![Value::Int(1), Value::Null] },
         ];
         
         tables.insert("test".to_string(), schema);

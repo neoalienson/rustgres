@@ -51,14 +51,12 @@ fn test_wal_all_record_types() {
     let dw = Arc::new(WALDiskWriter::new(temp_dir.path()).unwrap());
     let writer = WALWriter::with_disk(dw);
     
-    let types = vec![
-        RecordType::Insert,
+    let types = [RecordType::Insert,
         RecordType::Update,
         RecordType::Delete,
         RecordType::Commit,
         RecordType::Abort,
-        RecordType::Checkpoint,
-    ];
+        RecordType::Checkpoint];
     
     for (i, record_type) in types.iter().enumerate() {
         writer.write((i + 1) as u64, *record_type, Some(PageId(i as u32)), vec![]).unwrap();

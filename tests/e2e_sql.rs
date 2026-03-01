@@ -19,7 +19,7 @@ fn test_union_parsing() {
     let mut parser = Parser::new(sql).unwrap();
     let stmt = parser.parse().unwrap();
     match stmt {
-        Statement::Union(u) => assert_eq!(u.all, false),
+        Statement::Union(u) => assert!(!u.all),
         _ => panic!("Expected UNION"),
     }
 }

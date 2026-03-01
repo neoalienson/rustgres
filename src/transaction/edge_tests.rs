@@ -98,7 +98,7 @@ mod tests {
         let mgr = TransactionManager::new();
         let txn1 = mgr.begin();
         let txn2 = mgr.begin();
-        let txn3 = mgr.begin();
+        let _txn3 = mgr.begin();
         mgr.commit(txn2.xid).unwrap();
         let snapshot = mgr.get_snapshot();
         assert_eq!(snapshot.xmin, txn1.xid);

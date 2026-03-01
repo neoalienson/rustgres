@@ -6,6 +6,8 @@
 //! - AST node definitions
 //! - Basic semantic analysis
 
+#![allow(clippy::module_inception)]
+
 pub mod error;
 pub mod lexer;
 pub mod ast;

@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 mod executor;
 mod seq_scan;
 mod filter;

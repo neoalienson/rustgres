@@ -12,7 +12,7 @@ fn test_end_to_end_transaction_flow() {
     let pool = Arc::new(BufferPool::new(10));
     let heap = Arc::new(HeapFile::new(pool.clone()));
     let txn_mgr = TransactionManager::new();
-    let wal = WALWriter::new();
+    let _wal = WALWriter::new();
     
     // Begin transaction
     let txn = txn_mgr.begin();
@@ -46,7 +46,7 @@ fn test_end_to_end_query_execution() {
     scan.open().unwrap();
     
     let mut count = 0;
-    while let Some(_) = scan.next().unwrap() {
+    while scan.next().unwrap().is_some() {
         count += 1;
     }
     

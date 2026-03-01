@@ -1,4 +1,4 @@
-use super::error::{Result, WALError};
+use super::error::Result;
 use super::disk::WALDiskWriter;
 use crate::transaction::TransactionId;
 use crate::storage::PageId;

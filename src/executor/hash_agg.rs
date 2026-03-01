@@ -28,7 +28,7 @@ impl HashAgg {
     
     fn aggregate(&mut self) -> Result<(), ExecutorError> {
         while let Some(tuple) = self.input.next()? {
-            let key = tuple.data.get(0).copied().unwrap_or(0) as i64;
+            let key = tuple.data.first().copied().unwrap_or(0) as i64;
             let value = tuple.data.get(1).copied().unwrap_or(0) as i64;
             
             let state = self.groups.entry(key).or_insert(AggState { count: 0, sum: 0 });

@@ -77,7 +77,7 @@ performance:
     
     pub fn execute_sql(&self, sql: &str) -> Result<String, String> {
         let output = Command::new("psql")
-            .args(&[
+            .args([
                 "-h", "localhost",
                 "-p", &self.port.to_string(),
                 "-U", "postgres",

@@ -1,7 +1,7 @@
 use super::Parser;
 use crate::parser::error::{Result, ParseError};
 use crate::parser::lexer::Token;
-use crate::parser::ast::{Statement, CreateTableStmt, DropTableStmt, CreateViewStmt, DropViewStmt, CreateMaterializedViewStmt, RefreshMaterializedViewStmt, DropMaterializedViewStmt, CreateTriggerStmt, DropTriggerStmt, CreateIndexStmt, DropIndexStmt, TriggerTiming, TriggerEvent, TriggerFor, DescribeStmt, ColumnDef, DataType};
+use crate::parser::ast::{Statement, CreateTableStmt, DropTableStmt, CreateViewStmt, DropViewStmt, CreateMaterializedViewStmt, DropMaterializedViewStmt, CreateTriggerStmt, DropTriggerStmt, CreateIndexStmt, DropIndexStmt, TriggerTiming, TriggerEvent, TriggerFor, DescribeStmt, ColumnDef, DataType};
 use super::select;
 
 pub fn parse_create(parser: &mut Parser) -> Result<Statement> {

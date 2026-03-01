@@ -1,6 +1,5 @@
 use super::error::Result;
 use super::page::PageId;
-use std::cmp::Ordering;
 
 /// B+Tree key type
 pub type Key = Vec<u8>;
@@ -13,6 +12,7 @@ pub struct TupleId {
 }
 
 /// B+Tree node
+#[allow(dead_code)]
 enum Node {
     Internal(InternalNode),
     Leaf(LeafNode),
@@ -99,7 +99,7 @@ impl BTree {
     }
     
     /// Returns an iterator over all key-value pairs
-    pub fn iter(&self) -> BTreeIterator {
+    pub fn iter(&self) -> BTreeIterator<'_> {
         BTreeIterator {
             node: self.root.as_deref(),
             index: 0,

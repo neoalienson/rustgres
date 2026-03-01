@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::parser::{Parser, Statement};
-    use crate::parser::ast::{CreateViewStmt, DropViewStmt, Expr};
+    use crate::parser::ast::Expr;
 
     #[test]
     fn test_create_view_basic() {

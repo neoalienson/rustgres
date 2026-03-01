@@ -65,7 +65,7 @@ fn test_wal_disk_writer_persistence() {
     let lsn = writer.write(&record).unwrap();
     writer.flush().unwrap();
     
-    // LSN is u64, always >= 0
+    // Verify LSN was assigned
     assert!(lsn == 0 || lsn > 0);
     
     // Verify file was created

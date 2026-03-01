@@ -1,5 +1,3 @@
-use super::error::Result;
-
 /// Page size in bytes (8KB)
 pub const PAGE_SIZE: usize = 8192;
 

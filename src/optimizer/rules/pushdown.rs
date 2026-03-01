@@ -7,7 +7,7 @@ impl OptimizationRule for PredicatePushdown {
         match plan {
             LogicalPlan::Filter { input, predicate } => {
                 match *input {
-                    LogicalPlan::Scan { table, filter, columns } => {
+                    LogicalPlan::Scan { table, filter: _, columns } => {
                         LogicalPlan::Scan {
                             table,
                             filter: Some(predicate),

@@ -142,7 +142,7 @@ impl PredicateEvaluator {
             Expr::BinaryOp { left, op, right } => {
                 let left_val = match **left {
                     Expr::Number(n) => Value::Int(n),
-                    _ => row.get(0).cloned().unwrap_or(Value::Int(0)),
+                    _ => row.first().cloned().unwrap_or(Value::Int(0)),
                 };
                 let right_val = match **right {
                     Expr::Number(n) => Value::Int(n),

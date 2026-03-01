@@ -25,14 +25,14 @@ impl HashJoin {
     fn build_hash_table(&mut self) -> Result<(), ExecutorError> {
         while let Some(tuple) = self.build_side.next()? {
             let key = self.extract_key(&tuple);
-            self.hash_table.entry(key).or_insert_with(Vec::new).push(tuple);
+            self.hash_table.entry(key).or_default().push(tuple);
         }
         self.built = true;
         Ok(())
     }
     
     fn extract_key(&self, tuple: &Tuple) -> i64 {
-        tuple.data.get(0).copied().unwrap_or(0) as i64
+        tuple.data.first().copied().unwrap_or(0) as i64
     }
 }
 

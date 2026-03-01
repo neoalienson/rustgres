@@ -1,4 +1,3 @@
-use super::error::Result;
 use crate::statistics::ColumnStats;
 
 pub struct SelectivityEstimator;
@@ -16,7 +15,7 @@ impl SelectivityEstimator {
         }
     }
     
-    pub fn estimate_range(&self, stats: &ColumnStats, _lower: i64, _upper: i64) -> f64 {
+    pub fn estimate_range(&self, _stats: &ColumnStats, _lower: i64, _upper: i64) -> f64 {
         0.33
     }
     

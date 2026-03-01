@@ -65,7 +65,7 @@ impl Parser {
     }
     
     fn parse_union(&mut self, left: Statement) -> Result<Statement> {
-        use crate::parser::ast::{UnionStmt, SelectStmt};
+        use crate::parser::ast::UnionStmt;
         
         let left_select = match left {
             Statement::Select(s) => s,
@@ -122,7 +122,7 @@ impl Parser {
         }
     }
     fn parse_intersect(&mut self, left: Statement) -> Result<Statement> {
-        use crate::parser::ast::{IntersectStmt, SelectStmt};
+        use crate::parser::ast::IntersectStmt;
         
         let left_select = match left {
             Statement::Select(s) => s,
@@ -144,7 +144,7 @@ impl Parser {
     }
     
     fn parse_except(&mut self, left: Statement) -> Result<Statement> {
-        use crate::parser::ast::{ExceptStmt, SelectStmt};
+        use crate::parser::ast::ExceptStmt;
         
         let left_select = match left {
             Statement::Select(s) => s,
@@ -361,7 +361,7 @@ mod tests {
         match stmt {
             Statement::DropTable(s) => {
                 assert_eq!(s.table, "users");
-                assert_eq!(s.if_exists, false);
+                assert!(!s.if_exists);
             }
             _ => panic!("Expected DROP TABLE statement"),
         }
@@ -375,7 +375,7 @@ mod tests {
         match stmt {
             Statement::DropTable(s) => {
                 assert_eq!(s.table, "products");
-                assert_eq!(s.if_exists, true);
+                assert!(s.if_exists);
             }
             _ => panic!("Expected DROP TABLE statement"),
         }

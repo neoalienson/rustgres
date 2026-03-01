@@ -7,7 +7,7 @@ pub struct Aggregator;
 
 impl Aggregator {
     pub fn execute(
-        table_name: &str,
+        _table_name: &str,
         agg_spec: &str,
         where_clause: Option<Expr>,
         tuples: &[Tuple],
@@ -86,7 +86,7 @@ impl Aggregator {
                     .ok_or_else(|| format!("Column '{}' not found", col_name))?;
                 key.push(row[idx].clone());
             }
-            groups.entry(key).or_insert_with(Vec::new).push(row);
+            groups.entry(key).or_default().push(row);
         }
         
         let mut result = Vec::new();
@@ -129,9 +129,9 @@ mod tests {
         txn_mgr.commit(txn.xid).unwrap();
         
         let tuples = vec![
-            Tuple { header: header.clone(), data: vec![Value::Text("A".to_string()), Value::Int(10)] },
-            Tuple { header: header.clone(), data: vec![Value::Text("B".to_string()), Value::Int(20)] },
-            Tuple { header: header.clone(), data: vec![Value::Text("A".to_string()), Value::Int(30)] },
+            Tuple { header: header, data: vec![Value::Text("A".to_string()), Value::Int(10)] },
+            Tuple { header: header, data: vec![Value::Text("B".to_string()), Value::Int(20)] },
+            Tuple { header: header, data: vec![Value::Text("A".to_string()), Value::Int(30)] },
         ];
         
         (schema, tuples, txn_mgr)

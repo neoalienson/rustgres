@@ -1,6 +1,5 @@
-use rustgres::protocol::{Connection, Message, Response};
+use rustgres::protocol::Response;
 use rustgres::parser::Parser;
-use std::io::Cursor;
 
 #[test]
 fn test_query_with_semicolon_integration() {

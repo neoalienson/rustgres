@@ -1,5 +1,8 @@
-use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+use crate::executor::{SimpleExecutor, SimpleTuple};
 use std::collections::HashSet;
+
+#[cfg(test)]
+use crate::executor::ExecutorError;
 
 pub struct Subquery {
     input: Box<dyn SimpleExecutor>,

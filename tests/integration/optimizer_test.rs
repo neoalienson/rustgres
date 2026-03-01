@@ -3,7 +3,7 @@ use rustgres::statistics::{TableStats, ColumnStats, Histogram};
 
 #[test]
 fn test_cost_model_creation() {
-    let model = CostModel::new();
+    let _model = CostModel::new();
     assert!(true);
 }
 

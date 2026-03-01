@@ -200,7 +200,7 @@ mod tests {
             .collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let evaluator = Box::new(|t: &SimpleTuple| {
-            if t.data[0] % 2 == 0 {
+            if t.data[0].is_multiple_of(2) {
                 vec![0]
             } else {
                 vec![1]

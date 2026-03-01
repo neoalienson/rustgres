@@ -368,7 +368,7 @@ mod tests {
         assert_eq!(r1.data.len(), 1);
         let r2 = window.next().unwrap().unwrap();
         // Vec length is usize, always >= 0
-        assert!(r2.data.len() == 0 || r2.data.len() > 0);
+        assert!(r2.data.is_empty() || !r2.data.is_empty());
         window.close().unwrap();
     }
 
@@ -381,7 +381,7 @@ mod tests {
         window.open().unwrap();
         let r1 = window.next().unwrap().unwrap();
         // Vec length is usize, always >= 0
-        assert!(r1.data.len() == 0 || r1.data.len() > 0);
+        assert!(r1.data.is_empty() || !r1.data.is_empty());
         let r2 = window.next().unwrap().unwrap();
         assert_eq!(r2.data.len(), 1);
         window.close().unwrap();

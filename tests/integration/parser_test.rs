@@ -1,4 +1,4 @@
-use rustgres::parser::{parse, Statement, SelectStmt, InsertStmt, UpdateStmt, DeleteStmt, Expr};
+use rustgres::parser::{parse, Statement, Expr};
 
 #[test]
 fn test_parse_simple_select() {
@@ -246,7 +246,7 @@ fn test_parse_where_equals() {
         Statement::Select(s) => {
             assert!(s.where_clause.is_some());
             match s.where_clause.unwrap() {
-                Expr::BinaryOp { left, op, right } => {
+                Expr::BinaryOp { left, op: _, right } => {
                     assert_eq!(*left, Expr::Column("id".to_string()));
                     assert_eq!(*right, Expr::Number(1));
                 }

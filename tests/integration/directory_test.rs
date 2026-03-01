@@ -3,7 +3,6 @@ use rustgres::wal::{WALDiskWriter, WALRecord, RecordType};
 use rustgres::config::Config;
 use tempfile::TempDir;
 use std::fs;
-use std::path::Path;
 
 #[test]
 fn test_config_creates_directories() {

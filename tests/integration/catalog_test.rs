@@ -1,4 +1,4 @@
-use rustgres::catalog::{Catalog, Value};
+use rustgres::catalog::Catalog;
 use rustgres::parser::ast::{ColumnDef, DataType, Expr};
 
 #[test]

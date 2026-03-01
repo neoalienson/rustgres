@@ -1,8 +1,8 @@
-use rustgres::statistics::{Analyzer, TableStats, ColumnStats};
+use rustgres::statistics::Analyzer;
 
 #[test]
 fn test_analyzer_with_valid_sample_rate() {
-    let analyzer = Analyzer::new(0.1).unwrap();
+    let _analyzer = Analyzer::new(0.1).unwrap();
     assert!(true);
 }
 

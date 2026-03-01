@@ -37,7 +37,7 @@ impl Analyzer {
         let row_count = rows.len() as u64;
         let total_size: usize = rows.iter().map(|r| r.len()).sum();
         let avg_row_size = (total_size / rows.len()) as u32;
-        let page_count = (total_size + 8191) / 8192;
+        let page_count = total_size.div_ceil(8192);
         
         Ok(TableStats {
             row_count,

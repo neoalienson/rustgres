@@ -1,8 +1,8 @@
-use super::error::{Result, WALError};
+use super::error::Result;
 use super::writer::{WALRecord, RecordType, LSN};
 use crate::transaction::TransactionId;
 use crate::storage::PageId;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Recovery state
 #[derive(Debug)]
@@ -81,7 +81,7 @@ impl RecoveryManager {
     }
     
     /// Redo phase: Replay all operations from checkpoint
-    fn redo_phase(&self, records: &[WALRecord], state: &RecoveryState) -> Result<()> {
+    fn redo_phase(&self, records: &[WALRecord], _state: &RecoveryState) -> Result<()> {
         for record in records {
             if record.lsn <= self.checkpoint_lsn {
                 continue;

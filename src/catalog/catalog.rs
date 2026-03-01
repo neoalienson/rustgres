@@ -175,7 +175,7 @@ impl Catalog {
     pub fn refresh_materialized_view(&self, name: &str) -> Result<(), String> {
         let mut mvs = self.materialized_views.write().unwrap();
         
-        let (query, data) = mvs.get_mut(name)
+        let (_query, data) = mvs.get_mut(name)
             .ok_or_else(|| format!("Materialized view '{}' does not exist", name))?;
         
         data.clear();

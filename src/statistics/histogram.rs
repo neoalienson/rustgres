@@ -28,7 +28,7 @@ impl Histogram {
         
         values.sort_unstable();
         let total = values.len();
-        let per_bucket = (total + self.num_buckets - 1) / self.num_buckets;
+        let per_bucket = total.div_ceil(self.num_buckets);
         
         self.buckets.clear();
         for chunk in values.chunks(per_bucket) {

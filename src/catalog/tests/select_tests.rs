@@ -1,5 +1,5 @@
 use crate::catalog::*;
-use crate::parser::ast::{ColumnDef, DataType, Expr, BinaryOperator, OrderByExpr};
+use crate::parser::ast::{ColumnDef, DataType, Expr, OrderByExpr};
 
 #[test]
 fn test_select_all() {

@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn test_disk_manager_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let dm = DiskManager::new(temp_dir.path()).unwrap();
+        let _dm = DiskManager::new(temp_dir.path()).unwrap();
         assert!(temp_dir.path().exists());
     }
 

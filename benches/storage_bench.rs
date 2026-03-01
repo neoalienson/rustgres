@@ -7,7 +7,7 @@ fn bench_buffer_pool_fetch(c: &mut Criterion) {
     
     c.bench_function("buffer_pool_fetch", |b| {
         b.iter(|| {
-            let _frame = pool.fetch(black_box(PageId(1))).unwrap();
+            pool.fetch(black_box(PageId(1))).unwrap();
             pool.unpin(black_box(PageId(1)), false).unwrap();
         });
     });

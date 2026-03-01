@@ -23,7 +23,7 @@ impl Sort {
         }
         
         self.sorted_tuples.sort_by_key(|t| {
-            t.data.get(0).copied().unwrap_or(0)
+            t.data.first().copied().unwrap_or(0)
         });
         
         self.sorted = true;

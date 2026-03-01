@@ -95,7 +95,7 @@ performance:
     
     fn execute_sql(&self, sql: &str) -> Result<String, String> {
         let output = Command::new("psql")
-            .args(&[
+            .args([
                 "-h", "localhost",
                 "-p", &self.port.to_string(),
                 "-U", "postgres",
@@ -273,7 +273,7 @@ fn test_large_dataset_persists() {
     // Insert 100 rows
     for i in 1..=100 {
         server.execute_sql(&format!("INSERT INTO large_data VALUES ({}, {})", i, i * 10))
-            .expect(&format!("INSERT {} failed", i));
+            .unwrap_or_else(|_| panic!("INSERT {} failed", i));
     }
     
     // Restart server

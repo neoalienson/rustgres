@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Write;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Message {
