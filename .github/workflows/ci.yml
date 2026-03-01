@@ -79,7 +79,7 @@ jobs:
         run: cargo fmt --all -- --check
       
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -- -W clippy::all
 
   coverage:
     name: Test Coverage
