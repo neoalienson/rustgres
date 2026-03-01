@@ -23,7 +23,7 @@ logs/
 *.db
 *.sqlite
 data/
-wal/
+/wal/
 test_data/
 test_wal/
 
