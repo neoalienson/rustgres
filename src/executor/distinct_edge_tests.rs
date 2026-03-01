@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, Distinct};
     use crate::executor::mock::MockExecutor;
+    use crate::executor::{Distinct, SimpleExecutor, SimpleTuple as Tuple};
 
     #[test]
     fn test_distinct_empty_input() {
@@ -25,10 +25,8 @@ mod tests {
 
     #[test]
     fn test_distinct_two_identical_rows() {
-        let input = MockExecutor::new(vec![
-            Tuple { data: vec![1, 2, 3] },
-            Tuple { data: vec![1, 2, 3] },
-        ]);
+        let input =
+            MockExecutor::new(vec![Tuple { data: vec![1, 2, 3] }, Tuple { data: vec![1, 2, 3] }]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
         assert!(distinct.next().unwrap().is_some());
@@ -183,10 +181,7 @@ mod tests {
 
     #[test]
     fn test_distinct_empty_rows() {
-        let input = MockExecutor::new(vec![
-            Tuple { data: vec![] },
-            Tuple { data: vec![] },
-        ]);
+        let input = MockExecutor::new(vec![Tuple { data: vec![] }, Tuple { data: vec![] }]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
         let mut count = 0;
@@ -227,7 +222,7 @@ mod tests {
             Tuple { data: vec![2] },
         ]);
         let mut distinct = Distinct::new(Box::new(input));
-        
+
         distinct.open().unwrap();
         let mut count = 0;
         while distinct.next().unwrap().is_some() {

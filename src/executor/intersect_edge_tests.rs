@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, Intersect};
     use crate::executor::mock::MockExecutor;
+    use crate::executor::{Intersect, SimpleExecutor, SimpleTuple as Tuple};
 
     #[test]
     fn test_intersect_single_match() {
@@ -46,7 +46,8 @@ mod tests {
             left_tuples.push(Tuple { data: vec![(i % 10) as u8] });
         }
         let right = MockExecutor::new(vec![Tuple { data: vec![5] }]);
-        let mut intersect = Intersect::new(Box::new(MockExecutor::new(left_tuples)), Box::new(right));
+        let mut intersect =
+            Intersect::new(Box::new(MockExecutor::new(left_tuples)), Box::new(right));
         intersect.open().unwrap();
 
         let mut count = 0;
@@ -75,10 +76,7 @@ mod tests {
 
     #[test]
     fn test_intersect_subset() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let right = MockExecutor::new(vec![
             Tuple { data: vec![1] },
             Tuple { data: vec![2] },
@@ -102,10 +100,7 @@ mod tests {
             Tuple { data: vec![2] },
             Tuple { data: vec![3] },
         ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut intersect = Intersect::new(Box::new(left), Box::new(right));
         intersect.open().unwrap();
 

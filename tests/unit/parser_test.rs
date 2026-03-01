@@ -1,10 +1,10 @@
-use rustgres::parser::{Parser, Statement, Expr};
+use rustgres::parser::{Expr, Parser, Statement};
 
 #[test]
 fn test_parse_select_star() {
     let mut parser = Parser::new("SELECT * FROM users").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns, vec![Expr::Star]);
@@ -18,7 +18,7 @@ fn test_parse_select_star() {
 fn test_parse_select_without_from() {
     let mut parser = Parser::new("SELECT 1").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.from, "");
@@ -32,7 +32,7 @@ fn test_parse_select_without_from() {
 fn test_parse_select_with_semicolon() {
     let mut parser = Parser::new("SELECT * FROM users;").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => assert_eq!(s.from, "users"),
         _ => panic!("Expected SELECT"),
@@ -43,7 +43,7 @@ fn test_parse_select_with_semicolon() {
 fn test_parse_insert_single_value() {
     let mut parser = Parser::new("INSERT INTO users VALUES (1)").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Insert(s) => {
             assert_eq!(s.table, "users");
@@ -55,9 +55,10 @@ fn test_parse_insert_single_value() {
 
 #[test]
 fn test_parse_insert_multiple_values() {
-    let mut parser = Parser::new("INSERT INTO users VALUES (1, 'Alice', 'alice@example.com')").unwrap();
+    let mut parser =
+        Parser::new("INSERT INTO users VALUES (1, 'Alice', 'alice@example.com')").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Insert(s) => {
             assert_eq!(s.values.len(), 3);
@@ -70,7 +71,7 @@ fn test_parse_insert_multiple_values() {
 fn test_parse_update_single_assignment() {
     let mut parser = Parser::new("UPDATE users SET name = 'Bob'").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Update(s) => {
             assert_eq!(s.assignments.len(), 1);
@@ -84,7 +85,7 @@ fn test_parse_update_single_assignment() {
 fn test_parse_update_multiple_assignments() {
     let mut parser = Parser::new("UPDATE users SET name = 'Bob', age = 30").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Update(s) => {
             assert_eq!(s.assignments.len(), 2);
@@ -97,7 +98,7 @@ fn test_parse_update_multiple_assignments() {
 fn test_parse_delete_without_where() {
     let mut parser = Parser::new("DELETE FROM users").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Delete(s) => {
             assert_eq!(s.table, "users");
@@ -111,7 +112,7 @@ fn test_parse_delete_without_where() {
 fn test_parse_delete_with_where() {
     let mut parser = Parser::new("DELETE FROM users WHERE id = 1").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Delete(s) => {
             assert!(s.where_clause.is_some());
@@ -125,7 +126,7 @@ fn test_parse_empty_string() {
     let result = Parser::new("");
     // Empty string creates parser with EOF token
     assert!(result.is_ok());
-    
+
     let mut parser = result.unwrap();
     let result = parser.parse();
     assert!(result.is_err()); // But parsing fails
@@ -136,7 +137,7 @@ fn test_parse_whitespace_only() {
     let result = Parser::new("   \n\t  ");
     // Whitespace only creates parser with EOF token
     assert!(result.is_ok());
-    
+
     let mut parser = result.unwrap();
     let result = parser.parse();
     assert!(result.is_err()); // But parsing fails
@@ -146,7 +147,7 @@ fn test_parse_whitespace_only() {
 fn test_parse_invalid_keyword() {
     let result = Parser::new("INVALID STATEMENT");
     assert!(result.is_ok()); // Lexer succeeds
-    
+
     let mut parser = result.unwrap();
     let result = parser.parse();
     assert!(result.is_err()); // Parser fails
@@ -156,7 +157,7 @@ fn test_parse_invalid_keyword() {
 fn test_parse_incomplete_select() {
     let result = Parser::new("SELECT");
     assert!(result.is_ok());
-    
+
     let mut parser = result.unwrap();
     let result = parser.parse();
     assert!(result.is_err());
@@ -166,7 +167,7 @@ fn test_parse_incomplete_select() {
 fn test_parse_incomplete_insert() {
     let result = Parser::new("INSERT INTO");
     assert!(result.is_ok());
-    
+
     let mut parser = result.unwrap();
     let result = parser.parse();
     assert!(result.is_err());
@@ -174,12 +175,8 @@ fn test_parse_incomplete_insert() {
 
 #[test]
 fn test_parse_case_insensitive_keywords() {
-    let queries = vec![
-        "select * from users",
-        "SELECT * FROM users",
-        "SeLeCt * FrOm users",
-    ];
-    
+    let queries = vec!["select * from users", "SELECT * FROM users", "SeLeCt * FrOm users"];
+
     for query in queries {
         let mut parser = Parser::new(query).unwrap();
         assert!(parser.parse().is_ok());
@@ -190,7 +187,7 @@ fn test_parse_case_insensitive_keywords() {
 fn test_parse_number_zero() {
     let mut parser = Parser::new("SELECT 0").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns[0], Expr::Number(0));
@@ -203,7 +200,7 @@ fn test_parse_number_zero() {
 fn test_parse_large_number() {
     let mut parser = Parser::new("SELECT 999999").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns[0], Expr::Number(999999));
@@ -216,7 +213,7 @@ fn test_parse_large_number() {
 fn test_parse_empty_string_literal() {
     let mut parser = Parser::new("SELECT ''").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns[0], Expr::String("".to_string()));
@@ -229,7 +226,7 @@ fn test_parse_empty_string_literal() {
 fn test_parse_string_with_spaces() {
     let mut parser = Parser::new("SELECT 'hello world'").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns[0], Expr::String("hello world".to_string()));
@@ -242,7 +239,7 @@ fn test_parse_string_with_spaces() {
 fn test_parse_multiple_columns() {
     let mut parser = Parser::new("SELECT id, name, email FROM users").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns.len(), 3);
@@ -255,7 +252,7 @@ fn test_parse_multiple_columns() {
 fn test_parse_where_equals() {
     let mut parser = Parser::new("SELECT * FROM users WHERE id = 1").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert!(s.where_clause.is_some());
@@ -264,12 +261,11 @@ fn test_parse_where_equals() {
     }
 }
 
-
 #[test]
 fn test_parse_select_distinct() {
     let mut parser = Parser::new("SELECT DISTINCT name FROM users").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert!(s.distinct);
@@ -283,7 +279,7 @@ fn test_parse_select_distinct() {
 fn test_parse_group_by() {
     let mut parser = Parser::new("SELECT category FROM products GROUP BY category").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert!(s.group_by.is_some());
@@ -295,9 +291,10 @@ fn test_parse_group_by() {
 
 #[test]
 fn test_parse_having() {
-    let mut parser = Parser::new("SELECT category FROM products GROUP BY category HAVING 1 > 0").unwrap();
+    let mut parser =
+        Parser::new("SELECT category FROM products GROUP BY category HAVING 1 > 0").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert!(s.having.is_some());
@@ -310,7 +307,7 @@ fn test_parse_having() {
 fn test_parse_order_by() {
     let mut parser = Parser::new("SELECT * FROM users ORDER BY name ASC").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert!(s.order_by.is_some());
@@ -326,7 +323,7 @@ fn test_parse_order_by() {
 fn test_parse_limit_offset() {
     let mut parser = Parser::new("SELECT * FROM users LIMIT 10 OFFSET 5").unwrap();
     let stmt = parser.parse().unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.limit, Some(10));

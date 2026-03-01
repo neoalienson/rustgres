@@ -6,7 +6,7 @@ mod tests {
     fn test_create_index_basic() {
         let mut parser = Parser::new("CREATE INDEX idx ON users (id)").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateIndex(idx) => {
                 assert_eq!(idx.name, "idx");
@@ -22,7 +22,7 @@ mod tests {
     fn test_create_unique_index() {
         let mut parser = Parser::new("CREATE UNIQUE INDEX idx ON users (email)").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateIndex(idx) => {
                 assert_eq!(idx.name, "idx");
@@ -36,7 +36,7 @@ mod tests {
     fn test_create_index_multiple_columns() {
         let mut parser = Parser::new("CREATE INDEX idx ON users (first_name, last_name)").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateIndex(idx) => {
                 assert_eq!(idx.columns.len(), 2);
@@ -51,7 +51,7 @@ mod tests {
     fn test_drop_index_basic() {
         let mut parser = Parser::new("DROP INDEX idx").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropIndex(d) => {
                 assert_eq!(d.name, "idx");
@@ -65,7 +65,7 @@ mod tests {
     fn test_drop_index_if_exists() {
         let mut parser = Parser::new("DROP INDEX IF EXISTS idx").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropIndex(d) => {
                 assert_eq!(d.name, "idx");
@@ -79,7 +79,7 @@ mod tests {
     fn test_create_index_three_columns() {
         let mut parser = Parser::new("CREATE INDEX idx ON t (a, b, c)").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateIndex(idx) => {
                 assert_eq!(idx.columns.len(), 3);
@@ -92,7 +92,7 @@ mod tests {
     fn test_create_unique_index_multiple_columns() {
         let mut parser = Parser::new("CREATE UNIQUE INDEX idx ON t (a, b)").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateIndex(idx) => {
                 assert!(idx.unique);

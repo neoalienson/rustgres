@@ -1,9 +1,9 @@
-use rustgres::protocol::Server;
 use rustgres::config::Config;
-use std::thread;
+use rustgres::protocol::Server;
 use std::env;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
+use std::thread;
 
 fn main() -> std::io::Result<()> {
     // Load config from file or use default
@@ -17,50 +17,59 @@ fn main() -> std::io::Result<()> {
     } else {
         Config::default()
     };
-    
+
     // Create data directories
     fs::create_dir_all(&config.storage.data_dir)?;
     fs::create_dir_all(&config.storage.wal_dir)?;
-    
+
     // Initialize logger from config
     let filter = if config.logging.scope == "*" {
         format!("rustgres={}", config.logging.level)
     } else {
-        config.logging.scope.split(',')
+        config
+            .logging
+            .scope
+            .split(',')
             .map(|s| format!("rustgres::{}={}", s.trim(), config.logging.level))
             .collect::<Vec<_>>()
             .join(",")
     };
-    
+
     env::set_var("RUST_LOG", filter);
     env_logger::init();
-    
+
     let addr = format!("{}:{}", config.server.host, config.server.port);
     log::info!("🚀 RustGres v0.1.0 starting...");
     log::info!("📡 Listening on {}", addr);
     log::info!("📁 Data directory: {}", config.storage.data_dir);
     log::info!("📝 WAL directory: {}", config.storage.wal_dir);
-    log::info!("💾 Buffer pool: {} pages ({} MB)", 
+    log::info!(
+        "💾 Buffer pool: {} pages ({} MB)",
         config.storage.buffer_pool_size,
         (config.storage.buffer_pool_size * config.storage.page_size) / (1024 * 1024)
     );
     log::info!("✅ Ready for connections");
-    log::info!("\nConnect with: psql -h {} -p {} -U postgres -d testdb\n", config.server.host, config.server.port);
-    
+    log::info!(
+        "\nConnect with: psql -h {} -p {} -U postgres -d testdb\n",
+        config.server.host,
+        config.server.port
+    );
+
     let server = Server::bind_with_data_dir(&addr, config.storage.data_dir.clone())?;
-    
+
     // Setup signal handler for graceful shutdown
     let server_clone = std::sync::Arc::new(server);
     let server_for_handler = server_clone.clone();
-    
+
     ctrlc::set_handler(move || {
         log::info!("\n🛑 Shutdown signal received");
         if let Err(e) = server_for_handler.shutdown() {
             log::error!("Failed to save catalog: {}", e);
         }
         std::process::exit(0);
-    }).expect("Error setting Ctrl-C handler");
-    
+    })
+    .expect("Error setting Ctrl-C handler");
+
     loop {
         match server_clone.accept() {
             Ok(mut conn) => {

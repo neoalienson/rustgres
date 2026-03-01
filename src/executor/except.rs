@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 use std::collections::HashSet;
 
 pub struct Except {
@@ -10,12 +10,7 @@ pub struct Except {
 
 impl Except {
     pub fn new(left: Box<dyn SimpleExecutor>, right: Box<dyn SimpleExecutor>) -> Self {
-        Self {
-            left,
-            right,
-            right_set: HashSet::new(),
-            right_loaded: false,
-        }
+        Self { left, right, right_set: HashSet::new(), right_loaded: false }
     }
 
     fn load_right(&mut self) -> Result<(), ExecutorError> {
@@ -87,14 +82,8 @@ mod tests {
 
     #[test]
     fn test_except_no_overlap() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![3] },
-            Tuple { data: vec![4] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![3] }, Tuple { data: vec![4] }]);
         let mut except = Except::new(Box::new(left), Box::new(right));
         except.open().unwrap();
 
@@ -108,14 +97,8 @@ mod tests {
 
     #[test]
     fn test_except_all_overlap() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut except = Except::new(Box::new(left), Box::new(right));
         except.open().unwrap();
         assert!(except.next().unwrap().is_none());
@@ -125,10 +108,7 @@ mod tests {
     #[test]
     fn test_except_empty_left() {
         let left = MockExecutor::new(vec![]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut except = Except::new(Box::new(left), Box::new(right));
         except.open().unwrap();
         assert!(except.next().unwrap().is_none());
@@ -137,10 +117,7 @@ mod tests {
 
     #[test]
     fn test_except_empty_right() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let right = MockExecutor::new(vec![]);
         let mut except = Except::new(Box::new(left), Box::new(right));
         except.open().unwrap();

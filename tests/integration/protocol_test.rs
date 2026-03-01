@@ -1,5 +1,5 @@
-use rustgres::protocol::{Message, Response, Connection, Server};
 use rustgres::catalog::Catalog;
+use rustgres::protocol::{Connection, Message, Response, Server};
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -73,10 +73,10 @@ fn test_query_with_semicolon() {
 fn test_error_response_length() {
     let mut buf = Vec::new();
     Response::ErrorResponse { message: "Parse error".to_string() }.write(&mut buf).unwrap();
-    
+
     // Verify message type
     assert_eq!(buf[0], b'E');
-    
+
     // Verify length field exists
     let len = i32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
     assert!(len > 0);

@@ -13,12 +13,7 @@ pub struct Subquery {
 
 impl Subquery {
     pub fn new(input: Box<dyn SimpleExecutor>) -> Self {
-        Self {
-            input,
-            results: Vec::new(),
-            position: 0,
-            executed: false,
-        }
+        Self { input, results: Vec::new(), position: 0, executed: false }
     }
 
     pub fn execute_scalar(&mut self) -> Option<Vec<u8>> {
@@ -55,7 +50,9 @@ impl SimpleExecutor for Subquery {
         Ok(())
     }
 
-    fn next(&mut self) -> Result<Option<crate::executor::SimpleTuple>, crate::executor::ExecutorError> {
+    fn next(
+        &mut self,
+    ) -> Result<Option<crate::executor::SimpleTuple>, crate::executor::ExecutorError> {
         self.input.next()
     }
 
@@ -102,9 +99,7 @@ mod tests {
 
     #[test]
     fn test_subquery_scalar() {
-        let tuples = vec![SimpleTuple {
-            data: vec![42],
-        }];
+        let tuples = vec![SimpleTuple { data: vec![42] }];
         let mock = Box::new(MockExecutor::new(tuples));
         let mut subquery = Subquery::new(mock);
 

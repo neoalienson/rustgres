@@ -1,4 +1,4 @@
-use rustgres::executor::{SimpleExecutor, SimpleTuple, Join, JoinType, MockExecutor};
+use rustgres::executor::{Join, JoinType, MockExecutor, SimpleExecutor, SimpleTuple};
 
 #[test]
 fn test_inner_join() {
@@ -10,7 +10,7 @@ fn test_inner_join() {
         SimpleTuple { data: vec![1, 100] },
         SimpleTuple { data: vec![2, 200] },
     ]);
-    
+
     let mut join = Join::new(
         Box::new(left),
         Box::new(right),
@@ -18,12 +18,12 @@ fn test_inner_join() {
         Box::new(|l, r| l.data[0] == r.data[0]),
     );
     join.open().unwrap();
-    
+
     let mut results = Vec::new();
     while let Some(tuple) = join.next().unwrap() {
         results.push(tuple);
     }
-    
+
     assert_eq!(results.len(), 2);
     join.close().unwrap();
 }
@@ -35,11 +35,9 @@ fn test_left_join() {
         SimpleTuple { data: vec![2] },
         SimpleTuple { data: vec![3] },
     ]);
-    let right = MockExecutor::new(vec![
-        SimpleTuple { data: vec![1] },
-        SimpleTuple { data: vec![2] },
-    ]);
-    
+    let right =
+        MockExecutor::new(vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![2] }]);
+
     let mut join = Join::new(
         Box::new(left),
         Box::new(right),
@@ -47,28 +45,26 @@ fn test_left_join() {
         Box::new(|l, r| l.data[0] == r.data[0]),
     );
     join.open().unwrap();
-    
+
     let mut results = Vec::new();
     while let Some(tuple) = join.next().unwrap() {
         results.push(tuple);
     }
-    
+
     assert_eq!(results.len(), 3);
     join.close().unwrap();
 }
 
 #[test]
 fn test_right_join() {
-    let left = MockExecutor::new(vec![
-        SimpleTuple { data: vec![1] },
-        SimpleTuple { data: vec![2] },
-    ]);
+    let left =
+        MockExecutor::new(vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![2] }]);
     let right = MockExecutor::new(vec![
         SimpleTuple { data: vec![1] },
         SimpleTuple { data: vec![2] },
         SimpleTuple { data: vec![3] },
     ]);
-    
+
     let mut join = Join::new(
         Box::new(left),
         Box::new(right),
@@ -76,12 +72,12 @@ fn test_right_join() {
         Box::new(|l, r| l.data[0] == r.data[0]),
     );
     join.open().unwrap();
-    
+
     let mut results = Vec::new();
     while let Some(tuple) = join.next().unwrap() {
         results.push(tuple);
     }
-    
+
     assert_eq!(results.len(), 3);
     join.close().unwrap();
 }
@@ -93,11 +89,9 @@ fn test_full_join() {
         SimpleTuple { data: vec![2] },
         SimpleTuple { data: vec![4] },
     ]);
-    let right = MockExecutor::new(vec![
-        SimpleTuple { data: vec![1] },
-        SimpleTuple { data: vec![3] },
-    ]);
-    
+    let right =
+        MockExecutor::new(vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![3] }]);
+
     let mut join = Join::new(
         Box::new(left),
         Box::new(right),
@@ -105,12 +99,12 @@ fn test_full_join() {
         Box::new(|l, r| l.data[0] == r.data[0]),
     );
     join.open().unwrap();
-    
+
     let mut results = Vec::new();
     while let Some(tuple) = join.next().unwrap() {
         results.push(tuple);
     }
-    
+
     assert_eq!(results.len(), 4);
     join.close().unwrap();
 }

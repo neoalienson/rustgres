@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, Except};
     use crate::executor::mock::MockExecutor;
+    use crate::executor::{Except, SimpleExecutor, SimpleTuple as Tuple};
 
     #[test]
     fn test_except_single_difference() {
@@ -10,10 +10,7 @@ mod tests {
             Tuple { data: vec![2] },
             Tuple { data: vec![3] },
         ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![2] },
-            Tuple { data: vec![3] },
-        ]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![2] }, Tuple { data: vec![3] }]);
         let mut except = Except::new(Box::new(left), Box::new(right));
         except.open().unwrap();
 
@@ -78,10 +75,7 @@ mod tests {
 
     #[test]
     fn test_except_subset() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let right = MockExecutor::new(vec![
             Tuple { data: vec![1] },
             Tuple { data: vec![2] },
@@ -100,10 +94,7 @@ mod tests {
             Tuple { data: vec![2] },
             Tuple { data: vec![3] },
         ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut except = Except::new(Box::new(left), Box::new(right));
         except.open().unwrap();
 

@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
-    use crate::parser::{Parser, Statement};
     use crate::parser::ast::Expr;
+    use crate::parser::{Parser, Statement};
 
     #[test]
     fn test_create_view_basic() {
         let mut parser = Parser::new("CREATE VIEW v AS SELECT * FROM t").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateView(v) => {
                 assert_eq!(v.name, "v");
@@ -19,9 +19,11 @@ mod tests {
 
     #[test]
     fn test_create_view_with_where() {
-        let mut parser = Parser::new("CREATE VIEW active_users AS SELECT * FROM users WHERE active = 1").unwrap();
+        let mut parser =
+            Parser::new("CREATE VIEW active_users AS SELECT * FROM users WHERE active = 1")
+                .unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateView(v) => {
                 assert_eq!(v.name, "active_users");
@@ -33,9 +35,10 @@ mod tests {
 
     #[test]
     fn test_create_view_with_columns() {
-        let mut parser = Parser::new("CREATE VIEW user_names AS SELECT id, name FROM users").unwrap();
+        let mut parser =
+            Parser::new("CREATE VIEW user_names AS SELECT id, name FROM users").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateView(v) => {
                 assert_eq!(v.name, "user_names");
@@ -47,9 +50,12 @@ mod tests {
 
     #[test]
     fn test_create_view_with_join() {
-        let mut parser = Parser::new("CREATE VIEW user_orders AS SELECT * FROM users INNER JOIN orders ON id = user_id").unwrap();
+        let mut parser = Parser::new(
+            "CREATE VIEW user_orders AS SELECT * FROM users INNER JOIN orders ON id = user_id",
+        )
+        .unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateView(v) => {
                 assert_eq!(v.name, "user_orders");
@@ -61,14 +67,15 @@ mod tests {
 
     #[test]
     fn test_create_view_with_aggregate() {
-        let mut parser = Parser::new("CREATE VIEW user_count AS SELECT COUNT(*) FROM users").unwrap();
+        let mut parser =
+            Parser::new("CREATE VIEW user_count AS SELECT COUNT(*) FROM users").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateView(v) => {
                 assert_eq!(v.name, "user_count");
                 match &v.query.columns[0] {
-                    Expr::Aggregate { .. } => {},
+                    Expr::Aggregate { .. } => {}
                     _ => panic!("Expected aggregate"),
                 }
             }
@@ -80,7 +87,7 @@ mod tests {
     fn test_drop_view_basic() {
         let mut parser = Parser::new("DROP VIEW v").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropView(d) => {
                 assert_eq!(d.name, "v");
@@ -94,7 +101,7 @@ mod tests {
     fn test_drop_view_if_exists() {
         let mut parser = Parser::new("DROP VIEW IF EXISTS v").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropView(d) => {
                 assert_eq!(d.name, "v");

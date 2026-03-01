@@ -13,13 +13,7 @@ pub struct SeqScan {
 
 impl SeqScan {
     pub fn new(heap: Arc<HeapFile>, table_name: String) -> Self {
-        Self {
-            heap,
-            table_name,
-            current_page: 0,
-            current_slot: 0,
-            total_pages: 1,
-        }
+        Self { heap, table_name, current_page: 0, current_slot: 0, total_pages: 1 }
     }
 }
 
@@ -78,7 +72,7 @@ mod tests {
         let pool = Arc::new(BufferPool::new(10));
         let heap = Arc::new(HeapFile::new(pool));
         let mut scan = SeqScan::new(heap, "test".to_string());
-        
+
         scan.open().unwrap();
         assert!(scan.next().unwrap().is_none());
         scan.close().unwrap();
@@ -88,19 +82,19 @@ mod tests {
     fn test_seq_scan_with_data() {
         let pool = Arc::new(BufferPool::new(10));
         let heap = Arc::new(HeapFile::new(pool));
-        
+
         heap.insert_tuple(PageId(0), vec![1, 2, 3]).unwrap();
         heap.insert_tuple(PageId(0), vec![4, 5, 6]).unwrap();
-        
+
         let mut scan = SeqScan::new(heap, "test".to_string());
         scan.open().unwrap();
-        
+
         let t1 = scan.next().unwrap().unwrap();
         assert_eq!(t1.get("test").unwrap(), &vec![1, 2, 3]);
-        
+
         let t2 = scan.next().unwrap().unwrap();
         assert_eq!(t2.get("test").unwrap(), &vec![4, 5, 6]);
-        
+
         assert!(scan.next().unwrap().is_none());
         scan.close().unwrap();
     }

@@ -1,4 +1,4 @@
-use super::error::{Result, ParseError};
+use super::error::{ParseError, Result};
 
 /// Token type
 #[derive(Debug, Clone, PartialEq)]
@@ -81,12 +81,12 @@ pub enum Token {
     Begin,
     Index,
     Unique,
-    
+
     // Identifiers and literals
     Identifier(String),
     Number(i64),
     String(String),
-    
+
     // Operators
     Star,
     Comma,
@@ -99,7 +99,7 @@ pub enum Token {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
-    
+
     // End of input
     EOF,
 }
@@ -113,34 +113,31 @@ pub struct Lexer {
 impl Lexer {
     /// Creates a new lexer
     pub fn new(input: &str) -> Self {
-        Self {
-            input: input.chars().collect(),
-            position: 0,
-        }
+        Self { input: input.chars().collect(), position: 0 }
     }
-    
+
     /// Tokenizes the input
     pub fn tokenize(&mut self) -> Result<Vec<Token>> {
         let mut tokens = Vec::new();
-        
+
         loop {
             self.skip_whitespace();
-            
+
             if self.is_eof() {
                 tokens.push(Token::EOF);
                 break;
             }
-            
+
             let token = self.next_token()?;
             tokens.push(token);
         }
-        
+
         Ok(tokens)
     }
-    
+
     fn next_token(&mut self) -> Result<Token> {
         let ch = self.current_char();
-        
+
         match ch {
             '*' => {
                 self.advance();
@@ -199,15 +196,17 @@ impl Lexer {
             _ => Err(ParseError::UnexpectedToken(ch.to_string())),
         }
     }
-    
+
     fn read_identifier(&mut self) -> Result<Token> {
         let mut ident = String::new();
-        
-        while !self.is_eof() && (self.current_char().is_alphanumeric() || self.current_char() == '_') {
+
+        while !self.is_eof()
+            && (self.current_char().is_alphanumeric() || self.current_char() == '_')
+        {
             ident.push(self.current_char());
             self.advance();
         }
-        
+
         let token = match ident.to_uppercase().as_str() {
             "SELECT" => Token::Select,
             "INSERT" => Token::Insert,
@@ -288,55 +287,56 @@ impl Lexer {
             "UNIQUE" => Token::Unique,
             _ => Token::Identifier(ident),
         };
-        
+
         Ok(token)
     }
-    
+
     fn read_number(&mut self) -> Result<Token> {
         let mut num = String::new();
-        
+
         while !self.is_eof() && self.current_char().is_ascii_digit() {
             num.push(self.current_char());
             self.advance();
         }
-        
-        let value = num.parse::<i64>()
+
+        let value = num
+            .parse::<i64>()
             .map_err(|_| ParseError::InvalidSyntax(format!("invalid number: {}", num)))?;
-        
+
         Ok(Token::Number(value))
     }
-    
+
     fn read_string(&mut self) -> Result<Token> {
         self.advance(); // Skip opening quote
         let mut s = String::new();
-        
+
         while !self.is_eof() && self.current_char() != '\'' {
             s.push(self.current_char());
             self.advance();
         }
-        
+
         if self.is_eof() {
             return Err(ParseError::UnexpectedEOF);
         }
-        
+
         self.advance(); // Skip closing quote
         Ok(Token::String(s))
     }
-    
+
     fn skip_whitespace(&mut self) {
         while !self.is_eof() && self.current_char().is_whitespace() {
             self.advance();
         }
     }
-    
+
     fn current_char(&self) -> char {
         self.input[self.position]
     }
-    
+
     fn advance(&mut self) {
         self.position += 1;
     }
-    
+
     fn is_eof(&self) -> bool {
         self.position >= self.input.len()
     }
@@ -350,46 +350,46 @@ mod tests {
     fn test_tokenize_select() {
         let mut lexer = Lexer::new("SELECT * FROM users");
         let tokens = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0], Token::Select);
         assert_eq!(tokens[1], Token::Star);
         assert_eq!(tokens[2], Token::From);
         assert_eq!(tokens[3], Token::Identifier("users".to_string()));
     }
-    
+
     #[test]
     fn test_tokenize_insert() {
         let mut lexer = Lexer::new("INSERT INTO users VALUES (1, 'Alice')");
         let tokens = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0], Token::Insert);
         assert_eq!(tokens[1], Token::Into);
         assert_eq!(tokens[2], Token::Identifier("users".to_string()));
     }
-    
+
     #[test]
     fn test_tokenize_numbers() {
         let mut lexer = Lexer::new("123 456");
         let tokens = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0], Token::Number(123));
         assert_eq!(tokens[1], Token::Number(456));
     }
-    
+
     #[test]
     fn test_tokenize_strings() {
         let mut lexer = Lexer::new("'hello' 'world'");
         let tokens = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0], Token::String("hello".to_string()));
         assert_eq!(tokens[1], Token::String("world".to_string()));
     }
-    
+
     #[test]
     fn test_tokenize_comparison_operators() {
         let mut lexer = Lexer::new("= != < <= > >=");
         let tokens = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0], Token::Equals);
         assert_eq!(tokens[1], Token::NotEquals);
         assert_eq!(tokens[2], Token::LessThan);

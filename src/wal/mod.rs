@@ -6,17 +6,17 @@
 //! - ARIES recovery protocol
 //! - Checkpoint mechanism
 
-pub mod error;
-pub mod writer;
-pub mod recovery;
 pub mod checkpoint;
 pub mod disk;
+pub mod error;
+pub mod recovery;
+pub mod writer;
 
-pub use error::{WALError, Result};
-pub use writer::{WALWriter, WALRecord, RecordType, LSN};
-pub use recovery::{RecoveryManager, RecoveryState};
 pub use checkpoint::CheckpointManager;
 pub use disk::WALDiskWriter;
+pub use error::{Result, WALError};
+pub use recovery::{RecoveryManager, RecoveryState};
+pub use writer::{RecordType, WALRecord, WALWriter, LSN};
 
 #[cfg(test)]
 mod edge_tests;

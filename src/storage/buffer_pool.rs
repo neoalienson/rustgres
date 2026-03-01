@@ -1,6 +1,6 @@
+use super::disk::DiskManager;
 use super::error::{Result, StorageError};
 use super::page::{Page, PageId};
-use super::disk::DiskManager;
 use parking_lot::RwLock;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -37,10 +37,10 @@ impl BufferPool {
     /// Panics if capacity is 0.
     pub fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "capacity must be positive");
-        
+
         let mut frames = Vec::with_capacity(capacity);
         let mut free_list = VecDeque::with_capacity(capacity);
-        
+
         for i in 0..capacity {
             frames.push(RwLock::new(Frame {
                 page: Page::new(PageId(0)),
@@ -49,7 +49,7 @@ impl BufferPool {
             }));
             free_list.push_back(i);
         }
-        
+
         Self {
             frames,
             page_table: RwLock::new(HashMap::new()),
@@ -59,14 +59,14 @@ impl BufferPool {
             disk_manager: None,
         }
     }
-    
+
     /// Creates a new buffer pool with disk persistence
     pub fn with_disk(capacity: usize, disk_manager: Arc<DiskManager>) -> Self {
         let mut pool = Self::new(capacity);
         pool.disk_manager = Some(disk_manager);
         pool
     }
-    
+
     /// Fetches a page from the buffer pool.
     ///
     /// If the page is not in the pool, it will be loaded.
@@ -83,38 +83,37 @@ impl BufferPool {
                 return Ok(());
             }
         }
-        
+
         // Page not in pool, need to load it
         log::debug!("Buffer pool miss: loading page {}", page_id.0);
         let frame_id = self.get_free_frame()?;
-        
+
         // Load page from disk or create new
         let page = if let Some(ref dm) = self.disk_manager {
             dm.read_page(page_id).unwrap_or_else(|_| Page::new(page_id))
         } else {
             Page::new(page_id)
         };
-        
+
         {
             let mut frame = self.frames[frame_id].write();
             frame.page = page;
             frame.pin_count = 1;
             frame.dirty = false;
         }
-        
+
         // Update page table
         self.page_table.write().insert(page_id, frame_id);
         self.update_lru(frame_id);
-        
+
         Ok(())
     }
-    
+
     /// Unpins a page, allowing it to be evicted
     pub fn unpin(&self, page_id: PageId, is_dirty: bool) -> Result<()> {
         let page_table = self.page_table.read();
-        let frame_id = page_table.get(&page_id)
-            .ok_or(StorageError::PageNotFound(page_id.0))?;
-        
+        let frame_id = page_table.get(&page_id).ok_or(StorageError::PageNotFound(page_id.0))?;
+
         let mut frame = self.frames[*frame_id].write();
         if frame.pin_count > 0 {
             frame.pin_count -= 1;
@@ -122,26 +121,26 @@ impl BufferPool {
         if is_dirty {
             frame.dirty = true;
         }
-        
+
         Ok(())
     }
-    
+
     /// Returns the number of pages currently in the buffer pool
     pub fn size(&self) -> usize {
         self.page_table.read().len()
     }
-    
+
     /// Gets a free frame, evicting if necessary
     fn get_free_frame(&self) -> Result<FrameId> {
         // Try free list first
         if let Some(frame_id) = self.free_list.write().pop_front() {
             return Ok(frame_id);
         }
-        
+
         // Need to evict a page using LRU
         log::debug!("Buffer pool full, evicting page");
         let mut lru_list = self.lru_list.write();
-        
+
         while let Some(frame_id) = lru_list.pop_front() {
             let frame = self.frames[frame_id].read();
             if frame.pin_count == 0 {
@@ -149,7 +148,7 @@ impl BufferPool {
                 let dirty = frame.dirty;
                 let page = frame.page.clone();
                 drop(frame);
-                
+
                 // Write dirty page to disk
                 if dirty {
                     if let Some(ref dm) = self.disk_manager {
@@ -157,27 +156,27 @@ impl BufferPool {
                         log::trace!("Flushed dirty page {} to disk", page_id.0);
                     }
                 }
-                
+
                 // Remove from page table
                 self.page_table.write().remove(&page_id);
-                
+
                 log::trace!("Evicted page {}", page_id.0);
                 return Ok(frame_id);
             }
             // Page is pinned, put it back
             lru_list.push_back(frame_id);
         }
-        
+
         Err(StorageError::BufferPoolFull)
     }
-    
+
     /// Updates LRU list
     fn update_lru(&self, frame_id: FrameId) {
         let mut lru_list = self.lru_list.write();
         lru_list.retain(|&id| id != frame_id);
         lru_list.push_back(frame_id);
     }
-    
+
     /// Flushes all dirty pages to disk
     pub fn flush_all(&self) -> Result<()> {
         if let Some(ref dm) = self.disk_manager {
@@ -197,11 +196,7 @@ impl BufferPool {
 
 impl Clone for Frame {
     fn clone(&self) -> Self {
-        Self {
-            page: Page::new(self.page.id()),
-            pin_count: self.pin_count,
-            dirty: self.dirty,
-        }
+        Self { page: Page::new(self.page.id()), pin_count: self.pin_count, dirty: self.dirty }
     }
 }
 
@@ -215,41 +210,41 @@ mod tests {
         assert_eq!(pool.capacity, 10);
         assert_eq!(pool.size(), 0);
     }
-    
+
     #[test]
     fn test_buffer_pool_fetch() {
         let pool = BufferPool::new(10);
         let page_id = PageId(1);
-        
+
         pool.fetch(page_id).unwrap();
         assert_eq!(pool.size(), 1);
     }
-    
+
     #[test]
     fn test_buffer_pool_unpin() {
         let pool = BufferPool::new(10);
         let page_id = PageId(1);
-        
+
         pool.fetch(page_id).unwrap();
         pool.unpin(page_id, false).unwrap();
     }
-    
+
     #[test]
     fn test_buffer_pool_eviction() {
         let pool = BufferPool::new(2);
-        
+
         // Fill buffer pool
         pool.fetch(PageId(1)).unwrap();
         pool.unpin(PageId(1), false).unwrap();
-        
+
         pool.fetch(PageId(2)).unwrap();
         pool.unpin(PageId(2), false).unwrap();
-        
+
         // This should trigger eviction
         pool.fetch(PageId(3)).unwrap();
         assert_eq!(pool.size(), 2);
     }
-    
+
     #[test]
     #[should_panic(expected = "capacity must be positive")]
     fn test_buffer_pool_zero_capacity() {

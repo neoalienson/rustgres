@@ -1,4 +1,4 @@
-use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WindowFunction {
@@ -20,14 +20,7 @@ pub struct Window {
 
 impl Window {
     pub fn new(input: Box<dyn SimpleExecutor>, function: WindowFunction) -> Self {
-        Self {
-            input,
-            function,
-            offset: 1,
-            results: Vec::new(),
-            position: 0,
-            executed: false,
-        }
+        Self { input, function, offset: 1, results: Vec::new(), position: 0, executed: false }
     }
 
     pub fn with_offset(mut self, offset: usize) -> Self {
@@ -167,13 +160,13 @@ mod tests {
         window.open().unwrap();
         let r1 = window.next().unwrap().unwrap();
         assert_eq!(&r1.data[r1.data.len() - 8..], &1i64.to_le_bytes());
-        
+
         let r2 = window.next().unwrap().unwrap();
         assert_eq!(&r2.data[r2.data.len() - 8..], &2i64.to_le_bytes());
-        
+
         let r3 = window.next().unwrap().unwrap();
         assert_eq!(&r3.data[r3.data.len() - 8..], &3i64.to_le_bytes());
-        
+
         assert!(window.next().unwrap().is_none());
         window.close().unwrap();
     }
@@ -243,9 +236,7 @@ mod tests {
 
     #[test]
     fn test_large_dataset() {
-        let tuples: Vec<SimpleTuple> = (0..100)
-            .map(|i| SimpleTuple { data: vec![i] })
-            .collect();
+        let tuples: Vec<SimpleTuple> = (0..100).map(|i| SimpleTuple { data: vec![i] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut window = Window::new(mock, WindowFunction::RowNumber);
 
@@ -271,13 +262,13 @@ mod tests {
         window.open().unwrap();
         let r1 = window.next().unwrap().unwrap();
         assert_eq!(r1.data[r1.data.len() - 1], 0);
-        
+
         let r2 = window.next().unwrap().unwrap();
         assert_eq!(r2.data[r2.data.len() - 1], 1);
-        
+
         let r3 = window.next().unwrap().unwrap();
         assert_eq!(r3.data[r3.data.len() - 1], 2);
-        
+
         window.close().unwrap();
     }
 
@@ -294,13 +285,13 @@ mod tests {
         window.open().unwrap();
         let r1 = window.next().unwrap().unwrap();
         assert_eq!(r1.data[r1.data.len() - 1], 2);
-        
+
         let r2 = window.next().unwrap().unwrap();
         assert_eq!(r2.data[r2.data.len() - 1], 3);
-        
+
         let r3 = window.next().unwrap().unwrap();
         assert_eq!(r3.data[r3.data.len() - 1], 0);
-        
+
         window.close().unwrap();
     }
 
@@ -318,16 +309,16 @@ mod tests {
         window.open().unwrap();
         let r1 = window.next().unwrap().unwrap();
         assert_eq!(r1.data[r1.data.len() - 1], 0);
-        
+
         let r2 = window.next().unwrap().unwrap();
         assert_eq!(r2.data[r2.data.len() - 1], 0);
-        
+
         let r3 = window.next().unwrap().unwrap();
         assert_eq!(r3.data[r3.data.len() - 1], 1);
-        
+
         let r4 = window.next().unwrap().unwrap();
         assert_eq!(r4.data[r4.data.len() - 1], 2);
-        
+
         window.close().unwrap();
     }
 
@@ -345,16 +336,16 @@ mod tests {
         window.open().unwrap();
         let r1 = window.next().unwrap().unwrap();
         assert_eq!(r1.data[r1.data.len() - 1], 3);
-        
+
         let r2 = window.next().unwrap().unwrap();
         assert_eq!(r2.data[r2.data.len() - 1], 4);
-        
+
         let r3 = window.next().unwrap().unwrap();
         assert_eq!(r3.data[r3.data.len() - 1], 0);
-        
+
         let r4 = window.next().unwrap().unwrap();
         assert_eq!(r4.data[r4.data.len() - 1], 0);
-        
+
         window.close().unwrap();
     }
 

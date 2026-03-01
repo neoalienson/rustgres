@@ -1,4 +1,4 @@
-use rustgres::executor::{SimpleExecutor, SimpleTuple, GroupBy, Having, Distinct, MockExecutor};
+use rustgres::executor::{Distinct, GroupBy, Having, MockExecutor, SimpleExecutor, SimpleTuple};
 
 #[test]
 fn test_group_by() {
@@ -8,15 +8,15 @@ fn test_group_by() {
         SimpleTuple { data: vec![2, 30] },
         SimpleTuple { data: vec![2, 40] },
     ]);
-    
+
     let mut group_by = GroupBy::new(Box::new(input), vec![0], vec![1]);
     group_by.open().unwrap();
-    
+
     let mut results = Vec::new();
     while let Some(tuple) = group_by.next().unwrap() {
         results.push(tuple);
     }
-    
+
     assert_eq!(results.len(), 2);
     group_by.close().unwrap();
 }
@@ -28,15 +28,16 @@ fn test_having() {
         SimpleTuple { data: vec![2, 10] },
         SimpleTuple { data: vec![3, 50] },
     ]);
-    
-    let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 20));
+
+    let mut having =
+        Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 20));
     having.open().unwrap();
-    
+
     let mut results = Vec::new();
     while let Some(tuple) = having.next().unwrap() {
         results.push(tuple);
     }
-    
+
     assert_eq!(results.len(), 2);
     having.close().unwrap();
 }
@@ -49,15 +50,15 @@ fn test_distinct() {
         SimpleTuple { data: vec![3, 4] },
         SimpleTuple { data: vec![1, 2] },
     ]);
-    
+
     let mut distinct = Distinct::new(Box::new(input));
     distinct.open().unwrap();
-    
+
     let mut results = Vec::new();
     while let Some(tuple) = distinct.next().unwrap() {
         results.push(tuple);
     }
-    
+
     assert_eq!(results.len(), 2);
     distinct.close().unwrap();
 }

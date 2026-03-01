@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, Having};
     use crate::executor::mock::MockExecutor;
+    use crate::executor::{Having, SimpleExecutor, SimpleTuple as Tuple};
 
     #[test]
     fn test_having_empty_input() {
@@ -15,7 +15,8 @@ mod tests {
     #[test]
     fn test_having_single_row_match() {
         let input = MockExecutor::new(vec![Tuple { data: vec![1, 100] }]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
         assert!(having.next().unwrap().is_some());
         assert!(having.next().unwrap().is_none());
@@ -25,7 +26,8 @@ mod tests {
     #[test]
     fn test_having_single_row_no_match() {
         let input = MockExecutor::new(vec![Tuple { data: vec![1, 10] }]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
         assert!(having.next().unwrap().is_none());
         having.close().unwrap();
@@ -38,7 +40,8 @@ mod tests {
             Tuple { data: vec![2, 200] },
             Tuple { data: vec![3, 150] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
 
         let mut count = 0;
@@ -56,7 +59,8 @@ mod tests {
             Tuple { data: vec![2, 20] },
             Tuple { data: vec![3, 30] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 100));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 100));
         having.open().unwrap();
         assert!(having.next().unwrap().is_none());
         having.close().unwrap();
@@ -69,7 +73,8 @@ mod tests {
             Tuple { data: vec![2, 0] },
             Tuple { data: vec![3, 5] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) == 0));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) == 0));
         having.open().unwrap();
 
         let mut count = 0;
@@ -87,7 +92,8 @@ mod tests {
             Tuple { data: vec![2, 0] },
             Tuple { data: vec![3, 128] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) >= 128));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) >= 128));
         having.open().unwrap();
 
         let mut count = 0;
@@ -105,7 +111,8 @@ mod tests {
             tuples.push(Tuple { data: vec![(i % 10) as u8, (i % 100) as u8] });
         }
         let input = MockExecutor::new(tuples);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
 
         let mut count = 0;
@@ -123,7 +130,8 @@ mod tests {
             Tuple { data: vec![2, 10] },
             Tuple { data: vec![3, 20] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
 
         let result = having.next().unwrap().unwrap();
@@ -139,7 +147,8 @@ mod tests {
             Tuple { data: vec![2, 20] },
             Tuple { data: vec![3, 100] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
 
         let result = having.next().unwrap().unwrap();
@@ -155,7 +164,8 @@ mod tests {
             Tuple { data: vec![2, 100] },
             Tuple { data: vec![3, 20] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
 
         let result = having.next().unwrap().unwrap();
@@ -172,7 +182,8 @@ mod tests {
             Tuple { data: vec![3, 100] },
             Tuple { data: vec![4, 10] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 50));
         having.open().unwrap();
 
         let mut count = 0;
@@ -193,8 +204,7 @@ mod tests {
         let mut having = Having::new(
             Box::new(input),
             Box::new(|t| {
-                t.data.get(1).copied().unwrap_or(0) > 20
-                    && t.data.get(2).copied().unwrap_or(0) > 30
+                t.data.get(1).copied().unwrap_or(0) > 20 && t.data.get(2).copied().unwrap_or(0) > 30
             }),
         );
         having.open().unwrap();
@@ -215,7 +225,8 @@ mod tests {
             Tuple { data: vec![3, 42] },
             Tuple { data: vec![4, 43] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) == 42));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) == 42));
         having.open().unwrap();
 
         let mut count = 0;

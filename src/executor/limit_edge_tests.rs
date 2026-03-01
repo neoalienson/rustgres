@@ -48,7 +48,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(100), None);
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_some());
         assert!(limit.next().unwrap().is_some());
@@ -61,7 +61,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), None, Some(3));
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_none());
         limit.close().unwrap();
@@ -72,7 +72,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(1), None);
-        
+
         limit.open().unwrap();
         let t = limit.next().unwrap().unwrap();
         assert_eq!(t.get("id").unwrap(), &vec![1]);
@@ -85,7 +85,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), None, Some(1));
-        
+
         limit.open().unwrap();
         let t = limit.next().unwrap().unwrap();
         assert_eq!(t.get("id").unwrap(), &vec![2]);
@@ -98,7 +98,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(1), Some(1));
-        
+
         limit.open().unwrap();
         let t = limit.next().unwrap().unwrap();
         assert_eq!(t.get("id").unwrap(), &vec![2]);
@@ -111,7 +111,7 @@ mod tests {
         let tuples = vec![];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(10), None);
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_none());
         limit.close().unwrap();
@@ -122,7 +122,7 @@ mod tests {
         let tuples = vec![];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), None, Some(5));
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_none());
         limit.close().unwrap();
@@ -133,7 +133,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), None, Some(1000));
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_none());
         limit.close().unwrap();
@@ -144,7 +144,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3), make_tuple(4)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(2), Some(2));
-        
+
         limit.open().unwrap();
         let t1 = limit.next().unwrap().unwrap();
         assert_eq!(t1.get("id").unwrap(), &vec![3]);
@@ -159,7 +159,7 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(5), Some(2));
-        
+
         limit.open().unwrap();
         let t = limit.next().unwrap().unwrap();
         assert_eq!(t.get("id").unwrap(), &vec![3]);
@@ -172,13 +172,13 @@ mod tests {
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(2), None);
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_some());
         assert!(limit.next().unwrap().is_some());
         assert!(limit.next().unwrap().is_none());
         limit.close().unwrap();
-        
+
         // Reopen should reset
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_some());

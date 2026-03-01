@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 use std::collections::HashSet;
 
 pub struct Intersect {
@@ -10,12 +10,7 @@ pub struct Intersect {
 
 impl Intersect {
     pub fn new(left: Box<dyn SimpleExecutor>, right: Box<dyn SimpleExecutor>) -> Self {
-        Self {
-            left,
-            right,
-            right_set: HashSet::new(),
-            right_loaded: false,
-        }
+        Self { left, right, right_set: HashSet::new(), right_loaded: false }
     }
 
     fn load_right(&mut self) -> Result<(), ExecutorError> {
@@ -86,14 +81,8 @@ mod tests {
 
     #[test]
     fn test_intersect_no_overlap() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![3] },
-            Tuple { data: vec![4] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![3] }, Tuple { data: vec![4] }]);
         let mut intersect = Intersect::new(Box::new(left), Box::new(right));
         intersect.open().unwrap();
         assert!(intersect.next().unwrap().is_none());
@@ -102,14 +91,8 @@ mod tests {
 
     #[test]
     fn test_intersect_all_overlap() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut intersect = Intersect::new(Box::new(left), Box::new(right));
         intersect.open().unwrap();
 
@@ -124,10 +107,7 @@ mod tests {
     #[test]
     fn test_intersect_empty_left() {
         let left = MockExecutor::new(vec![]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut intersect = Intersect::new(Box::new(left), Box::new(right));
         intersect.open().unwrap();
         assert!(intersect.next().unwrap().is_none());
@@ -136,10 +116,7 @@ mod tests {
 
     #[test]
     fn test_intersect_empty_right() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let right = MockExecutor::new(vec![]);
         let mut intersect = Intersect::new(Box::new(left), Box::new(right));
         intersect.open().unwrap();

@@ -8,11 +8,7 @@ pub struct NestedLoopJoin {
 
 impl NestedLoopJoin {
     pub fn new(left: Box<dyn Executor>, right: Box<dyn Executor>) -> Self {
-        Self {
-            left,
-            right,
-            current_left: None,
-        }
+        Self { left, right, current_left: None }
     }
 }
 

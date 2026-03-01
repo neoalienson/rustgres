@@ -7,16 +7,16 @@
 //! - Basic lock manager
 
 pub mod error;
-pub mod manager;
-pub mod snapshot;
-pub mod mvcc;
 pub mod lock;
+pub mod manager;
+pub mod mvcc;
+pub mod snapshot;
 
-pub use error::{TransactionError, Result};
-pub use manager::{TransactionManager, Transaction, TransactionId, TransactionState};
-pub use snapshot::Snapshot;
+pub use error::{Result, TransactionError};
+pub use lock::{LockKey, LockManager, LockMode};
+pub use manager::{Transaction, TransactionId, TransactionManager, TransactionState};
 pub use mvcc::TupleHeader;
-pub use lock::{LockManager, LockMode, LockKey};
+pub use snapshot::Snapshot;
 
 #[cfg(test)]
 mod edge_tests;

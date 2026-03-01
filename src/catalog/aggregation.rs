@@ -1,6 +1,6 @@
+use super::{predicate::PredicateEvaluator, TableSchema, Tuple, Value};
 use crate::parser::ast::Expr;
 use crate::transaction::TransactionManager;
-use super::{Value, TableSchema, Tuple, predicate::PredicateEvaluator};
 use std::sync::Arc;
 
 pub struct Aggregator;
@@ -15,15 +15,15 @@ impl Aggregator {
         txn_mgr: &Arc<TransactionManager>,
     ) -> Result<Vec<Vec<Value>>, String> {
         let snapshot = txn_mgr.get_snapshot();
-        
+
         let parts: Vec<&str> = agg_spec.split(':').collect();
         if parts.len() < 2 {
             return Err("Invalid aggregate specification".to_string());
         }
-        
+
         let func = parts[1];
         let col_name = if parts.len() > 2 { Some(parts[2]) } else { None };
-        
+
         let mut values = Vec::new();
         for tuple in tuples {
             if tuple.header.is_visible(&snapshot, txn_mgr) {
@@ -32,29 +32,34 @@ impl Aggregator {
                         continue;
                     }
                 }
-                
+
                 if func == "COUNT" {
                     values.push(Value::Int(1));
                 } else if let Some(col) = col_name {
-                    let idx = schema.columns.iter().position(|c| c.name == col)
+                    let idx = schema
+                        .columns
+                        .iter()
+                        .position(|c| c.name == col)
                         .ok_or_else(|| format!("Column '{}' not found", col))?;
                     values.push(tuple.data[idx].clone());
                 }
             }
         }
-        
+
         let result = match func {
             "COUNT" => Value::Int(values.len() as i64),
             "SUM" => {
-                let sum: i64 = values.iter().filter_map(|v| {
-                    if let Value::Int(n) = v { Some(*n) } else { None }
-                }).sum();
+                let sum: i64 = values
+                    .iter()
+                    .filter_map(|v| if let Value::Int(n) = v { Some(*n) } else { None })
+                    .sum();
                 Value::Int(sum)
             }
             "AVG" => {
-                let nums: Vec<i64> = values.iter().filter_map(|v| {
-                    if let Value::Int(n) = v { Some(*n) } else { None }
-                }).collect();
+                let nums: Vec<i64> = values
+                    .iter()
+                    .filter_map(|v| if let Value::Int(n) = v { Some(*n) } else { None })
+                    .collect();
                 if nums.is_empty() {
                     Value::Int(0)
                 } else {
@@ -65,7 +70,7 @@ impl Aggregator {
             "MAX" => values.iter().max().cloned().unwrap_or(Value::Int(0)),
             _ => return Err(format!("Unknown aggregate function: {}", func)),
         };
-        
+
         Ok(vec![vec![result]])
     }
 
@@ -76,19 +81,22 @@ impl Aggregator {
         schema: &TableSchema,
     ) -> Result<Vec<Vec<Value>>, String> {
         use std::collections::HashMap;
-        
+
         let mut groups: HashMap<Vec<Value>, Vec<Vec<Value>>> = HashMap::new();
-        
+
         for row in rows {
             let mut key = Vec::new();
             for col_name in group_cols {
-                let idx = schema.columns.iter().position(|c| &c.name == col_name)
+                let idx = schema
+                    .columns
+                    .iter()
+                    .position(|c| &c.name == col_name)
                     .ok_or_else(|| format!("Column '{}' not found", col_name))?;
                 key.push(row[idx].clone());
             }
             groups.entry(key).or_default().push(row);
         }
-        
+
         let mut result = Vec::new();
         for (key, group_rows) in groups {
             let mut row = Vec::new();
@@ -102,11 +110,10 @@ impl Aggregator {
             }
             result.push(row);
         }
-        
+
         Ok(result)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -122,27 +129,28 @@ mod tests {
                 ColumnDef { name: "value".to_string(), data_type: DataType::Int },
             ],
         };
-        
+
         let txn_mgr = Arc::new(TransactionManager::new());
         let txn = txn_mgr.begin();
         let header = TupleHeader::new(txn.xid);
         txn_mgr.commit(txn.xid).unwrap();
-        
+
         let tuples = vec![
             Tuple { header: header, data: vec![Value::Text("A".to_string()), Value::Int(10)] },
             Tuple { header: header, data: vec![Value::Text("B".to_string()), Value::Int(20)] },
             Tuple { header: header, data: vec![Value::Text("A".to_string()), Value::Int(30)] },
         ];
-        
+
         (schema, tuples, txn_mgr)
     }
 
     #[test]
     fn test_count_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
-        
-        let result = Aggregator::execute("test", "AGG:COUNT:*", None, &tuples, &schema, &txn_mgr).unwrap();
-        
+
+        let result =
+            Aggregator::execute("test", "AGG:COUNT:*", None, &tuples, &schema, &txn_mgr).unwrap();
+
         assert_eq!(result.len(), 1);
         assert_eq!(result[0][0], Value::Int(3));
     }
@@ -150,9 +158,10 @@ mod tests {
     #[test]
     fn test_sum_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
-        
-        let result = Aggregator::execute("test", "AGG:SUM:value", None, &tuples, &schema, &txn_mgr).unwrap();
-        
+
+        let result =
+            Aggregator::execute("test", "AGG:SUM:value", None, &tuples, &schema, &txn_mgr).unwrap();
+
         assert_eq!(result.len(), 1);
         assert_eq!(result[0][0], Value::Int(60));
     }
@@ -160,9 +169,10 @@ mod tests {
     #[test]
     fn test_avg_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
-        
-        let result = Aggregator::execute("test", "AGG:AVG:value", None, &tuples, &schema, &txn_mgr).unwrap();
-        
+
+        let result =
+            Aggregator::execute("test", "AGG:AVG:value", None, &tuples, &schema, &txn_mgr).unwrap();
+
         assert_eq!(result.len(), 1);
         assert_eq!(result[0][0], Value::Int(20));
     }
@@ -170,11 +180,13 @@ mod tests {
     #[test]
     fn test_min_max_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
-        
-        let result = Aggregator::execute("test", "AGG:MIN:value", None, &tuples, &schema, &txn_mgr).unwrap();
+
+        let result =
+            Aggregator::execute("test", "AGG:MIN:value", None, &tuples, &schema, &txn_mgr).unwrap();
         assert_eq!(result[0][0], Value::Int(10));
-        
-        let result = Aggregator::execute("test", "AGG:MAX:value", None, &tuples, &schema, &txn_mgr).unwrap();
+
+        let result =
+            Aggregator::execute("test", "AGG:MAX:value", None, &tuples, &schema, &txn_mgr).unwrap();
         assert_eq!(result[0][0], Value::Int(30));
     }
 
@@ -187,20 +199,21 @@ mod tests {
                 ColumnDef { name: "value".to_string(), data_type: DataType::Int },
             ],
         };
-        
+
         let rows = vec![
             vec![Value::Text("A".to_string()), Value::Int(10)],
             vec![Value::Text("B".to_string()), Value::Int(20)],
             vec![Value::Text("A".to_string()), Value::Int(30)],
         ];
-        
+
         let result = Aggregator::apply_group_by(
             rows,
             &["category".to_string()],
             &["category".to_string()],
             &schema,
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         assert_eq!(result.len(), 2);
     }
 }

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::executor::subquery::Subquery;
-    use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+    use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
 
     struct MockExecutor {
         tuples: Vec<SimpleTuple>,
@@ -88,11 +88,8 @@ mod tests {
 
     #[test]
     fn test_subquery_set_large_result() {
-        let tuples: Vec<SimpleTuple> = (0..1000)
-            .map(|i| SimpleTuple {
-                data: vec![i as u8],
-            })
-            .collect();
+        let tuples: Vec<SimpleTuple> =
+            (0..1000).map(|i| SimpleTuple { data: vec![i as u8] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut subquery = Subquery::new(mock);
 

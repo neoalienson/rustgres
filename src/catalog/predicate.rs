@@ -1,5 +1,5 @@
-use crate::parser::ast::{Expr, BinaryOperator, UnaryOperator};
-use super::{Value, TableSchema};
+use super::{TableSchema, Value};
+use crate::parser::ast::{BinaryOperator, Expr, UnaryOperator};
 
 pub struct PredicateEvaluator;
 
@@ -9,9 +9,7 @@ impl PredicateEvaluator {
             Expr::BinaryOp { left, op, right } => {
                 Self::evaluate_binary_op(left, op, right, tuple, schema)
             }
-            Expr::UnaryOp { op, expr } => {
-                Self::evaluate_unary_op(op, expr, tuple, schema)
-            }
+            Expr::UnaryOp { op, expr } => Self::evaluate_unary_op(op, expr, tuple, schema),
             Expr::IsNull(expr) => {
                 let val = Self::evaluate_expr(expr, tuple, schema)?;
                 Ok(matches!(val, Value::Null))
@@ -114,19 +112,24 @@ impl PredicateEvaluator {
                 _ => Err("Type mismatch in comparison".to_string()),
             },
             BinaryOperator::Like => match (left, right) {
-                (Value::Text(s), Value::Text(pattern)) => {
-                    Ok(s.contains(&pattern.replace('%', "")))
-                }
+                (Value::Text(s), Value::Text(pattern)) => Ok(s.contains(&pattern.replace('%', ""))),
                 _ => Err("LIKE requires text values".to_string()),
             },
             _ => Err("Unsupported comparison operator".to_string()),
         }
     }
 
-    pub fn evaluate_expr(expr: &Expr, tuple: &[Value], schema: &TableSchema) -> Result<Value, String> {
+    pub fn evaluate_expr(
+        expr: &Expr,
+        tuple: &[Value],
+        schema: &TableSchema,
+    ) -> Result<Value, String> {
         match expr {
             Expr::Column(name) => {
-                let idx = schema.columns.iter().position(|c| &c.name == name)
+                let idx = schema
+                    .columns
+                    .iter()
+                    .position(|c| &c.name == name)
                     .ok_or_else(|| format!("Column '{}' not found", name))?;
                 Ok(tuple[idx].clone())
             }
@@ -148,7 +151,7 @@ impl PredicateEvaluator {
                     Expr::Number(n) => Value::Int(n),
                     _ => Value::Int(0),
                 };
-                
+
                 match op {
                     BinaryOperator::GreaterThan => Ok(left_val > right_val),
                     BinaryOperator::GreaterThanOrEqual => Ok(left_val >= right_val),
@@ -185,13 +188,13 @@ mod tests {
     fn test_evaluate_equals() {
         let schema = create_test_schema();
         let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
-        
+
         let expr = Expr::BinaryOp {
             left: Box::new(Expr::Column("id".to_string())),
             op: BinaryOperator::Equals,
             right: Box::new(Expr::Number(1)),
         };
-        
+
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
 
@@ -199,7 +202,7 @@ mod tests {
     fn test_evaluate_not_operator() {
         let schema = create_test_schema();
         let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
-        
+
         let expr = Expr::UnaryOp {
             op: UnaryOperator::Not,
             expr: Box::new(Expr::BinaryOp {
@@ -208,7 +211,7 @@ mod tests {
                 right: Box::new(Expr::Number(2)),
             }),
         };
-        
+
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
 
@@ -216,7 +219,7 @@ mod tests {
     fn test_evaluate_is_null() {
         let schema = create_test_schema();
         let tuple = vec![Value::Null, Value::Text("Alice".to_string()), Value::Int(25)];
-        
+
         let expr = Expr::IsNull(Box::new(Expr::Column("id".to_string())));
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
@@ -225,7 +228,7 @@ mod tests {
     fn test_evaluate_is_not_null() {
         let schema = create_test_schema();
         let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
-        
+
         let expr = Expr::IsNotNull(Box::new(Expr::Column("id".to_string())));
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
@@ -234,13 +237,13 @@ mod tests {
     fn test_evaluate_in_operator() {
         let schema = create_test_schema();
         let tuple = vec![Value::Int(2), Value::Text("Bob".to_string()), Value::Int(30)];
-        
+
         let expr = Expr::BinaryOp {
             left: Box::new(Expr::Column("id".to_string())),
             op: BinaryOperator::In,
             right: Box::new(Expr::List(vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)])),
         };
-        
+
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
 
@@ -248,13 +251,13 @@ mod tests {
     fn test_evaluate_between() {
         let schema = create_test_schema();
         let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
-        
+
         let expr = Expr::BinaryOp {
             left: Box::new(Expr::Column("age".to_string())),
             op: BinaryOperator::Between,
             right: Box::new(Expr::List(vec![Expr::Number(20), Expr::Number(30)])),
         };
-        
+
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
 
@@ -262,13 +265,13 @@ mod tests {
     fn test_evaluate_like() {
         let schema = create_test_schema();
         let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
-        
+
         let expr = Expr::BinaryOp {
             left: Box::new(Expr::Column("name".to_string())),
             op: BinaryOperator::Like,
             right: Box::new(Expr::String("%lic%".to_string())),
         };
-        
+
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
 
@@ -276,7 +279,7 @@ mod tests {
     fn test_evaluate_and_or() {
         let schema = create_test_schema();
         let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
-        
+
         let expr = Expr::BinaryOp {
             left: Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::Column("id".to_string())),
@@ -290,7 +293,7 @@ mod tests {
                 right: Box::new(Expr::Number(20)),
             }),
         };
-        
+
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
 }

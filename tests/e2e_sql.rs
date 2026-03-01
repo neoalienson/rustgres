@@ -1,6 +1,6 @@
 // E2E tests for parser and SQL features
-use rustgres::parser::Parser;
 use rustgres::parser::ast::Statement;
+use rustgres::parser::Parser;
 
 #[test]
 fn test_join_parsing() {
@@ -30,7 +30,7 @@ fn test_intersect_parsing() {
     let mut parser = Parser::new(sql).unwrap();
     let stmt = parser.parse().unwrap();
     match stmt {
-        Statement::Intersect(_) => {},
+        Statement::Intersect(_) => {}
         _ => panic!("Expected INTERSECT"),
     }
 }
@@ -41,7 +41,7 @@ fn test_except_parsing() {
     let mut parser = Parser::new(sql).unwrap();
     let stmt = parser.parse().unwrap();
     match stmt {
-        Statement::Except(_) => {},
+        Statement::Except(_) => {}
         _ => panic!("Expected EXCEPT"),
     }
 }

@@ -20,15 +20,21 @@ pub enum Response {
 impl Message {
     pub fn parse(tag: u8, data: &[u8]) -> Result<Self, ProtocolError> {
         match tag {
-            b'Q' => Ok(Message::Query { sql: String::from_utf8_lossy(data).trim_end_matches('\0').to_string() }),
+            b'Q' => Ok(Message::Query {
+                sql: String::from_utf8_lossy(data).trim_end_matches('\0').to_string(),
+            }),
             b'X' => Ok(Message::Terminate),
             0 => {
                 let s = String::from_utf8_lossy(data);
                 let mut user = String::new();
                 let mut database = String::new();
                 for part in s.split('\0') {
-                    if part.starts_with("user") { user = part.split('=').nth(1).unwrap_or("").to_string(); }
-                    if part.starts_with("database") { database = part.split('=').nth(1).unwrap_or("").to_string(); }
+                    if part.starts_with("user") {
+                        user = part.split('=').nth(1).unwrap_or("").to_string();
+                    }
+                    if part.starts_with("database") {
+                        database = part.split('=').nth(1).unwrap_or("").to_string();
+                    }
                 }
                 Ok(Message::Startup { user, database })
             }

@@ -1,13 +1,14 @@
 #[cfg(test)]
 mod tests {
+    use crate::parser::ast::{TriggerEvent, TriggerFor, TriggerTiming};
     use crate::parser::{Parser, Statement};
-    use crate::parser::ast::{TriggerTiming, TriggerEvent, TriggerFor};
 
     #[test]
     fn test_create_trigger_before_insert() {
-        let mut parser = Parser::new("CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW BEGIN END").unwrap();
+        let mut parser =
+            Parser::new("CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW BEGIN END").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateTrigger(t) => {
                 assert_eq!(t.name, "t");
@@ -22,9 +23,10 @@ mod tests {
 
     #[test]
     fn test_create_trigger_after_update() {
-        let mut parser = Parser::new("CREATE TRIGGER t AFTER UPDATE ON users FOR EACH ROW BEGIN END").unwrap();
+        let mut parser =
+            Parser::new("CREATE TRIGGER t AFTER UPDATE ON users FOR EACH ROW BEGIN END").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateTrigger(t) => {
                 assert_eq!(t.timing, TriggerTiming::After);
@@ -36,9 +38,10 @@ mod tests {
 
     #[test]
     fn test_create_trigger_before_delete() {
-        let mut parser = Parser::new("CREATE TRIGGER t BEFORE DELETE ON users FOR EACH ROW BEGIN END").unwrap();
+        let mut parser =
+            Parser::new("CREATE TRIGGER t BEFORE DELETE ON users FOR EACH ROW BEGIN END").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateTrigger(t) => {
                 assert_eq!(t.event, TriggerEvent::Delete);
@@ -49,9 +52,11 @@ mod tests {
 
     #[test]
     fn test_create_trigger_for_each_statement() {
-        let mut parser = Parser::new("CREATE TRIGGER t AFTER INSERT ON users FOR EACH STATEMENT BEGIN END").unwrap();
+        let mut parser =
+            Parser::new("CREATE TRIGGER t AFTER INSERT ON users FOR EACH STATEMENT BEGIN END")
+                .unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateTrigger(t) => {
                 assert_eq!(t.for_each, TriggerFor::EachStatement);
@@ -62,9 +67,12 @@ mod tests {
 
     #[test]
     fn test_create_trigger_with_when() {
-        let mut parser = Parser::new("CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW WHEN (active = 1) BEGIN END").unwrap();
+        let mut parser = Parser::new(
+            "CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW WHEN (active = 1) BEGIN END",
+        )
+        .unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateTrigger(t) => {
                 assert!(t.when.is_some());
@@ -77,7 +85,7 @@ mod tests {
     fn test_drop_trigger_basic() {
         let mut parser = Parser::new("DROP TRIGGER t").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropTrigger(d) => {
                 assert_eq!(d.name, "t");
@@ -91,7 +99,7 @@ mod tests {
     fn test_drop_trigger_if_exists() {
         let mut parser = Parser::new("DROP TRIGGER IF EXISTS t").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropTrigger(d) => {
                 assert_eq!(d.name, "t");

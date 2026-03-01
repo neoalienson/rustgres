@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::executor::case::Case;
-    use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+    use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
 
     struct MockExecutor {
         tuples: Vec<SimpleTuple>,
@@ -99,10 +99,7 @@ mod tests {
 
     #[test]
     fn test_case_boundary_values() {
-        let tuples = vec![
-            SimpleTuple { data: vec![0] },
-            SimpleTuple { data: vec![255] },
-        ];
+        let tuples = vec![SimpleTuple { data: vec![0] }, SimpleTuple { data: vec![255] }];
         let mock = Box::new(MockExecutor::new(tuples));
         let evaluator = Box::new(|t: &SimpleTuple| vec![t.data[0]]);
         let mut case = Case::new(mock, evaluator);
@@ -167,17 +164,10 @@ mod tests {
 
     #[test]
     fn test_case_many_rows() {
-        let tuples: Vec<SimpleTuple> = (0..1000)
-            .map(|i| SimpleTuple { data: vec![i as u8] })
-            .collect();
+        let tuples: Vec<SimpleTuple> =
+            (0..1000).map(|i| SimpleTuple { data: vec![i as u8] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
-        let evaluator = Box::new(|t: &SimpleTuple| {
-            if t.data[0] < 128 {
-                vec![0]
-            } else {
-                vec![1]
-            }
-        });
+        let evaluator = Box::new(|t: &SimpleTuple| if t.data[0] < 128 { vec![0] } else { vec![1] });
         let mut case = Case::new(mock, evaluator);
 
         case.open().unwrap();
@@ -226,18 +216,18 @@ mod tests {
 
     #[test]
     fn test_case_complex_evaluation() {
-        let tuples = vec![
-            SimpleTuple { data: vec![10, 20] },
-            SimpleTuple { data: vec![30, 40] },
-        ];
+        let tuples = vec![SimpleTuple { data: vec![10, 20] }, SimpleTuple { data: vec![30, 40] }];
         let mock = Box::new(MockExecutor::new(tuples));
-        let evaluator = Box::new(|t: &SimpleTuple| {
-            if t.data.len() >= 2 {
-                vec![t.data[0] + t.data[1]]
-            } else {
-                vec![0]
-            }
-        });
+        let evaluator =
+            Box::new(
+                |t: &SimpleTuple| {
+                    if t.data.len() >= 2 {
+                        vec![t.data[0] + t.data[1]]
+                    } else {
+                        vec![0]
+                    }
+                },
+            );
         let mut case = Case::new(mock, evaluator);
 
         case.open().unwrap();

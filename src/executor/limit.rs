@@ -9,12 +9,7 @@ pub struct Limit {
 
 impl Limit {
     pub fn new(input: Box<dyn Executor>, limit: Option<usize>, offset: Option<usize>) -> Self {
-        Self {
-            input,
-            limit,
-            offset,
-            current: 0,
-        }
+        Self { input, limit, offset, current: 0 }
     }
 }
 
@@ -27,7 +22,7 @@ impl Executor for Limit {
 
     fn next(&mut self) -> Result<Option<Tuple>, ExecutorError> {
         let offset = self.offset.unwrap_or(0);
-        
+
         // Skip offset rows
         while self.current < offset {
             if self.input.next()?.is_none() {
@@ -35,14 +30,14 @@ impl Executor for Limit {
             }
             self.current += 1;
         }
-        
+
         // Check limit
         if let Some(limit) = self.limit {
             if self.current >= offset + limit {
                 return Ok(None);
             }
         }
-        
+
         // Return next tuple
         if let Some(tuple) = self.input.next()? {
             self.current += 1;
@@ -102,16 +97,11 @@ mod tests {
 
     #[test]
     fn test_limit_only() {
-        let tuples = vec![
-            make_tuple(1),
-            make_tuple(2),
-            make_tuple(3),
-            make_tuple(4),
-            make_tuple(5),
-        ];
+        let tuples =
+            vec![make_tuple(1), make_tuple(2), make_tuple(3), make_tuple(4), make_tuple(5)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(3), None);
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_some());
         assert!(limit.next().unwrap().is_some());
@@ -122,16 +112,11 @@ mod tests {
 
     #[test]
     fn test_offset_only() {
-        let tuples = vec![
-            make_tuple(1),
-            make_tuple(2),
-            make_tuple(3),
-            make_tuple(4),
-            make_tuple(5),
-        ];
+        let tuples =
+            vec![make_tuple(1), make_tuple(2), make_tuple(3), make_tuple(4), make_tuple(5)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), None, Some(2));
-        
+
         limit.open().unwrap();
         let t1 = limit.next().unwrap().unwrap();
         assert_eq!(t1.get("id").unwrap(), &vec![3]);
@@ -145,16 +130,11 @@ mod tests {
 
     #[test]
     fn test_limit_and_offset() {
-        let tuples = vec![
-            make_tuple(1),
-            make_tuple(2),
-            make_tuple(3),
-            make_tuple(4),
-            make_tuple(5),
-        ];
+        let tuples =
+            vec![make_tuple(1), make_tuple(2), make_tuple(3), make_tuple(4), make_tuple(5)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(2), Some(1));
-        
+
         limit.open().unwrap();
         let t1 = limit.next().unwrap().unwrap();
         assert_eq!(t1.get("id").unwrap(), &vec![2]);
@@ -166,13 +146,10 @@ mod tests {
 
     #[test]
     fn test_offset_beyond_data() {
-        let tuples = vec![
-            make_tuple(1),
-            make_tuple(2),
-        ];
+        let tuples = vec![make_tuple(1), make_tuple(2)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), None, Some(10));
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_none());
         limit.close().unwrap();
@@ -180,13 +157,10 @@ mod tests {
 
     #[test]
     fn test_zero_limit() {
-        let tuples = vec![
-            make_tuple(1),
-            make_tuple(2),
-        ];
+        let tuples = vec![make_tuple(1), make_tuple(2)];
         let mock = TestExecutor::new(tuples);
         let mut limit = Limit::new(Box::new(mock), Some(0), None);
-        
+
         limit.open().unwrap();
         assert!(limit.next().unwrap().is_none());
         limit.close().unwrap();

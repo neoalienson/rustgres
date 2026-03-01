@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 use std::collections::HashSet;
 
 pub struct Distinct {
@@ -8,10 +8,7 @@ pub struct Distinct {
 
 impl Distinct {
     pub fn new(input: Box<dyn SimpleExecutor>) -> Self {
-        Self {
-            input,
-            seen: HashSet::new(),
-        }
+        Self { input, seen: HashSet::new() }
     }
 }
 

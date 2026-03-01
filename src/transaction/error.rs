@@ -4,16 +4,16 @@ use thiserror::Error;
 pub enum TransactionError {
     #[error("transaction {0} not found")]
     NotFound(u64),
-    
+
     #[error("transaction {0} already committed")]
     AlreadyCommitted(u64),
-    
+
     #[error("transaction {0} already aborted")]
     AlreadyAborted(u64),
-    
+
     #[error("deadlock detected")]
     Deadlock,
-    
+
     #[error("serialization failure")]
     SerializationFailure,
 }

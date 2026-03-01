@@ -16,7 +16,7 @@ impl Filter {
             Expr::BinaryOp { left, op, right } => {
                 let left_val = self.eval_expr(left, tuple)?;
                 let right_val = self.eval_expr(right, tuple)?;
-                
+
                 use crate::parser::BinaryOperator;
                 match op {
                     BinaryOperator::Equals => Ok(left_val == right_val),
@@ -28,7 +28,9 @@ impl Filter {
                     BinaryOperator::And => Ok(left_val == b"1" && right_val == b"1"),
                     BinaryOperator::Or => Ok(left_val == b"1" || right_val == b"1"),
                     BinaryOperator::Like | BinaryOperator::In | BinaryOperator::Between => {
-                        Err(ExecutorError::TypeMismatch("Operator not yet supported in executor".to_string()))
+                        Err(ExecutorError::TypeMismatch(
+                            "Operator not yet supported in executor".to_string(),
+                        ))
                     }
                 }
             }
@@ -39,9 +41,7 @@ impl Filter {
     fn eval_expr(&self, expr: &Expr, tuple: &Tuple) -> Result<Vec<u8>, ExecutorError> {
         match expr {
             Expr::Column(name) => {
-                tuple.get(name)
-                    .cloned()
-                    .ok_or_else(|| ExecutorError::ColumnNotFound(name.clone()))
+                tuple.get(name).cloned().ok_or_else(|| ExecutorError::ColumnNotFound(name.clone()))
             }
             Expr::Number(n) => Ok(n.to_string().into_bytes()),
             Expr::String(s) => Ok(s.as_bytes().to_vec()),

@@ -1,4 +1,4 @@
-use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
 
 pub struct MergeJoin {
     left: Box<dyn SimpleExecutor>,
@@ -50,7 +50,7 @@ impl SimpleExecutor for MergeJoin {
                 let left = self.left_current.as_ref().unwrap();
                 let right = &self.right_buffer[self.buffer_position];
                 self.buffer_position += 1;
-                
+
                 let mut data = left.data.clone();
                 data.extend_from_slice(&right.data);
                 return Ok(Some(SimpleTuple { data }));
@@ -87,7 +87,7 @@ impl SimpleExecutor for MergeJoin {
                     self.right_buffer.clear();
                     self.right_buffer.push(right.clone());
                     self.left_value = Some(left.data.clone());
-                    
+
                     loop {
                         match self.right.next()? {
                             Some(r) => {
@@ -104,7 +104,7 @@ impl SimpleExecutor for MergeJoin {
                             }
                         }
                     }
-                    
+
                     self.buffer_position = 0;
                 }
             }
@@ -166,11 +166,9 @@ mod tests {
             SimpleTuple { data: vec![2] },
             SimpleTuple { data: vec![3] },
         ];
-        
-        let mut join = MergeJoin::new(
-            Box::new(MockExecutor::new(left)),
-            Box::new(MockExecutor::new(right)),
-        );
+
+        let mut join =
+            MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
         assert_eq!(join.next().unwrap().unwrap().data, vec![1, 1]);
@@ -184,11 +182,9 @@ mod tests {
     fn test_merge_join_empty_left() {
         let left = vec![];
         let right = vec![SimpleTuple { data: vec![1] }];
-        
-        let mut join = MergeJoin::new(
-            Box::new(MockExecutor::new(left)),
-            Box::new(MockExecutor::new(right)),
-        );
+
+        let mut join =
+            MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
         assert!(join.next().unwrap().is_none());
@@ -199,11 +195,9 @@ mod tests {
     fn test_merge_join_empty_right() {
         let left = vec![SimpleTuple { data: vec![1] }];
         let right = vec![];
-        
-        let mut join = MergeJoin::new(
-            Box::new(MockExecutor::new(left)),
-            Box::new(MockExecutor::new(right)),
-        );
+
+        let mut join =
+            MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
         assert!(join.next().unwrap().is_none());
@@ -214,11 +208,9 @@ mod tests {
     fn test_merge_join_no_matches() {
         let left = vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![2] }];
         let right = vec![SimpleTuple { data: vec![3] }, SimpleTuple { data: vec![4] }];
-        
-        let mut join = MergeJoin::new(
-            Box::new(MockExecutor::new(left)),
-            Box::new(MockExecutor::new(right)),
-        );
+
+        let mut join =
+            MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
         assert!(join.next().unwrap().is_none());
@@ -227,19 +219,11 @@ mod tests {
 
     #[test]
     fn test_merge_join_duplicates() {
-        let left = vec![
-            SimpleTuple { data: vec![1] },
-            SimpleTuple { data: vec![1] },
-        ];
-        let right = vec![
-            SimpleTuple { data: vec![1] },
-            SimpleTuple { data: vec![1] },
-        ];
-        
-        let mut join = MergeJoin::new(
-            Box::new(MockExecutor::new(left)),
-            Box::new(MockExecutor::new(right)),
-        );
+        let left = vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![1] }];
+        let right = vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![1] }];
+
+        let mut join =
+            MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
         assert_eq!(join.next().unwrap().unwrap().data, vec![1, 1]);
@@ -254,11 +238,9 @@ mod tests {
     fn test_merge_join_single_match() {
         let left = vec![SimpleTuple { data: vec![2] }];
         let right = vec![SimpleTuple { data: vec![2] }];
-        
-        let mut join = MergeJoin::new(
-            Box::new(MockExecutor::new(left)),
-            Box::new(MockExecutor::new(right)),
-        );
+
+        let mut join =
+            MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
         assert_eq!(join.next().unwrap().unwrap().data, vec![2, 2]);
@@ -278,11 +260,9 @@ mod tests {
             SimpleTuple { data: vec![3] },
             SimpleTuple { data: vec![4] },
         ];
-        
-        let mut join = MergeJoin::new(
-            Box::new(MockExecutor::new(left)),
-            Box::new(MockExecutor::new(right)),
-        );
+
+        let mut join =
+            MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
         assert_eq!(join.next().unwrap().unwrap().data, vec![2, 2]);

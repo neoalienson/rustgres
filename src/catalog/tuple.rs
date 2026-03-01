@@ -1,5 +1,5 @@
-use crate::transaction::TupleHeader;
 use super::value::Value;
+use crate::transaction::TupleHeader;
 
 /// Tuple with MVCC header and data
 #[derive(Debug, Clone)]

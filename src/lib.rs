@@ -10,24 +10,24 @@
 //! - Executor: Query execution engine
 //! - Protocol: PostgreSQL wire protocol
 
+pub mod catalog;
+pub mod config;
+pub mod executor;
+pub mod optimizer;
+pub mod parser;
+pub mod protocol;
+pub mod statistics;
 pub mod storage;
 pub mod transaction;
 pub mod wal;
-pub mod parser;
-pub mod executor;
-pub mod protocol;
-pub mod config;
-pub mod statistics;
-pub mod optimizer;
-pub mod catalog;
 
 #[cfg(test)]
 mod config_edge_tests;
 
-pub use storage::{BufferPool, Page, PageId, StorageError};
-pub use transaction::{TransactionManager, Transaction, TransactionId};
-pub use wal::{WALWriter, WALRecord, RecoveryManager};
-pub use parser::{Parser, Statement};
-pub use executor::{Executor, ExecutorError, Tuple, SeqScan, Filter, Project, NestedLoopJoin};
-pub use protocol::{Server, Connection, Message, Response};
 pub use config::Config;
+pub use executor::{Executor, ExecutorError, Filter, NestedLoopJoin, Project, SeqScan, Tuple};
+pub use parser::{Parser, Statement};
+pub use protocol::{Connection, Message, Response, Server};
+pub use storage::{BufferPool, Page, PageId, StorageError};
+pub use transaction::{Transaction, TransactionId, TransactionManager};
+pub use wal::{RecoveryManager, WALRecord, WALWriter};

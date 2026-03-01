@@ -12,15 +12,15 @@ impl LogicalPlan {
     pub fn scan(table: String) -> Self {
         Self::Scan { table, filter: None, columns: vec![] }
     }
-    
+
     pub fn filter(input: LogicalPlan, predicate: Expr) -> Self {
         Self::Filter { input: Box::new(input), predicate }
     }
-    
+
     pub fn project(input: LogicalPlan, columns: Vec<String>) -> Self {
         Self::Project { input: Box::new(input), columns }
     }
-    
+
     pub fn join(left: LogicalPlan, right: LogicalPlan) -> Self {
         Self::Join { left: Box::new(left), right: Box::new(right), condition: None }
     }
@@ -29,7 +29,7 @@ impl LogicalPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::ast::{Expr as AstExpr, BinaryOperator};
+    use crate::parser::ast::{BinaryOperator, Expr as AstExpr};
 
     #[test]
     fn test_scan_plan() {
@@ -49,9 +49,9 @@ mod tests {
             right: Box::new(AstExpr::Number(1)),
         };
         let plan = LogicalPlan::filter(scan, predicate);
-        
+
         match plan {
-            LogicalPlan::Filter { .. } => {},
+            LogicalPlan::Filter { .. } => {}
             _ => panic!("Expected Filter plan"),
         }
     }
@@ -60,7 +60,7 @@ mod tests {
     fn test_project_plan() {
         let scan = LogicalPlan::scan("users".to_string());
         let plan = LogicalPlan::project(scan, vec!["id".to_string(), "name".to_string()]);
-        
+
         match plan {
             LogicalPlan::Project { columns, .. } => assert_eq!(columns.len(), 2),
             _ => panic!("Expected Project plan"),
@@ -72,9 +72,9 @@ mod tests {
         let left = LogicalPlan::scan("users".to_string());
         let right = LogicalPlan::scan("orders".to_string());
         let plan = LogicalPlan::join(left, right);
-        
+
         match plan {
-            LogicalPlan::Join { .. } => {},
+            LogicalPlan::Join { .. } => {}
             _ => panic!("Expected Join plan"),
         }
     }

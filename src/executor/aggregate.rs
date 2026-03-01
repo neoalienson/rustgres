@@ -53,7 +53,7 @@ impl Aggregate {
                     if let Some(col) = &self.column {
                         if let Some(value_bytes) = tuple.get(col) {
                             let value = self.bytes_to_i64(value_bytes);
-                            
+
                             match &self.agg_func {
                                 AggregateFunction::Sum | AggregateFunction::Avg => {
                                     self.sum += value;
@@ -218,11 +218,8 @@ mod tests {
     fn test_sum() {
         let tuples = vec![make_tuple(10), make_tuple(20), make_tuple(30)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Sum,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -235,11 +232,8 @@ mod tests {
     fn test_avg() {
         let tuples = vec![make_tuple(10), make_tuple(20), make_tuple(30)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Avg,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Avg, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -252,11 +246,8 @@ mod tests {
     fn test_min() {
         let tuples = vec![make_tuple(30), make_tuple(10), make_tuple(20)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Min,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Min, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -269,11 +260,8 @@ mod tests {
     fn test_max() {
         let tuples = vec![make_tuple(30), make_tuple(10), make_tuple(20)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Max,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Max, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -298,11 +286,8 @@ mod tests {
     fn test_min_empty() {
         let tuples = vec![];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Min,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Min, Some("value".to_string()));
 
         agg.open().unwrap();
         assert!(agg.next().unwrap().is_none());

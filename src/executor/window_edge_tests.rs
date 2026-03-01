@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::executor::window::{Window, WindowFunction};
-    use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+    use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
 
     struct MockExecutor {
         tuples: Vec<SimpleTuple>,
@@ -60,9 +60,8 @@ mod tests {
 
     #[test]
     fn test_row_number_many_rows() {
-        let tuples: Vec<SimpleTuple> = (0..1000)
-            .map(|i| SimpleTuple { data: vec![i as u8] })
-            .collect();
+        let tuples: Vec<SimpleTuple> =
+            (0..1000).map(|i| SimpleTuple { data: vec![i as u8] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut window = Window::new(mock, WindowFunction::RowNumber);
 
@@ -140,9 +139,7 @@ mod tests {
 
     #[test]
     fn test_window_large_data_values() {
-        let tuples = vec![SimpleTuple {
-            data: vec![255; 1000],
-        }];
+        let tuples = vec![SimpleTuple { data: vec![255; 1000] }];
         let mock = Box::new(MockExecutor::new(tuples));
         let mut window = Window::new(mock, WindowFunction::RowNumber);
 
@@ -168,11 +165,7 @@ mod tests {
     fn test_window_all_functions_same_input() {
         let tuples = vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![2] }];
 
-        for func in [
-            WindowFunction::RowNumber,
-            WindowFunction::Rank,
-            WindowFunction::DenseRank,
-        ] {
+        for func in [WindowFunction::RowNumber, WindowFunction::Rank, WindowFunction::DenseRank] {
             let mock = Box::new(MockExecutor::new(tuples.clone()));
             let mut window = Window::new(mock, func);
 
@@ -187,9 +180,7 @@ mod tests {
 
     #[test]
     fn test_window_max_rows() {
-        let tuples: Vec<SimpleTuple> = (0..10000)
-            .map(|_| SimpleTuple { data: vec![1] })
-            .collect();
+        let tuples: Vec<SimpleTuple> = (0..10000).map(|_| SimpleTuple { data: vec![1] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut window = Window::new(mock, WindowFunction::RowNumber);
 
@@ -304,16 +295,14 @@ mod tests {
 
     #[test]
     fn test_lag_many_rows() {
-        let tuples: Vec<SimpleTuple> = (0..100)
-            .map(|i| SimpleTuple { data: vec![i] })
-            .collect();
+        let tuples: Vec<SimpleTuple> = (0..100).map(|i| SimpleTuple { data: vec![i] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut window = Window::new(mock, WindowFunction::Lag);
 
         window.open().unwrap();
         let r1 = window.next().unwrap().unwrap();
         assert_eq!(r1.data[r1.data.len() - 1], 0);
-        
+
         for i in 1..100 {
             let r = window.next().unwrap().unwrap();
             assert_eq!(r.data[r.data.len() - 1], (i - 1) as u8);
@@ -323,9 +312,7 @@ mod tests {
 
     #[test]
     fn test_lead_many_rows() {
-        let tuples: Vec<SimpleTuple> = (0..100)
-            .map(|i| SimpleTuple { data: vec![i] })
-            .collect();
+        let tuples: Vec<SimpleTuple> = (0..100).map(|i| SimpleTuple { data: vec![i] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut window = Window::new(mock, WindowFunction::Lead);
 
@@ -334,7 +321,7 @@ mod tests {
             let r = window.next().unwrap().unwrap();
             assert_eq!(r.data[r.data.len() - 1], (i + 1) as u8);
         }
-        
+
         let r_last = window.next().unwrap().unwrap();
         assert_eq!(r_last.data[r_last.data.len() - 1], 0);
         window.close().unwrap();
@@ -343,13 +330,13 @@ mod tests {
     #[test]
     fn test_lag_lead_alternating() {
         let tuples = vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![2] }];
-        
+
         let mock1 = Box::new(MockExecutor::new(tuples.clone()));
         let mut lag = Window::new(mock1, WindowFunction::Lag);
         lag.open().unwrap();
         lag.next().unwrap();
         lag.close().unwrap();
-        
+
         let mock2 = Box::new(MockExecutor::new(tuples));
         let mut lead = Window::new(mock2, WindowFunction::Lead);
         lead.open().unwrap();

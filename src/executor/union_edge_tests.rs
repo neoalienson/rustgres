@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, Union};
     use crate::executor::mock::MockExecutor;
+    use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, Union};
 
     #[test]
     fn test_union_single_row_each() {
@@ -20,14 +20,8 @@ mod tests {
 
     #[test]
     fn test_union_all_same_values() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
 
@@ -41,14 +35,8 @@ mod tests {
 
     #[test]
     fn test_union_all_with_all_same() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), true);
         union.open().unwrap();
 
@@ -67,7 +55,8 @@ mod tests {
             left_tuples.push(Tuple { data: vec![(i % 10) as u8] });
         }
         let right = MockExecutor::new(vec![Tuple { data: vec![5] }]);
-        let mut union = Union::new(Box::new(MockExecutor::new(left_tuples)), Box::new(right), false);
+        let mut union =
+            Union::new(Box::new(MockExecutor::new(left_tuples)), Box::new(right), false);
         union.open().unwrap();
 
         let mut count = 0;
@@ -181,14 +170,8 @@ mod tests {
 
     #[test]
     fn test_union_no_overlap() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![3] },
-            Tuple { data: vec![4] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![3] }, Tuple { data: vec![4] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
 
@@ -202,14 +185,8 @@ mod tests {
 
     #[test]
     fn test_union_preserves_order() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![3] },
-            Tuple { data: vec![4] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![3] }, Tuple { data: vec![4] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), true);
         union.open().unwrap();
 

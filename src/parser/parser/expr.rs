@@ -1,7 +1,7 @@
 use super::Parser;
-use crate::parser::error::{Result, ParseError};
+use crate::parser::ast::{BinaryOperator, Expr};
+use crate::parser::error::{ParseError, Result};
 use crate::parser::lexer::Token;
-use crate::parser::ast::{Expr, BinaryOperator};
 
 pub fn parse_expr(parser: &mut Parser) -> Result<Expr> {
     parse_or(parser)
@@ -9,23 +9,20 @@ pub fn parse_expr(parser: &mut Parser) -> Result<Expr> {
 
 fn parse_or(parser: &mut Parser) -> Result<Expr> {
     let mut left = parse_and(parser)?;
-    
+
     while parser.current_token() == &Token::Or {
         parser.advance();
         let right = parse_and(parser)?;
-        left = Expr::BinaryOp {
-            left: Box::new(left),
-            op: BinaryOperator::Or,
-            right: Box::new(right),
-        };
+        left =
+            Expr::BinaryOp { left: Box::new(left), op: BinaryOperator::Or, right: Box::new(right) };
     }
-    
+
     Ok(left)
 }
 
 fn parse_and(parser: &mut Parser) -> Result<Expr> {
     let mut left = parse_not(parser)?;
-    
+
     while parser.current_token() == &Token::And {
         parser.advance();
         let right = parse_not(parser)?;
@@ -35,7 +32,7 @@ fn parse_and(parser: &mut Parser) -> Result<Expr> {
             right: Box::new(right),
         };
     }
-    
+
     Ok(left)
 }
 
@@ -53,7 +50,7 @@ fn parse_not(parser: &mut Parser) -> Result<Expr> {
 
 fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
     let left = parse_primary(parser)?;
-    
+
     // Handle IS NULL and IS NOT NULL
     if parser.current_token() == &Token::Is {
         parser.advance();
@@ -70,7 +67,7 @@ fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
             Expr::IsNull(Box::new(left))
         });
     }
-    
+
     if parser.current_token() == &Token::In {
         parser.advance();
         parser.expect(Token::LeftParen)?;
@@ -86,7 +83,7 @@ fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
             right: Box::new(Expr::List(values)),
         });
     }
-    
+
     if parser.current_token() == &Token::Between {
         parser.advance();
         let lower = parse_primary(parser)?;
@@ -98,7 +95,7 @@ fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
             right: Box::new(Expr::List(vec![lower, upper])),
         });
     }
-    
+
     let op = match parser.current_token() {
         Token::Equals => BinaryOperator::Equals,
         Token::NotEquals => BinaryOperator::NotEquals,
@@ -109,22 +106,16 @@ fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
         Token::Like => BinaryOperator::Like,
         _ => return Ok(left),
     };
-    
+
     parser.advance();
     let right = parse_primary(parser)?;
-    Ok(Expr::BinaryOp {
-        left: Box::new(left),
-        op,
-        right: Box::new(right),
-    })
+    Ok(Expr::BinaryOp { left: Box::new(left), op, right: Box::new(right) })
 }
 
 pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
     match parser.current_token().clone() {
         Token::Case => parse_case(parser),
-        Token::Count | Token::Sum | Token::Avg | Token::Min | Token::Max => {
-            parse_aggregate(parser)
-        }
+        Token::Count | Token::Sum | Token::Avg | Token::Min | Token::Max => parse_aggregate(parser),
         Token::RowNumber | Token::Rank | Token::DenseRank | Token::Lag | Token::Lead => {
             parse_window(parser)
         }
@@ -162,7 +153,7 @@ pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
 
 fn parse_aggregate(parser: &mut Parser) -> Result<Expr> {
     use crate::parser::ast::AggregateFunc;
-    
+
     let func = match parser.current_token() {
         Token::Count => AggregateFunc::Count,
         Token::Sum => AggregateFunc::Sum,
@@ -171,25 +162,25 @@ fn parse_aggregate(parser: &mut Parser) -> Result<Expr> {
         Token::Max => AggregateFunc::Max,
         _ => return Err(ParseError::UnexpectedToken(format!("{:?}", parser.current_token()))),
     };
-    
+
     parser.advance();
     parser.expect(Token::LeftParen)?;
-    
+
     let arg = if parser.current_token() == &Token::Star {
         parser.advance();
         Box::new(Expr::Star)
     } else {
         Box::new(parse_expr(parser)?)
     };
-    
+
     parser.expect(Token::RightParen)?;
-    
+
     Ok(Expr::Aggregate { func, arg })
 }
 
 fn parse_window(parser: &mut Parser) -> Result<Expr> {
-    use crate::parser::ast::{WindowFunc, OrderByExpr};
-    
+    use crate::parser::ast::{OrderByExpr, WindowFunc};
+
     let func = match parser.current_token() {
         Token::RowNumber => WindowFunc::RowNumber,
         Token::Rank => WindowFunc::Rank,
@@ -198,20 +189,20 @@ fn parse_window(parser: &mut Parser) -> Result<Expr> {
         Token::Lead => WindowFunc::Lead,
         _ => return Err(ParseError::UnexpectedToken(format!("{:?}", parser.current_token()))),
     };
-    
+
     parser.advance();
     parser.expect(Token::LeftParen)?;
-    
+
     let arg = if parser.current_token() == &Token::RightParen {
         Box::new(Expr::Star)
     } else {
         Box::new(parse_expr(parser)?)
     };
-    
+
     parser.expect(Token::RightParen)?;
     parser.expect(Token::Over)?;
     parser.expect(Token::LeftParen)?;
-    
+
     let mut partition_by = Vec::new();
     if parser.current_token() == &Token::Partition {
         parser.advance();
@@ -224,7 +215,7 @@ fn parse_window(parser: &mut Parser) -> Result<Expr> {
             parser.advance();
         }
     }
-    
+
     let mut order_by = Vec::new();
     if parser.current_token() == &Token::Order {
         parser.advance();
@@ -249,22 +240,17 @@ fn parse_window(parser: &mut Parser) -> Result<Expr> {
             parser.advance();
         }
     }
-    
+
     parser.expect(Token::RightParen)?;
-    
-    Ok(Expr::Window {
-        func,
-        arg,
-        partition_by,
-        order_by,
-    })
+
+    Ok(Expr::Window { func, arg, partition_by, order_by })
 }
 
 fn parse_case(parser: &mut Parser) -> Result<Expr> {
     parser.expect(Token::Case)?;
-    
+
     let mut conditions = Vec::new();
-    
+
     while parser.current_token() == &Token::When {
         parser.advance();
         let condition = parse_expr(parser)?;
@@ -272,29 +258,26 @@ fn parse_case(parser: &mut Parser) -> Result<Expr> {
         let result = parse_expr(parser)?;
         conditions.push((condition, result));
     }
-    
+
     let else_expr = if parser.current_token() == &Token::Else {
         parser.advance();
         Some(Box::new(parse_expr(parser)?))
     } else {
         None
     };
-    
+
     parser.expect(Token::End)?;
-    
-    Ok(Expr::Case {
-        conditions,
-        else_expr,
-    })
+
+    Ok(Expr::Case { conditions, else_expr })
 }
 
 pub fn parse_expr_list(parser: &mut Parser) -> Result<Vec<Expr>> {
     let mut exprs = vec![parse_expr(parser)?];
-    
+
     while parser.current_token() == &Token::Comma {
         parser.advance();
         exprs.push(parse_expr(parser)?);
     }
-    
+
     Ok(exprs)
 }

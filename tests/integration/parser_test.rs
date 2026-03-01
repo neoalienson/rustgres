@@ -1,9 +1,9 @@
-use rustgres::parser::{parse, Statement, Expr};
+use rustgres::parser::{parse, Expr, Statement};
 
 #[test]
 fn test_parse_simple_select() {
     let stmt = parse("SELECT * FROM users").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.from, "users");
@@ -17,7 +17,7 @@ fn test_parse_simple_select() {
 #[test]
 fn test_parse_select_with_columns() {
     let stmt = parse("SELECT id, name FROM users").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.from, "users");
@@ -30,7 +30,7 @@ fn test_parse_select_with_columns() {
 #[test]
 fn test_parse_select_with_where() {
     let stmt = parse("SELECT * FROM users WHERE id = 1").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.from, "users");
@@ -43,7 +43,7 @@ fn test_parse_select_with_where() {
 #[test]
 fn test_parse_insert() {
     let stmt = parse("INSERT INTO users VALUES (1, 'Alice')").unwrap();
-    
+
     match stmt {
         Statement::Insert(s) => {
             assert_eq!(s.table, "users");
@@ -58,7 +58,7 @@ fn test_parse_insert() {
 #[test]
 fn test_parse_update() {
     let stmt = parse("UPDATE users SET name = 'Bob'").unwrap();
-    
+
     match stmt {
         Statement::Update(s) => {
             assert_eq!(s.table, "users");
@@ -72,7 +72,7 @@ fn test_parse_update() {
 #[test]
 fn test_parse_update_with_where() {
     let stmt = parse("UPDATE users SET name = 'Bob' WHERE id = 1").unwrap();
-    
+
     match stmt {
         Statement::Update(s) => {
             assert_eq!(s.table, "users");
@@ -85,7 +85,7 @@ fn test_parse_update_with_where() {
 #[test]
 fn test_parse_delete() {
     let stmt = parse("DELETE FROM users").unwrap();
-    
+
     match stmt {
         Statement::Delete(s) => {
             assert_eq!(s.table, "users");
@@ -98,7 +98,7 @@ fn test_parse_delete() {
 #[test]
 fn test_parse_delete_with_where() {
     let stmt = parse("DELETE FROM users WHERE id = 1").unwrap();
-    
+
     match stmt {
         Statement::Delete(s) => {
             assert_eq!(s.table, "users");
@@ -111,7 +111,7 @@ fn test_parse_delete_with_where() {
 #[test]
 fn test_parse_multiple_assignments() {
     let stmt = parse("UPDATE users SET name = 'Bob', age = 30").unwrap();
-    
+
     match stmt {
         Statement::Update(s) => {
             assert_eq!(s.assignments.len(), 2);
@@ -126,7 +126,7 @@ fn test_parse_multiple_assignments() {
 fn test_parse_case_insensitive() {
     let stmt1 = parse("select * from users").unwrap();
     let stmt2 = parse("SELECT * FROM users").unwrap();
-    
+
     assert_eq!(stmt1, stmt2);
 }
 
@@ -145,7 +145,7 @@ fn test_parse_error_unexpected_token() {
 #[test]
 fn test_parse_select_without_from() {
     let stmt = parse("SELECT 1").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.from, "");
@@ -158,7 +158,7 @@ fn test_parse_select_without_from() {
 #[test]
 fn test_parse_select_multiple_columns() {
     let stmt = parse("SELECT id, name, email FROM users").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns.len(), 3);
@@ -173,7 +173,7 @@ fn test_parse_select_multiple_columns() {
 #[test]
 fn test_parse_insert_multiple_values() {
     let stmt = parse("INSERT INTO users VALUES (1, 'Alice', 'alice@example.com')").unwrap();
-    
+
     match stmt {
         Statement::Insert(s) => {
             assert_eq!(s.values.len(), 3);
@@ -188,7 +188,7 @@ fn test_parse_insert_multiple_values() {
 #[test]
 fn test_parse_update_multiple_assignments() {
     let stmt = parse("UPDATE users SET name = 'Bob', age = 30, email = 'bob@example.com'").unwrap();
-    
+
     match stmt {
         Statement::Update(s) => {
             assert_eq!(s.assignments.len(), 3);
@@ -203,7 +203,7 @@ fn test_parse_update_multiple_assignments() {
 #[test]
 fn test_parse_with_semicolon() {
     let stmt = parse("SELECT * FROM users;").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.from, "users");
@@ -215,7 +215,7 @@ fn test_parse_with_semicolon() {
 #[test]
 fn test_parse_select_number() {
     let stmt = parse("SELECT 42").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns.len(), 1);
@@ -228,7 +228,7 @@ fn test_parse_select_number() {
 #[test]
 fn test_parse_select_string() {
     let stmt = parse("SELECT 'hello world'").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert_eq!(s.columns.len(), 1);
@@ -241,7 +241,7 @@ fn test_parse_select_string() {
 #[test]
 fn test_parse_where_equals() {
     let stmt = parse("SELECT * FROM users WHERE id = 1").unwrap();
-    
+
     match stmt {
         Statement::Select(s) => {
             assert!(s.where_clause.is_some());

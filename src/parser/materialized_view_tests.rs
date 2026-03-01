@@ -6,7 +6,7 @@ mod tests {
     fn test_create_materialized_view_basic() {
         let mut parser = Parser::new("CREATE MATERIALIZED VIEW mv AS SELECT * FROM t").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateMaterializedView(mv) => {
                 assert_eq!(mv.name, "mv");
@@ -18,9 +18,12 @@ mod tests {
 
     #[test]
     fn test_create_materialized_view_with_where() {
-        let mut parser = Parser::new("CREATE MATERIALIZED VIEW active_mv AS SELECT * FROM users WHERE active = 1").unwrap();
+        let mut parser = Parser::new(
+            "CREATE MATERIALIZED VIEW active_mv AS SELECT * FROM users WHERE active = 1",
+        )
+        .unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateMaterializedView(mv) => {
                 assert_eq!(mv.name, "active_mv");
@@ -32,11 +35,12 @@ mod tests {
 
     #[test]
     fn test_create_materialized_view_with_aggregate() {
-        let mut parser = Parser::new("CREATE MATERIALIZED VIEW stats_mv AS SELECT COUNT(*) FROM users").unwrap();
+        let mut parser =
+            Parser::new("CREATE MATERIALIZED VIEW stats_mv AS SELECT COUNT(*) FROM users").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
-            Statement::CreateMaterializedView(_) => {},
+            Statement::CreateMaterializedView(_) => {}
             _ => panic!("Expected CREATE MATERIALIZED VIEW"),
         }
     }
@@ -45,7 +49,7 @@ mod tests {
     fn test_refresh_materialized_view() {
         let mut parser = Parser::new("REFRESH MATERIALIZED VIEW mv").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::RefreshMaterializedView(r) => {
                 assert_eq!(r.name, "mv");
@@ -58,7 +62,7 @@ mod tests {
     fn test_drop_materialized_view_basic() {
         let mut parser = Parser::new("DROP MATERIALIZED VIEW mv").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropMaterializedView(d) => {
                 assert_eq!(d.name, "mv");
@@ -72,7 +76,7 @@ mod tests {
     fn test_drop_materialized_view_if_exists() {
         let mut parser = Parser::new("DROP MATERIALIZED VIEW IF EXISTS mv").unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::DropMaterializedView(d) => {
                 assert_eq!(d.name, "mv");
@@ -84,9 +88,12 @@ mod tests {
 
     #[test]
     fn test_materialized_view_with_join() {
-        let mut parser = Parser::new("CREATE MATERIALIZED VIEW joined_mv AS SELECT * FROM a INNER JOIN b ON id = bid").unwrap();
+        let mut parser = Parser::new(
+            "CREATE MATERIALIZED VIEW joined_mv AS SELECT * FROM a INNER JOIN b ON id = bid",
+        )
+        .unwrap();
         let stmt = parser.parse().unwrap();
-        
+
         match stmt {
             Statement::CreateMaterializedView(mv) => {
                 assert_eq!(mv.query.joins.len(), 1);

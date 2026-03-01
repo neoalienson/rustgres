@@ -1,4 +1,4 @@
-use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
 use std::collections::HashMap;
 
 pub struct CTE {
@@ -14,13 +14,7 @@ impl CTE {
         cte_results: HashMap<String, Vec<SimpleTuple>>,
         main_query: Box<dyn SimpleExecutor>,
     ) -> Self {
-        Self {
-            cte_results,
-            main_query,
-            position: 0,
-            results: Vec::new(),
-            executed: false,
-        }
+        Self { cte_results, main_query, position: 0, results: Vec::new(), executed: false }
     }
 
     pub fn get_cte(&self, name: &str) -> Option<&Vec<SimpleTuple>> {
@@ -167,9 +161,7 @@ mod tests {
 
     #[test]
     fn test_cte_large_result() {
-        let tuples: Vec<SimpleTuple> = (0..100)
-            .map(|i| SimpleTuple { data: vec![i] })
-            .collect();
+        let tuples: Vec<SimpleTuple> = (0..100).map(|i| SimpleTuple { data: vec![i] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut cte = CTE::new(HashMap::new(), mock);
 

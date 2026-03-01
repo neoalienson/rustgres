@@ -78,19 +78,9 @@ impl Config {
                 scope: "*".to_string(),
                 file: None,
             },
-            transaction: TransactionConfig {
-                timeout: 300,
-                mvcc_enabled: true,
-            },
-            wal: WalConfig {
-                segment_size: 16,
-                compression: false,
-                sync_on_commit: true,
-            },
-            performance: PerformanceConfig {
-                worker_threads: 4,
-                query_cache: false,
-            },
+            transaction: TransactionConfig { timeout: 300, mvcc_enabled: true },
+            wal: WalConfig { segment_size: 16, compression: false, sync_on_commit: true },
+            performance: PerformanceConfig { worker_threads: 4, query_cache: false },
         }
     }
 }
@@ -99,7 +89,7 @@ impl Config {
 pub enum ConfigError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("YAML parse error: {0}")]
     Yaml(#[from] serde_yaml::Error),
 }

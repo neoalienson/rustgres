@@ -42,15 +42,12 @@ impl BTree {
     pub fn new() -> Self {
         Self::with_order(128)
     }
-    
+
     /// Creates a new B+Tree with specified order
     pub fn with_order(order: usize) -> Self {
-        Self {
-            root: None,
-            order,
-        }
+        Self { root: None, order }
     }
-    
+
     /// Inserts a key-value pair into the tree
     pub fn insert(&mut self, key: Key, value: TupleId) -> Result<()> {
         if self.root.is_none() {
@@ -61,31 +58,27 @@ impl BTree {
             })));
             return Ok(());
         }
-        
+
         // Simple insertion without splitting for now
         if let Some(Node::Leaf(ref mut leaf)) = self.root.as_deref_mut() {
             let pos = leaf.keys.binary_search(&key).unwrap_or_else(|e| e);
             leaf.keys.insert(pos, key);
             leaf.values.insert(pos, value);
         }
-        
+
         Ok(())
     }
-    
+
     /// Searches for a key in the tree
     pub fn get(&self, key: &Key) -> Option<TupleId> {
         let root = self.root.as_ref()?;
-        
+
         match root.as_ref() {
-            Node::Leaf(leaf) => {
-                leaf.keys.binary_search(key)
-                    .ok()
-                    .map(|idx| leaf.values[idx])
-            }
+            Node::Leaf(leaf) => leaf.keys.binary_search(key).ok().map(|idx| leaf.values[idx]),
             Node::Internal(_) => None, // Not implemented yet
         }
     }
-    
+
     /// Deletes a key from the tree
     pub fn delete(&mut self, key: &Key) -> Result<bool> {
         if let Some(Node::Leaf(ref mut leaf)) = self.root.as_deref_mut() {
@@ -97,13 +90,10 @@ impl BTree {
         }
         Ok(false)
     }
-    
+
     /// Returns an iterator over all key-value pairs
     pub fn iter(&self) -> BTreeIterator<'_> {
-        BTreeIterator {
-            node: self.root.as_deref(),
-            index: 0,
-        }
+        BTreeIterator { node: self.root.as_deref(), index: 0 }
     }
 }
 
@@ -121,7 +111,7 @@ pub struct BTreeIterator<'a> {
 
 impl<'a> Iterator for BTreeIterator<'a> {
     type Item = (&'a Key, TupleId);
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         match self.node? {
             Node::Leaf(leaf) => {
@@ -147,39 +137,39 @@ mod tests {
         let mut tree = BTree::new();
         let key = vec![1, 2, 3];
         let value = TupleId { page_id: PageId(1), slot: 0 };
-        
+
         tree.insert(key.clone(), value).unwrap();
         assert_eq!(tree.get(&key), Some(value));
     }
-    
+
     #[test]
     fn test_btree_get_nonexistent() {
         let tree = BTree::new();
         let key = vec![1, 2, 3];
         assert_eq!(tree.get(&key), None);
     }
-    
+
     #[test]
     fn test_btree_delete() {
         let mut tree = BTree::new();
         let key = vec![1, 2, 3];
         let value = TupleId { page_id: PageId(1), slot: 0 };
-        
+
         tree.insert(key.clone(), value).unwrap();
         assert!(tree.delete(&key).unwrap());
         assert_eq!(tree.get(&key), None);
     }
-    
+
     #[test]
     fn test_btree_multiple_inserts() {
         let mut tree = BTree::new();
-        
+
         for i in 0..10 {
             let key = vec![i];
             let value = TupleId { page_id: PageId(i as u32), slot: 0 };
             tree.insert(key, value).unwrap();
         }
-        
+
         let key = vec![5];
         let value = tree.get(&key).unwrap();
         assert_eq!(value.page_id, PageId(5));

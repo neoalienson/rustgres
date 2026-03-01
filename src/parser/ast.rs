@@ -343,18 +343,18 @@ mod tests {
             limit: None,
             offset: None,
         };
-        
+
         assert_eq!(stmt.from, "users");
         assert_eq!(stmt.columns.len(), 1);
     }
-    
+
     #[test]
     fn test_insert_stmt_creation() {
         let stmt = InsertStmt {
             table: "users".to_string(),
             values: vec![Expr::Number(1), Expr::String("Alice".to_string())],
         };
-        
+
         assert_eq!(stmt.table, "users");
         assert_eq!(stmt.values.len(), 2);
     }

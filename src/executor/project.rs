@@ -86,10 +86,10 @@ mod tests {
 
         let mock = MockExecutor::new(vec![tuple]);
         let mut project = Project::new(Box::new(mock), vec!["id".to_string()]);
-        
+
         project.open().unwrap();
         let result = project.next().unwrap().unwrap();
-        
+
         assert_eq!(result.len(), 1);
         assert_eq!(result.get("id").unwrap(), b"1");
         assert!(result.get("name").is_none());
@@ -103,10 +103,10 @@ mod tests {
 
         let mock = MockExecutor::new(vec![tuple.clone()]);
         let mut project = Project::new(Box::new(mock), vec!["*".to_string()]);
-        
+
         project.open().unwrap();
         let result = project.next().unwrap().unwrap();
-        
+
         assert_eq!(result.len(), 2);
         assert_eq!(result, tuple);
     }

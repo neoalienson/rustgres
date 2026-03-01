@@ -1,12 +1,15 @@
-use rustgres::optimizer::{LogicalPlan, RuleOptimizer, OptimizationRule, PredicatePushdown, ProjectionPruning, ConstantFolding};
-use rustgres::parser::{Expr, BinaryOperator};
+use rustgres::optimizer::{
+    ConstantFolding, LogicalPlan, OptimizationRule, PredicatePushdown, ProjectionPruning,
+    RuleOptimizer,
+};
+use rustgres::parser::{BinaryOperator, Expr};
 
 #[test]
 fn test_predicate_pushdown_to_scan() {
     let rule = PredicatePushdown;
     let scan = LogicalPlan::scan("users".to_string());
     let filter = LogicalPlan::filter(scan, Expr::Number(1));
-    
+
     let optimized = rule.apply(filter);
     match optimized {
         LogicalPlan::Scan { filter, .. } => assert!(filter.is_some()),
@@ -20,7 +23,7 @@ fn test_projection_pruning() {
     let scan = LogicalPlan::scan("users".to_string());
     let proj1 = LogicalPlan::project(scan, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
     let proj2 = LogicalPlan::project(proj1, vec!["a".to_string()]);
-    
+
     let optimized = rule.apply(proj2);
     match optimized {
         LogicalPlan::Project { columns, .. } => assert_eq!(columns.len(), 1),
@@ -38,15 +41,13 @@ fn test_constant_folding_equality() {
         right: Box::new(Expr::Number(10)),
     };
     let filter = LogicalPlan::filter(scan, expr);
-    
+
     let optimized = rule.apply(filter);
     match optimized {
-        LogicalPlan::Filter { predicate, .. } => {
-            match predicate {
-                Expr::Number(1) => (),
-                _ => panic!("Expected folded number 1"),
-            }
-        }
+        LogicalPlan::Filter { predicate, .. } => match predicate {
+            Expr::Number(1) => (),
+            _ => panic!("Expected folded number 1"),
+        },
         _ => panic!("Expected filter"),
     }
 }
@@ -61,15 +62,13 @@ fn test_constant_folding_inequality() {
         right: Box::new(Expr::Number(10)),
     };
     let filter = LogicalPlan::filter(scan, expr);
-    
+
     let optimized = rule.apply(filter);
     match optimized {
-        LogicalPlan::Filter { predicate, .. } => {
-            match predicate {
-                Expr::Number(0) => (),
-                _ => panic!("Expected folded number 0"),
-            }
-        }
+        LogicalPlan::Filter { predicate, .. } => match predicate {
+            Expr::Number(0) => (),
+            _ => panic!("Expected folded number 0"),
+        },
         _ => panic!("Expected filter"),
     }
 }
@@ -79,7 +78,7 @@ fn test_rule_optimizer_default() {
     let optimizer = RuleOptimizer::default();
     let scan = LogicalPlan::scan("users".to_string());
     let filter = LogicalPlan::filter(scan, Expr::Number(1));
-    
+
     let optimized = optimizer.optimize(filter);
     match optimized {
         LogicalPlan::Scan { filter, .. } => assert!(filter.is_some()),
@@ -98,7 +97,7 @@ fn test_multiple_rules_applied() {
     };
     let filter = LogicalPlan::filter(scan, expr);
     let proj = LogicalPlan::project(filter, vec!["id".to_string()]);
-    
+
     let optimized = optimizer.optimize(proj);
     assert!(matches!(optimized, LogicalPlan::Project { .. }));
 }
@@ -110,7 +109,7 @@ fn test_nested_plan_optimization() {
     let scan2 = LogicalPlan::scan("t2".to_string());
     let join = LogicalPlan::join(scan1, scan2);
     let filter = LogicalPlan::filter(join, Expr::Number(1));
-    
+
     let optimized = optimizer.optimize(filter);
     assert!(matches!(optimized, LogicalPlan::Join { .. }));
 }

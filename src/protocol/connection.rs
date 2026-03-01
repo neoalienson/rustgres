@@ -1,6 +1,6 @@
-use super::message::{Message, Response, ProtocolError};
-use crate::parser::{Parser, Statement};
+use super::message::{Message, ProtocolError, Response};
 use crate::catalog::Catalog;
+use crate::parser::{Parser, Statement};
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -19,14 +19,14 @@ impl<S: Read + Write> Connection<S> {
         let mut len_buf = [0u8; 4];
         self.stream.read_exact(&mut len_buf)?;
         let len = i32::from_be_bytes(len_buf) as usize;
-        
+
         let mut data = vec![0u8; len - 4];
         self.stream.read_exact(&mut data)?;
-        
+
         let msg = Message::parse(0, &data)?;
         log::debug!("Startup message: {:?}", msg);
         self.authenticated = true;
-        
+
         Response::AuthenticationOk.write(&mut self.stream)?;
         Response::ReadyForQuery.write(&mut self.stream)?;
         self.stream.flush()?;
@@ -36,42 +36,43 @@ impl<S: Read + Write> Connection<S> {
     pub fn handle_query(&mut self, sql: &str) -> Result<(), ProtocolError> {
         log::info!("Query: {}", sql);
         match Parser::new(sql) {
-            Ok(mut parser) => {
-                match parser.parse() {
-                    Ok(stmt) => {
-                        log::debug!("Parsed statement: {:?}", stmt);
-                        match self.execute_statement(stmt) {
-                            Ok(tag) => {
-                                Response::CommandComplete { tag }.write(&mut self.stream)?;
-                                Response::ReadyForQuery.write(&mut self.stream)?;
-                            }
-                            Err(e) => {
-                                log::warn!("Execution error: {}", e);
-                                Response::ErrorResponse { message: format!("Execution error: {}", e) }.write(&mut self.stream)?;
-                                Response::ReadyForQuery.write(&mut self.stream)?;
-                            }
+            Ok(mut parser) => match parser.parse() {
+                Ok(stmt) => {
+                    log::debug!("Parsed statement: {:?}", stmt);
+                    match self.execute_statement(stmt) {
+                        Ok(tag) => {
+                            Response::CommandComplete { tag }.write(&mut self.stream)?;
+                            Response::ReadyForQuery.write(&mut self.stream)?;
+                        }
+                        Err(e) => {
+                            log::warn!("Execution error: {}", e);
+                            Response::ErrorResponse { message: format!("Execution error: {}", e) }
+                                .write(&mut self.stream)?;
+                            Response::ReadyForQuery.write(&mut self.stream)?;
                         }
                     }
-                    Err(e) => {
-                        log::warn!("Parse error: {}", e);
-                        Response::ErrorResponse { message: format!("Parse error: {}", e) }.write(&mut self.stream)?;
-                        Response::ReadyForQuery.write(&mut self.stream)?;
-                    }
                 }
-            }
+                Err(e) => {
+                    log::warn!("Parse error: {}", e);
+                    Response::ErrorResponse { message: format!("Parse error: {}", e) }
+                        .write(&mut self.stream)?;
+                    Response::ReadyForQuery.write(&mut self.stream)?;
+                }
+            },
             Err(e) => {
                 log::warn!("Lexer error: {}", e);
-                Response::ErrorResponse { message: format!("Lexer error: {}", e) }.write(&mut self.stream)?;
+                Response::ErrorResponse { message: format!("Lexer error: {}", e) }
+                    .write(&mut self.stream)?;
                 Response::ReadyForQuery.write(&mut self.stream)?;
             }
         }
         self.stream.flush()?;
         Ok(())
     }
-    
+
     fn execute_statement(&self, stmt: Statement) -> Result<String, String> {
         use crate::parser::ast::Expr;
-        
+
         match stmt {
             Statement::CreateTable(create) => {
                 self.catalog.create_table(create.table.clone(), create.columns)?;
@@ -119,7 +120,9 @@ impl<S: Read + Write> Connection<S> {
             }
             Statement::Describe(desc) => {
                 if let Some(schema) = self.catalog.get_table(&desc.table) {
-                    let cols: Vec<String> = schema.columns.iter()
+                    let cols: Vec<String> = schema
+                        .columns
+                        .iter()
                         .map(|c| format!("{}: {:?}", c.name, c.data_type))
                         .collect();
                     Ok(format!("DESCRIBE\n{}", cols.join("\n")))
@@ -132,7 +135,9 @@ impl<S: Read + Write> Connection<S> {
                 Ok("INSERT 0 1".to_string())
             }
             Statement::Select(select) => {
-                let columns: Vec<String> = select.columns.iter()
+                let columns: Vec<String> = select
+                    .columns
+                    .iter()
                     .map(|expr| match expr {
                         Expr::Star => "*".to_string(),
                         Expr::Column(name) => name.clone(),
@@ -154,12 +159,23 @@ impl<S: Read + Write> Connection<S> {
                         _ => "?".to_string(),
                     })
                     .collect();
-                
-                let rows = self.catalog.select(&select.from, select.distinct, columns, select.where_clause, select.group_by, select.having, select.order_by, select.limit, select.offset)?;
+
+                let rows = self.catalog.select(
+                    &select.from,
+                    select.distinct,
+                    columns,
+                    select.where_clause,
+                    select.group_by,
+                    select.having,
+                    select.order_by,
+                    select.limit,
+                    select.offset,
+                )?;
                 Ok(format!("SELECT {}", rows.len()))
             }
             Statement::Update(update) => {
-                let count = self.catalog.update(&update.table, update.assignments, update.where_clause)?;
+                let count =
+                    self.catalog.update(&update.table, update.assignments, update.where_clause)?;
                 Ok(format!("UPDATE {}", count))
             }
             Statement::Delete(delete) => {
@@ -177,7 +193,7 @@ impl<S: Read + Write> Connection<S> {
             // Check for SSL request (length=8, code=80877103)
             let len = i32::from_be_bytes([ssl_buf[0], ssl_buf[1], ssl_buf[2], ssl_buf[3]]);
             let code = i32::from_be_bytes([ssl_buf[4], ssl_buf[5], ssl_buf[6], ssl_buf[7]]);
-            
+
             if len == 8 && code == 80877103 {
                 // Reject SSL with 'N'
                 log::debug!("SSL negotiation rejected");
@@ -188,40 +204,40 @@ impl<S: Read + Write> Connection<S> {
                 // Read remaining startup data
                 let mut data = vec![0u8; (len - 8) as usize];
                 self.stream.read_exact(&mut data)?;
-                
+
                 let mut full_data = ssl_buf[4..8].to_vec();
                 full_data.extend_from_slice(&data);
-                
+
                 let msg = Message::parse(0, &full_data)?;
                 log::debug!("Startup message: {:?}", msg);
                 self.authenticated = true;
-                
+
                 Response::AuthenticationOk.write(&mut self.stream)?;
                 Response::ReadyForQuery.write(&mut self.stream)?;
                 self.stream.flush()?;
             }
         }
-        
+
         // If SSL was rejected, now handle actual startup
         if !self.authenticated {
             self.handle_startup()?;
         }
-        
+
         loop {
             let mut tag_buf = [0u8; 1];
             if self.stream.read_exact(&mut tag_buf).is_err() {
                 break;
             }
-            
+
             let mut len_buf = [0u8; 4];
             self.stream.read_exact(&mut len_buf)?;
             let len = i32::from_be_bytes(len_buf) as usize;
-            
+
             let mut data = vec![0u8; len - 4];
             self.stream.read_exact(&mut data)?;
-            
+
             let msg = Message::parse(tag_buf[0], &data)?;
-            
+
             match msg {
                 Message::Query { sql } => self.handle_query(&sql)?,
                 Message::Terminate => break,

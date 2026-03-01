@@ -8,9 +8,9 @@
 
 #![allow(clippy::module_inception)]
 
+pub mod ast;
 pub mod error;
 pub mod lexer;
-pub mod ast;
 pub mod parser;
 
 #[cfg(test)]
@@ -40,9 +40,9 @@ mod index_tests;
 #[cfg(test)]
 mod index_edge_tests;
 
+pub use ast::*;
 pub use error::{ParseError, Result};
 pub use lexer::{Lexer, Token};
-pub use ast::*;
 pub use parser::Parser;
 
 /// Parses a SQL statement

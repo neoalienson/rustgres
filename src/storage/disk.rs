@@ -1,8 +1,8 @@
 use super::error::Result;
 use super::page::{Page, PageId};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions, create_dir_all};
-use std::io::{Read, Write, Seek, SeekFrom};
+use std::fs::{create_dir_all, File, OpenOptions};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -17,56 +17,41 @@ impl DiskManager {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Result<Self> {
         let data_dir = data_dir.as_ref().to_path_buf();
         create_dir_all(&data_dir)?;
-        
-        Ok(Self {
-            data_dir,
-            file_handles: Mutex::new(HashMap::new()),
-        })
+
+        Ok(Self { data_dir, file_handles: Mutex::new(HashMap::new()) })
     }
 
     pub fn read_page(&self, page_id: PageId) -> Result<Page> {
         let file_path = self.page_file_path(page_id);
         let mut handles = self.file_handles.lock().unwrap();
-        
-        let file = handles.entry(file_path.to_string_lossy().to_string())
-            .or_insert_with(|| {
-                OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .open(&file_path)
-                    .unwrap()
-            });
-        
+
+        let file = handles.entry(file_path.to_string_lossy().to_string()).or_insert_with(|| {
+            OpenOptions::new().read(true).write(true).create(true).open(&file_path).unwrap()
+        });
+
         let offset = self.page_offset(page_id);
         file.seek(SeekFrom::Start(offset))?;
-        
+
         let mut buffer = vec![0u8; PAGE_SIZE];
         file.read_exact(&mut buffer)?;
-        
+
         Ok(Page::from_bytes(&buffer))
     }
 
     pub fn write_page(&self, page_id: PageId, page: &Page) -> Result<()> {
         let file_path = self.page_file_path(page_id);
         let mut handles = self.file_handles.lock().unwrap();
-        
-        let file = handles.entry(file_path.to_string_lossy().to_string())
-            .or_insert_with(|| {
-                OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .open(&file_path)
-                    .unwrap()
-            });
-        
+
+        let file = handles.entry(file_path.to_string_lossy().to_string()).or_insert_with(|| {
+            OpenOptions::new().read(true).write(true).create(true).open(&file_path).unwrap()
+        });
+
         let offset = self.page_offset(page_id);
         file.seek(SeekFrom::Start(offset))?;
         file.write_all(&page.to_bytes())?;
-        
+
         log::trace!("Wrote page {} to disk", page_id.0);
-        
+
         Ok(())
     }
 
@@ -106,14 +91,14 @@ mod tests {
     fn test_write_and_read_page() {
         let temp_dir = TempDir::new().unwrap();
         let dm = DiskManager::new(temp_dir.path()).unwrap();
-        
+
         let page_id = PageId(0);
         let mut page = Page::new(page_id);
         page.set_data(vec![1, 2, 3, 4]);
-        
+
         dm.write_page(page_id, &page).unwrap();
         let read_page = dm.read_page(page_id).unwrap();
-        
+
         assert_eq!(read_page.id(), page_id);
     }
 
@@ -121,10 +106,10 @@ mod tests {
     fn test_sync() {
         let temp_dir = TempDir::new().unwrap();
         let dm = DiskManager::new(temp_dir.path()).unwrap();
-        
+
         let page_id = PageId(0);
         let page = Page::new(page_id);
-        
+
         dm.write_page(page_id, &page).unwrap();
         dm.sync().unwrap();
     }

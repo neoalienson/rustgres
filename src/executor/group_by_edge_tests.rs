@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, GroupBy};
     use crate::executor::mock::MockExecutor;
+    use crate::executor::{GroupBy, SimpleExecutor, SimpleTuple as Tuple};
 
     #[test]
     fn test_group_by_empty_input() {
@@ -160,10 +160,8 @@ mod tests {
 
     #[test]
     fn test_group_by_reopen_multiple_times() {
-        let input = MockExecutor::new(vec![
-            Tuple { data: vec![1, 10] },
-            Tuple { data: vec![2, 20] },
-        ]);
+        let input =
+            MockExecutor::new(vec![Tuple { data: vec![1, 10] }, Tuple { data: vec![2, 20] }]);
         let mut group_by = GroupBy::new(Box::new(input), vec![0], vec![1]);
         group_by.open().unwrap();
 
@@ -219,10 +217,8 @@ mod tests {
 
     #[test]
     fn test_group_by_overflow_protection() {
-        let input = MockExecutor::new(vec![
-            Tuple { data: vec![1, 255] },
-            Tuple { data: vec![1, 255] },
-        ]);
+        let input =
+            MockExecutor::new(vec![Tuple { data: vec![1, 255] }, Tuple { data: vec![1, 255] }]);
         let mut group_by = GroupBy::new(Box::new(input), vec![0], vec![1]);
         group_by.open().unwrap();
 

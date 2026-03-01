@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 use std::collections::HashMap;
 
 pub struct GroupBy {
@@ -30,17 +30,11 @@ impl GroupBy {
 
     fn perform_grouping(&mut self) -> Result<(), ExecutorError> {
         while let Some(tuple) = self.input.next()? {
-            let key: Vec<u8> = self
-                .group_columns
-                .iter()
-                .filter_map(|&i| tuple.data.get(i).copied())
-                .collect();
+            let key: Vec<u8> =
+                self.group_columns.iter().filter_map(|&i| tuple.data.get(i).copied()).collect();
 
-            let agg_values: Vec<u8> = self
-                .agg_columns
-                .iter()
-                .filter_map(|&i| tuple.data.get(i).copied())
-                .collect();
+            let agg_values: Vec<u8> =
+                self.agg_columns.iter().filter_map(|&i| tuple.data.get(i).copied()).collect();
 
             self.groups
                 .entry(key)
@@ -184,10 +178,8 @@ mod tests {
 
     #[test]
     fn test_group_by_reopen() {
-        let input = MockExecutor::new(vec![
-            Tuple { data: vec![1, 10] },
-            Tuple { data: vec![1, 20] },
-        ]);
+        let input =
+            MockExecutor::new(vec![Tuple { data: vec![1, 10] }, Tuple { data: vec![1, 20] }]);
         let mut group_by = GroupBy::new(Box::new(input), vec![0], vec![1]);
         group_by.open().unwrap();
 

@@ -1,6 +1,6 @@
 use super::error::Result;
 use super::writer::{WALRecord, LSN};
-use std::fs::{File, OpenOptions, create_dir_all};
+use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -18,7 +18,7 @@ impl WALDiskWriter {
     pub fn new<P: AsRef<Path>>(wal_dir: P) -> Result<Self> {
         let wal_dir = wal_dir.as_ref().to_path_buf();
         create_dir_all(&wal_dir)?;
-        
+
         Ok(Self {
             wal_dir,
             current_file: Mutex::new(None),
@@ -32,29 +32,26 @@ impl WALDiskWriter {
         let mut offset = self.current_offset.lock().unwrap();
         let mut segment = self.current_segment.lock().unwrap();
         let mut file_opt = self.current_file.lock().unwrap();
-        
+
         // Check if we need a new segment
         if *offset + data.len() as u64 > WAL_SEGMENT_SIZE {
             *segment += 1;
             *offset = 0;
             *file_opt = None;
         }
-        
+
         // Open file if needed
         if file_opt.is_none() {
             let path = self.segment_path(*segment);
-            *file_opt = Some(OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)?);
+            *file_opt = Some(OpenOptions::new().create(true).append(true).open(path)?);
         }
-        
+
         let file = file_opt.as_mut().unwrap();
         file.write_all(&data)?;
-        
+
         let lsn = *segment * WAL_SEGMENT_SIZE + *offset;
         *offset += data.len() as u64;
-        
+
         Ok(lsn)
     }
 
@@ -74,8 +71,8 @@ impl WALDiskWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wal::writer::RecordType;
     use crate::storage::PageId;
+    use crate::wal::writer::RecordType;
     use tempfile::TempDir;
 
     #[test]
@@ -89,9 +86,9 @@ mod tests {
     fn test_write_wal_record() {
         let temp_dir = TempDir::new().unwrap();
         let writer = WALDiskWriter::new(temp_dir.path()).unwrap();
-        
+
         let record = WALRecord::new(1, 1, RecordType::Insert, Some(PageId(1)), vec![1, 2, 3]);
-        
+
         let lsn = writer.write(&record).unwrap();
         // Verify LSN was assigned
         assert!(lsn == 0 || lsn > 0);
@@ -101,9 +98,9 @@ mod tests {
     fn test_flush() {
         let temp_dir = TempDir::new().unwrap();
         let writer = WALDiskWriter::new(temp_dir.path()).unwrap();
-        
+
         let record = WALRecord::new(1, 1, RecordType::Insert, Some(PageId(1)), vec![1, 2, 3]);
-        
+
         writer.write(&record).unwrap();
         writer.flush().unwrap();
     }

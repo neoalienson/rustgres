@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::executor::cte::CTE;
-    use crate::executor::{SimpleExecutor, SimpleTuple, ExecutorError};
+    use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
     use std::collections::HashMap;
 
     struct MockExecutor {
@@ -60,11 +60,8 @@ mod tests {
 
     #[test]
     fn test_cte_many_rows() {
-        let tuples: Vec<SimpleTuple> = (0..1000)
-            .map(|i| SimpleTuple {
-                data: vec![i as u8],
-            })
-            .collect();
+        let tuples: Vec<SimpleTuple> =
+            (0..1000).map(|i| SimpleTuple { data: vec![i as u8] }).collect();
         let mock = Box::new(MockExecutor::new(tuples));
         let mut cte = CTE::new(HashMap::new(), mock);
 
@@ -142,9 +139,7 @@ mod tests {
 
     #[test]
     fn test_cte_large_data() {
-        let tuples = vec![SimpleTuple {
-            data: vec![255; 10000],
-        }];
+        let tuples = vec![SimpleTuple { data: vec![255; 10000] }];
         let mock = Box::new(MockExecutor::new(tuples));
         let mut cte = CTE::new(HashMap::new(), mock);
 

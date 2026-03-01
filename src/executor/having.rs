@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 
 pub struct Having {
     input: Box<dyn SimpleExecutor>,
@@ -6,7 +6,10 @@ pub struct Having {
 }
 
 impl Having {
-    pub fn new(input: Box<dyn SimpleExecutor>, condition: Box<dyn Fn(&Tuple) -> bool + Send>) -> Self {
+    pub fn new(
+        input: Box<dyn SimpleExecutor>,
+        condition: Box<dyn Fn(&Tuple) -> bool + Send>,
+    ) -> Self {
         Self { input, condition }
     }
 }
@@ -42,7 +45,8 @@ mod tests {
             Tuple { data: vec![2, 10] },
             Tuple { data: vec![3, 50] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 20));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 20));
         having.open().unwrap();
 
         let t1 = having.next().unwrap().unwrap();
@@ -64,11 +68,10 @@ mod tests {
 
     #[test]
     fn test_having_no_matches() {
-        let input = MockExecutor::new(vec![
-            Tuple { data: vec![1, 5] },
-            Tuple { data: vec![2, 10] },
-        ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 100));
+        let input =
+            MockExecutor::new(vec![Tuple { data: vec![1, 5] }, Tuple { data: vec![2, 10] }]);
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 100));
         having.open().unwrap();
         assert!(having.next().unwrap().is_none());
         having.close().unwrap();
@@ -81,7 +84,8 @@ mod tests {
             Tuple { data: vec![2, 60] },
             Tuple { data: vec![3, 70] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 10));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) > 10));
         having.open().unwrap();
 
         let mut count = 0;
@@ -95,7 +99,8 @@ mod tests {
     #[test]
     fn test_having_single_row() {
         let input = MockExecutor::new(vec![Tuple { data: vec![1, 100] }]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) >= 100));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) >= 100));
         having.open().unwrap();
 
         let result = having.next().unwrap();
@@ -112,7 +117,8 @@ mod tests {
             Tuple { data: vec![2, 42] },
             Tuple { data: vec![3, 43] },
         ]);
-        let mut having = Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) == 42));
+        let mut having =
+            Having::new(Box::new(input), Box::new(|t| t.data.get(1).copied().unwrap_or(0) == 42));
         having.open().unwrap();
 
         let mut count = 0;
@@ -133,7 +139,8 @@ mod tests {
         let mut having = Having::new(
             Box::new(input),
             Box::new(|t| {
-                let sum = t.data.get(1).copied().unwrap_or(0) as u16 + t.data.get(2).copied().unwrap_or(0) as u16;
+                let sum = t.data.get(1).copied().unwrap_or(0) as u16
+                    + t.data.get(2).copied().unwrap_or(0) as u16;
                 sum > 30
             }),
         );

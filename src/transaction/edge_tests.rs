@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::transaction::*;
     use crate::transaction::manager::FIRST_NORMAL_XID;
+    use crate::transaction::*;
 
     #[test]
     fn test_commit_nonexistent_transaction() {

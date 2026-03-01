@@ -1,12 +1,12 @@
 use super::plan::LogicalPlan;
 
-pub mod pushdown;
-pub mod pruning;
 pub mod folding;
+pub mod pruning;
+pub mod pushdown;
 
-pub use pushdown::PredicatePushdown;
-pub use pruning::ProjectionPruning;
 pub use folding::ConstantFolding;
+pub use pruning::ProjectionPruning;
+pub use pushdown::PredicatePushdown;
 
 pub trait OptimizationRule {
     fn apply(&self, plan: LogicalPlan) -> LogicalPlan;
@@ -21,11 +21,11 @@ impl RuleOptimizer {
     pub fn new() -> Self {
         Self { rules: vec![] }
     }
-    
+
     pub fn add_rule(&mut self, rule: Box<dyn OptimizationRule>) {
         self.rules.push(rule);
     }
-    
+
     pub fn optimize(&self, mut plan: LogicalPlan) -> LogicalPlan {
         for rule in &self.rules {
             plan = rule.apply(plan);

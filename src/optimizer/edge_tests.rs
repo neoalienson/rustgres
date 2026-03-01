@@ -16,11 +16,7 @@ mod tests {
     #[test]
     fn test_seq_scan_empty_table() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 0,
-            page_count: 0,
-            avg_row_size: 0,
-        };
+        let stats = TableStats { row_count: 0, page_count: 0, avg_row_size: 0 };
         let cost = model.estimate_seq_scan(&stats, 1.0).unwrap();
         assert_eq!(cost.rows, 0.0);
     }
@@ -28,11 +24,7 @@ mod tests {
     #[test]
     fn test_seq_scan_zero_selectivity() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 1000,
-            page_count: 10,
-            avg_row_size: 100,
-        };
+        let stats = TableStats { row_count: 1000, page_count: 10, avg_row_size: 100 };
         let cost = model.estimate_seq_scan(&stats, 0.0).unwrap();
         assert_eq!(cost.rows, 0.0);
     }
@@ -40,11 +32,7 @@ mod tests {
     #[test]
     fn test_index_scan_zero_selectivity() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 1000,
-            page_count: 10,
-            avg_row_size: 100,
-        };
+        let stats = TableStats { row_count: 1000, page_count: 10, avg_row_size: 100 };
         let cost = model.estimate_index_scan(&stats, 0.0).unwrap();
         assert!(cost.total > 0.0); // Still has minimum page cost
     }
@@ -52,11 +40,7 @@ mod tests {
     #[test]
     fn test_index_scan_full_selectivity() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 1000,
-            page_count: 10,
-            avg_row_size: 100,
-        };
+        let stats = TableStats { row_count: 1000, page_count: 10, avg_row_size: 100 };
         let cost = model.estimate_index_scan(&stats, 1.0).unwrap();
         assert_eq!(cost.rows, 1000.0);
     }
@@ -109,11 +93,7 @@ mod tests {
     #[test]
     fn test_seq_scan_single_page() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 10,
-            page_count: 1,
-            avg_row_size: 100,
-        };
+        let stats = TableStats { row_count: 10, page_count: 1, avg_row_size: 100 };
         let cost = model.estimate_seq_scan(&stats, 1.0).unwrap();
         assert!(cost.total > 0.0);
     }
@@ -121,11 +101,7 @@ mod tests {
     #[test]
     fn test_index_scan_single_row() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 1,
-            page_count: 1,
-            avg_row_size: 100,
-        };
+        let stats = TableStats { row_count: 1, page_count: 1, avg_row_size: 100 };
         let cost = model.estimate_index_scan(&stats, 1.0).unwrap();
         assert_eq!(cost.rows, 1.0);
     }
@@ -141,11 +117,7 @@ mod tests {
     #[test]
     fn test_negative_selectivity_handling() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 1000,
-            page_count: 10,
-            avg_row_size: 100,
-        };
+        let stats = TableStats { row_count: 1000, page_count: 10, avg_row_size: 100 };
         // Negative selectivity should still work (treated as 0)
         let cost = model.estimate_seq_scan(&stats, -0.1).unwrap();
         assert!(cost.rows <= 0.0);
@@ -154,11 +126,7 @@ mod tests {
     #[test]
     fn test_selectivity_greater_than_one() {
         let model = CostModel::new();
-        let stats = TableStats {
-            row_count: 1000,
-            page_count: 10,
-            avg_row_size: 100,
-        };
+        let stats = TableStats { row_count: 1000, page_count: 10, avg_row_size: 100 };
         let cost = model.estimate_seq_scan(&stats, 1.5).unwrap();
         assert_eq!(cost.rows, 1500.0);
     }

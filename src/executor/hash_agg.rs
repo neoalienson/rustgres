@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 use std::collections::HashMap;
 
 pub struct HashAgg {
@@ -17,31 +17,23 @@ struct AggState {
 
 impl HashAgg {
     pub fn new(input: Box<dyn SimpleExecutor>) -> Self {
-        Self {
-            input,
-            groups: HashMap::new(),
-            results: Vec::new(),
-            index: 0,
-            aggregated: false,
-        }
+        Self { input, groups: HashMap::new(), results: Vec::new(), index: 0, aggregated: false }
     }
-    
+
     fn aggregate(&mut self) -> Result<(), ExecutorError> {
         while let Some(tuple) = self.input.next()? {
             let key = tuple.data.first().copied().unwrap_or(0) as i64;
             let value = tuple.data.get(1).copied().unwrap_or(0) as i64;
-            
+
             let state = self.groups.entry(key).or_insert(AggState { count: 0, sum: 0 });
             state.count += 1;
             state.sum += value;
         }
-        
+
         for (key, state) in &self.groups {
-            self.results.push(Tuple {
-                data: vec![*key as u8, state.count as u8, state.sum as u8],
-            });
+            self.results.push(Tuple { data: vec![*key as u8, state.count as u8, state.sum as u8] });
         }
-        
+
         self.aggregated = true;
         Ok(())
     }
@@ -51,12 +43,12 @@ impl SimpleExecutor for HashAgg {
     fn open(&mut self) -> Result<(), ExecutorError> {
         self.input.open()
     }
-    
+
     fn next(&mut self) -> Result<Option<Tuple>, ExecutorError> {
         if !self.aggregated {
             self.aggregate()?;
         }
-        
+
         if self.index < self.results.len() {
             let tuple = self.results[self.index].clone();
             self.index += 1;
@@ -65,7 +57,7 @@ impl SimpleExecutor for HashAgg {
             Ok(None)
         }
     }
-    
+
     fn close(&mut self) -> Result<(), ExecutorError> {
         self.input.close()
     }
@@ -85,16 +77,16 @@ mod tests {
         ]);
         let mut agg = HashAgg::new(Box::new(input));
         agg.open().unwrap();
-        
+
         let mut results = Vec::new();
         while let Some(tuple) = agg.next().unwrap() {
             results.push(tuple);
         }
-        
+
         assert_eq!(results.len(), 2);
         agg.close().unwrap();
     }
-    
+
     #[test]
     fn test_hash_agg_empty() {
         let input = MockExecutor::new(vec![]);

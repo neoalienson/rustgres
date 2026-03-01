@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 
 pub enum JoinType {
     Inner,
@@ -98,7 +98,7 @@ impl SimpleExecutor for Join {
                 self.left_tuple = self.left.next()?;
                 self.right_index = 0;
                 self.found_match = false;
-                
+
                 if self.left_tuple.is_none() {
                     // For RIGHT and FULL joins, start emitting unmatched right tuples
                     if matches!(self.join_type, JoinType::Right | JoinType::Full) {
@@ -146,14 +146,10 @@ mod tests {
 
     #[test]
     fn test_inner_join_basic() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1, 10] },
-            Tuple { data: vec![2, 20] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1, 100] },
-            Tuple { data: vec![3, 255] },
-        ]);
+        let left =
+            MockExecutor::new(vec![Tuple { data: vec![1, 10] }, Tuple { data: vec![2, 20] }]);
+        let right =
+            MockExecutor::new(vec![Tuple { data: vec![1, 100] }, Tuple { data: vec![3, 255] }]);
         let mut join = Join::new(
             Box::new(left),
             Box::new(right),
@@ -185,14 +181,8 @@ mod tests {
 
     #[test]
     fn test_inner_join_multiple_matches() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
         let mut join = Join::new(
             Box::new(left),
             Box::new(right),
@@ -211,10 +201,7 @@ mod tests {
 
     #[test]
     fn test_left_join_basic() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let right = MockExecutor::new(vec![Tuple { data: vec![1] }]);
         let mut join = Join::new(
             Box::new(left),
@@ -265,10 +252,7 @@ mod tests {
     #[test]
     fn test_right_join_basic() {
         let left = MockExecutor::new(vec![Tuple { data: vec![1] }]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut join = Join::new(
             Box::new(left),
             Box::new(right),
@@ -287,14 +271,8 @@ mod tests {
 
     #[test]
     fn test_full_join_basic() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![3] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![3] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut join = Join::new(
             Box::new(left),
             Box::new(right),

@@ -1,5 +1,5 @@
 use crate::catalog::*;
-use crate::parser::ast::{ColumnDef, DataType, Expr, BinaryOperator};
+use crate::parser::ast::{BinaryOperator, ColumnDef, DataType, Expr};
 
 #[test]
 fn test_insert_null_value() {
@@ -8,9 +8,9 @@ fn test_insert_null_value() {
         ColumnDef { name: "id".to_string(), data_type: DataType::Int },
         ColumnDef { name: "name".to_string(), data_type: DataType::Text },
     ];
-    
+
     catalog.create_table("users".to_string(), columns).unwrap();
-    
+
     // Note: Current implementation doesn't support NULL in INSERT
     // This test documents the limitation
     let values = vec![Expr::Number(1), Expr::String("Alice".to_string())];
@@ -20,20 +20,20 @@ fn test_insert_null_value() {
 #[test]
 fn test_select_from_empty_result() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
+
     let where_clause = Some(Expr::BinaryOp {
         left: Box::new(Expr::Column("id".to_string())),
         op: BinaryOperator::Equals,
         right: Box::new(Expr::Number(999)),
     });
-    
-    let rows = catalog.select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None)
+        .unwrap();
     assert_eq!(rows.len(), 0);
 }
 
@@ -44,36 +44,36 @@ fn test_update_no_matching_rows() {
         ColumnDef { name: "id".to_string(), data_type: DataType::Int },
         ColumnDef { name: "value".to_string(), data_type: DataType::Int },
     ];
-    
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1), Expr::Number(100)]).unwrap();
-    
+
     let where_clause = Some(Expr::BinaryOp {
         left: Box::new(Expr::Column("id".to_string())),
         op: BinaryOperator::Equals,
         right: Box::new(Expr::Number(999)),
     });
-    
-    let updated = catalog.update("data", vec![("value".to_string(), Expr::Number(999))], where_clause).unwrap();
+
+    let updated = catalog
+        .update("data", vec![("value".to_string(), Expr::Number(999))], where_clause)
+        .unwrap();
     assert_eq!(updated, 0);
 }
 
 #[test]
 fn test_delete_no_matching_rows() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
+
     let where_clause = Some(Expr::BinaryOp {
         left: Box::new(Expr::Column("id".to_string())),
         op: BinaryOperator::Equals,
         right: Box::new(Expr::Number(999)),
     });
-    
+
     let deleted = catalog.delete("data", where_clause).unwrap();
     assert_eq!(deleted, 0);
 }
@@ -81,47 +81,61 @@ fn test_delete_no_matching_rows() {
 #[test]
 fn test_select_with_invalid_column() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
-    let result = catalog.select("data", false, vec!["nonexistent".to_string()], None, None, None, None, None, None);
+
+    let result = catalog.select(
+        "data",
+        false,
+        vec!["nonexistent".to_string()],
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    );
     assert!(result.is_err());
 }
 
 #[test]
 fn test_where_with_invalid_column() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
+
     let where_clause = Some(Expr::BinaryOp {
         left: Box::new(Expr::Column("nonexistent".to_string())),
         op: BinaryOperator::Equals,
         right: Box::new(Expr::Number(1)),
     });
-    
-    let result = catalog.select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None);
+
+    let result = catalog.select(
+        "data",
+        false,
+        vec!["*".to_string()],
+        where_clause,
+        None,
+        None,
+        None,
+        None,
+        None,
+    );
     assert!(result.is_err());
 }
 
 #[test]
 fn test_update_invalid_column() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
+
     let result = catalog.update("data", vec![("nonexistent".to_string(), Expr::Number(999))], None);
     assert!(result.is_err());
 }
@@ -129,181 +143,197 @@ fn test_update_invalid_column() {
 #[test]
 fn test_limit_larger_than_result_set() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
     catalog.insert("data", vec![Expr::Number(2)]).unwrap();
-    
-    let rows = catalog.select("data", false, vec!["*".to_string()], None, None, None, None, Some(100), None).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["*".to_string()], None, None, None, None, Some(100), None)
+        .unwrap();
     assert_eq!(rows.len(), 2);
 }
 
 #[test]
 fn test_offset_larger_than_result_set() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
-    let rows = catalog.select("data", false, vec!["*".to_string()], None, None, None, None, None, Some(100)).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["*".to_string()], None, None, None, None, None, Some(100))
+        .unwrap();
     assert_eq!(rows.len(), 0);
 }
 
 #[test]
 fn test_aggregate_on_empty_table() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "value".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "value".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
-    
-    let rows = catalog.select("data", false, vec!["AGG:COUNT:*".to_string()], None, None, None, None, None, None).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["AGG:COUNT:*".to_string()], None, None, None, None, None, None)
+        .unwrap();
     assert_eq!(rows[0][0], Value::Int(0));
 }
 
 #[test]
 fn test_in_operator_empty_list() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
+
     let where_clause = Some(Expr::BinaryOp {
         left: Box::new(Expr::Column("id".to_string())),
         op: BinaryOperator::In,
         right: Box::new(Expr::List(vec![])),
     });
-    
-    let rows = catalog.select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None)
+        .unwrap();
     assert_eq!(rows.len(), 0);
 }
 
 #[test]
 fn test_between_with_reversed_bounds() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "value".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "value".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(15)]).unwrap();
-    
+
     // BETWEEN 30 AND 10 (reversed)
     let where_clause = Some(Expr::BinaryOp {
         left: Box::new(Expr::Column("value".to_string())),
         op: BinaryOperator::Between,
         right: Box::new(Expr::List(vec![Expr::Number(30), Expr::Number(10)])),
     });
-    
-    let rows = catalog.select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None)
+        .unwrap();
     assert_eq!(rows.len(), 0);
 }
 
 #[test]
 fn test_like_with_empty_pattern() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "name".to_string(), data_type: DataType::Text },
-    ];
-    
+    let columns = vec![ColumnDef { name: "name".to_string(), data_type: DataType::Text }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::String("test".to_string())]).unwrap();
-    
+
     let where_clause = Some(Expr::BinaryOp {
         left: Box::new(Expr::Column("name".to_string())),
         op: BinaryOperator::Like,
         right: Box::new(Expr::String("%%".to_string())),
     });
-    
-    let rows = catalog.select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["*".to_string()], where_clause, None, None, None, None, None)
+        .unwrap();
     assert_eq!(rows.len(), 1);
 }
 
 #[test]
 fn test_distinct_on_empty_table() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
-    
-    let rows = catalog.select("data", true, vec!["*".to_string()], None, None, None, None, None, None).unwrap();
+
+    let rows = catalog
+        .select("data", true, vec!["*".to_string()], None, None, None, None, None, None)
+        .unwrap();
     assert_eq!(rows.len(), 0);
 }
 
 #[test]
 fn test_distinct_all_duplicates() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "value".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "value".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
-    let rows = catalog.select("data", true, vec!["*".to_string()], None, None, None, None, None, None).unwrap();
+
+    let rows = catalog
+        .select("data", true, vec!["*".to_string()], None, None, None, None, None, None)
+        .unwrap();
     assert_eq!(rows.len(), 1);
 }
 
 #[test]
 fn test_order_by_with_invalid_column() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
-    let order_by = Some(vec![crate::parser::ast::OrderByExpr { 
-        column: "nonexistent".to_string(), 
-        ascending: true 
+
+    let order_by = Some(vec![crate::parser::ast::OrderByExpr {
+        column: "nonexistent".to_string(),
+        ascending: true,
     }]);
-    
-    let result = catalog.select("data", false, vec!["*".to_string()], None, None, None, order_by, None, None);
+
+    let result = catalog.select(
+        "data",
+        false,
+        vec!["*".to_string()],
+        None,
+        None,
+        None,
+        order_by,
+        None,
+        None,
+    );
     assert!(result.is_err());
 }
 
 #[test]
 fn test_group_by_with_invalid_column() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
-    
+
     let group_by = Some(vec!["nonexistent".to_string()]);
-    let result = catalog.select("data", false, vec!["id".to_string()], None, group_by, None, None, None, None);
+    let result = catalog.select(
+        "data",
+        false,
+        vec!["id".to_string()],
+        None,
+        group_by,
+        None,
+        None,
+        None,
+        None,
+    );
     assert!(result.is_err());
 }
 
 #[test]
 fn test_zero_limit() {
     let catalog = Catalog::new();
-    let columns = vec![
-        ColumnDef { name: "id".to_string(), data_type: DataType::Int },
-    ];
-    
+    let columns = vec![ColumnDef { name: "id".to_string(), data_type: DataType::Int }];
+
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
     catalog.insert("data", vec![Expr::Number(2)]).unwrap();
-    
-    let rows = catalog.select("data", false, vec!["*".to_string()], None, None, None, None, Some(0), None).unwrap();
+
+    let rows = catalog
+        .select("data", false, vec!["*".to_string()], None, None, None, None, Some(0), None)
+        .unwrap();
     assert_eq!(rows.len(), 0);
 }
 

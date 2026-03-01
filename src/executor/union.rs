@@ -1,4 +1,4 @@
-use super::{SimpleExecutor, SimpleTuple as Tuple, ExecutorError};
+use super::{ExecutorError, SimpleExecutor, SimpleTuple as Tuple};
 use std::collections::HashSet;
 
 pub struct Union {
@@ -11,13 +11,7 @@ pub struct Union {
 
 impl Union {
     pub fn new(left: Box<dyn SimpleExecutor>, right: Box<dyn SimpleExecutor>, all: bool) -> Self {
-        Self {
-            left,
-            right,
-            all,
-            seen: HashSet::new(),
-            left_done: false,
-        }
+        Self { left, right, all, seen: HashSet::new(), left_done: false }
     }
 }
 
@@ -62,14 +56,8 @@ mod tests {
 
     #[test]
     fn test_union_basic() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![3] },
-            Tuple { data: vec![4] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![3] }, Tuple { data: vec![4] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
 
@@ -83,14 +71,8 @@ mod tests {
 
     #[test]
     fn test_union_removes_duplicates() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![2] },
-            Tuple { data: vec![3] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![2] }, Tuple { data: vec![3] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
 
@@ -104,14 +86,8 @@ mod tests {
 
     #[test]
     fn test_union_all_keeps_duplicates() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![2] },
-            Tuple { data: vec![3] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![2] }, Tuple { data: vec![3] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), true);
         union.open().unwrap();
 
@@ -126,10 +102,7 @@ mod tests {
     #[test]
     fn test_union_empty_left() {
         let left = MockExecutor::new(vec![]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
 
@@ -143,10 +116,7 @@ mod tests {
 
     #[test]
     fn test_union_empty_right() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![2] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![2] }]);
         let right = MockExecutor::new(vec![]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
@@ -171,14 +141,8 @@ mod tests {
 
     #[test]
     fn test_union_all_duplicates() {
-        let left = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
-        let right = MockExecutor::new(vec![
-            Tuple { data: vec![1] },
-            Tuple { data: vec![1] },
-        ]);
+        let left = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
+        let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), true);
         union.open().unwrap();
 

@@ -59,11 +59,8 @@ mod tests {
     fn test_sum_single_value() {
         let tuples = vec![make_tuple(42)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Sum,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -75,11 +72,8 @@ mod tests {
     fn test_avg_single_value() {
         let tuples = vec![make_tuple(50)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Avg,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Avg, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -91,11 +85,8 @@ mod tests {
     fn test_min_single_value() {
         let tuples = vec![make_tuple(99)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Min,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Min, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -107,11 +98,8 @@ mod tests {
     fn test_max_single_value() {
         let tuples = vec![make_tuple(1)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Max,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Max, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -123,11 +111,8 @@ mod tests {
     fn test_sum_all_zeros() {
         let tuples = vec![make_tuple(0), make_tuple(0), make_tuple(0)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Sum,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -139,11 +124,8 @@ mod tests {
     fn test_avg_empty_returns_zero() {
         let tuples = vec![];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Avg,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Avg, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -155,11 +137,8 @@ mod tests {
     fn test_sum_empty_returns_zero() {
         let tuples = vec![];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Sum,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -171,11 +150,8 @@ mod tests {
     fn test_max_empty_returns_none() {
         let tuples = vec![];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Max,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Max, Some("value".to_string()));
 
         agg.open().unwrap();
         assert!(agg.next().unwrap().is_none());
@@ -186,11 +162,8 @@ mod tests {
     fn test_min_all_same_value() {
         let tuples = vec![make_tuple(5), make_tuple(5), make_tuple(5)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Min,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Min, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -202,11 +175,8 @@ mod tests {
     fn test_max_all_same_value() {
         let tuples = vec![make_tuple(7), make_tuple(7), make_tuple(7)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Max,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Max, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
@@ -230,11 +200,8 @@ mod tests {
     fn test_reopen_recomputes() {
         let tuples = vec![make_tuple(10), make_tuple(20)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Sum,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
 
         agg.open().unwrap();
         let result1 = agg.next().unwrap().unwrap();
@@ -253,11 +220,8 @@ mod tests {
     fn test_avg_rounds_down() {
         let tuples = vec![make_tuple(10), make_tuple(11)];
         let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(
-            Box::new(input),
-            AggregateFunction::Avg,
-            Some("value".to_string()),
-        );
+        let mut agg =
+            Aggregate::new(Box::new(input), AggregateFunction::Avg, Some("value".to_string()));
 
         agg.open().unwrap();
         let result = agg.next().unwrap().unwrap();
