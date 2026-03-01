@@ -8,7 +8,24 @@ Comprehensive end-to-end testing for RustGres using Docker containers.
 
 ```bash
 cd e2e
-./run_all.sh quick    # Run smoke tests (1 min)
+
+# Run all smoke tests
+./run_all.sh quick
+
+# Run specific smoke test
+./run_all.sh quick test_basic_create_table
+
+# List available smoke tests
+./run_all.sh quick list
+
+# Run all scenarios
+./run_all.sh scenarios
+
+# Run specific scenario
+./run_all.sh scenarios test_oltp_simple_transactions
+
+# List available scenarios
+./run_all.sh scenarios list
 ```
 
 ## Test Results
@@ -59,9 +76,18 @@ docker build -f docker/Dockerfile -t rustgres:latest .
 
 ### Run Tests
 
-**Quick smoke test (5 min):**
+**Quick smoke test:**
 ```bash
 ./e2e/run_all.sh quick
+./e2e/run_all.sh quick test_basic_create_table  # specific test
+./e2e/run_all.sh quick list                     # list tests
+```
+
+**Scenario tests:**
+```bash
+./e2e/run_all.sh scenarios
+./e2e/run_all.sh scenarios test_oltp_simple_transactions  # specific
+./e2e/run_all.sh scenarios list                           # list
 ```
 
 **Full test suite (30 min):**

@@ -18,13 +18,35 @@ cleanup() {
 trap cleanup EXIT
 
 MODE=${1:-quick}
+TEST_NAME=${2:-}
 
 case $MODE in
     quick)
-        echo -e "${GREEN}Running quick tests (smoke tests)${NC}"
-        cargo test --package e2e --test smoke -- --test-threads=1 --nocapture
+        if [ "$TEST_NAME" = "list" ]; then
+            echo -e "${GREEN}Available smoke tests:${NC}"
+            cargo test --package e2e --test smoke -- --list | grep ': test$' | sed 's/: test$//'
+        elif [ -n "$TEST_NAME" ]; then
+            echo -e "${GREEN}Running smoke test: $TEST_NAME${NC}"
+            cargo test --package e2e --test smoke $TEST_NAME -- --test-threads=1 --nocapture
+        else
+            echo -e "${GREEN}Running quick tests (smoke tests)${NC}"
+            cargo test --package e2e --test smoke -- --test-threads=1 --nocapture
+        fi
         ;;
-    
+
+    scenarios)
+        if [ "$TEST_NAME" = "list" ]; then
+            echo -e "${GREEN}Available scenarios:${NC}"
+            cargo test --package e2e --test scenarios -- --list | grep ': test$' | sed 's/: test$//'
+        elif [ -n "$TEST_NAME" ]; then
+            echo -e "${GREEN}Running scenario: $TEST_NAME${NC}"
+            cargo test --package e2e --test scenarios $TEST_NAME -- --test-threads=1 --nocapture
+        else
+            echo -e "${GREEN}Running all scenarios tests${NC}"
+            cargo test --package e2e --test scenarios -- --test-threads=1 --nocapture
+        fi
+        ;;
+
     full)
         echo -e "${GREEN}Running full test suite${NC}"
         cargo test --package e2e --test scenarios -- --nocapture
@@ -61,7 +83,27 @@ case $MODE in
     
     *)
         echo -e "${RED}Unknown mode: $MODE${NC}"
-        echo "Usage: $0 [quick|full|load|soak|compare|monitor]"
+        echo ""
+        echo "Usage: $0 [MODE] [OPTIONS]"
+        echo ""
+        echo "Modes:"
+        echo "  quick [test_name]        - Run smoke tests (all or specific)"
+        echo "  quick list               - List available smoke tests"
+        echo "  scenarios [test_name]    - Run scenario tests (all or specific)"
+        echo "  scenarios list           - List available scenarios"
+        echo "  full                     - Run full test suite"
+        echo "  load                     - Run load tests"
+        echo "  soak                     - Run soak tests (24h+)"
+        echo "  compare                  - Compare with PostgreSQL"
+        echo "  monitor                  - Start monitoring stack"
+        echo ""
+        echo "Examples:"
+        echo "  $0 quick"
+        echo "  $0 quick test_basic_create_table"
+        echo "  $0 quick list"
+        echo "  $0 scenarios"
+        echo "  $0 scenarios test_oltp_simple_transactions"
+        echo "  $0 scenarios list"
         exit 1
         ;;
 esac

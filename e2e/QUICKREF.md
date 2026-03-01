@@ -15,23 +15,22 @@ cd e2e && ./validate.sh
 ```bash
 cd e2e
 
-# Quick smoke test (5 min) - Run this first!
-./run_all.sh quick
+# Quick smoke tests
+./run_all.sh quick                              # All smoke tests
+./run_all.sh quick test_basic_create_table      # Specific test
+./run_all.sh quick list                         # List available
 
-# Compare with PostgreSQL
-./run_all.sh compare
+# Scenario tests
+./run_all.sh scenarios                          # All scenarios
+./run_all.sh scenarios test_oltp_simple_transactions  # Specific
+./run_all.sh scenarios list                     # List available
 
-# Load tests (30 min)
-./run_all.sh load
-
-# Soak tests (24h+)
-./run_all.sh soak
-
-# Full suite (1h)
-./run_all.sh full
-
-# Start monitoring stack
-./run_all.sh monitor
+# Other modes
+./run_all.sh compare        # Compare with PostgreSQL
+./run_all.sh load           # Load tests (30 min)
+./run_all.sh soak           # Soak tests (24h+)
+./run_all.sh full           # Full suite (1h)
+./run_all.sh monitor        # Start monitoring stack
 ```
 
 ## Test Structure
