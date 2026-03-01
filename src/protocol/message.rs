@@ -1,3 +1,4 @@
+use super::result_set::ColumnMetadata;
 use std::io::Write;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,6 +16,9 @@ pub enum Response {
     DataRow { values: Vec<Vec<u8>> },
     CommandComplete { tag: String },
     ErrorResponse { message: String },
+    // New wire protocol messages
+    RowDescriptionDetailed { columns: Vec<ColumnMetadata> },
+    DataRowDetailed { fields: Vec<Option<Vec<u8>>> },
 }
 
 impl Message {
@@ -65,7 +69,6 @@ impl Response {
             }
             Response::ErrorResponse { message } => {
                 writer.write_all(b"E")?;
-                // Calculate correct length: 4 (length itself) + field codes + strings + nulls
                 let severity = b"SERROR\0";
                 let msg_field = b"M";
                 let msg_bytes = message.as_bytes();
@@ -75,6 +78,57 @@ impl Response {
                 writer.write_all(msg_field)?;
                 writer.write_all(msg_bytes)?;
                 writer.write_all(b"\0\0")?;
+            }
+            Response::RowDescriptionDetailed { columns } => {
+                writer.write_all(b"T")?;
+                
+                // Calculate length
+                let mut length = 4 + 2; // length field + field count
+                for col in columns {
+                    length += col.name.len() + 1; // name + null terminator
+                    length += 4 + 2 + 4 + 2 + 4 + 2; // oids and sizes
+                }
+                
+                writer.write_all(&(length as i32).to_be_bytes())?;
+                writer.write_all(&(columns.len() as i16).to_be_bytes())?;
+                
+                for col in columns {
+                    writer.write_all(col.name.as_bytes())?;
+                    writer.write_all(b"\0")?;
+                    writer.write_all(&col.table_oid.to_be_bytes())?;
+                    writer.write_all(&col.column_attr_number.to_be_bytes())?;
+                    writer.write_all(&col.type_oid.to_be_bytes())?;
+                    writer.write_all(&col.type_size.to_be_bytes())?;
+                    writer.write_all(&col.type_modifier.to_be_bytes())?;
+                    writer.write_all(&col.format_code.to_be_bytes())?;
+                }
+            }
+            Response::DataRowDetailed { fields } => {
+                writer.write_all(b"D")?;
+                
+                // Calculate length
+                let mut length = 4 + 2; // length field + field count
+                for field in fields {
+                    length += 4; // field length
+                    if let Some(data) = field {
+                        length += data.len();
+                    }
+                }
+                
+                writer.write_all(&(length as i32).to_be_bytes())?;
+                writer.write_all(&(fields.len() as i16).to_be_bytes())?;
+                
+                for field in fields {
+                    match field {
+                        None => {
+                            writer.write_all(&(-1i32).to_be_bytes())?;
+                        }
+                        Some(data) => {
+                            writer.write_all(&(data.len() as i32).to_be_bytes())?;
+                            writer.write_all(data)?;
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -114,5 +168,51 @@ mod tests {
         let mut buf = Vec::new();
         Response::AuthenticationOk.write(&mut buf).unwrap();
         assert_eq!(&buf[0..1], b"R");
+    }
+
+    #[test]
+    fn test_row_description_detailed() {
+        let columns = vec![ColumnMetadata {
+            name: "id".to_string(),
+            table_oid: 0,
+            column_attr_number: 0,
+            type_oid: 23,
+            type_size: 4,
+            type_modifier: -1,
+            format_code: 0,
+        }];
+
+        let mut buf = Vec::new();
+        Response::RowDescriptionDetailed { columns }.write(&mut buf).unwrap();
+
+        assert_eq!(buf[0], b'T');
+        // Verify field count
+        let field_count = i16::from_be_bytes([buf[5], buf[6]]);
+        assert_eq!(field_count, 1);
+    }
+
+    #[test]
+    fn test_data_row_detailed() {
+        let fields = vec![Some(b"42".to_vec()), Some(b"Alice".to_vec())];
+
+        let mut buf = Vec::new();
+        Response::DataRowDetailed { fields }.write(&mut buf).unwrap();
+
+        assert_eq!(buf[0], b'D');
+        // Verify field count
+        let field_count = i16::from_be_bytes([buf[5], buf[6]]);
+        assert_eq!(field_count, 2);
+    }
+
+    #[test]
+    fn test_data_row_with_null() {
+        let fields = vec![Some(b"1".to_vec()), None, Some(b"test".to_vec())];
+
+        let mut buf = Vec::new();
+        Response::DataRowDetailed { fields }.write(&mut buf).unwrap();
+
+        assert_eq!(buf[0], b'D');
+        let field_count = i16::from_be_bytes([buf[5], buf[6]]);
+        assert_eq!(field_count, 3);
     }
 }
