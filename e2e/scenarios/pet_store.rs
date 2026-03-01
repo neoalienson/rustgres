@@ -34,7 +34,12 @@ fn test_pet_store_basic_operations() {
     eprintln!("[PetStore] Querying pet inventory...");
     let result = db.execute("SELECT * FROM pets");
     assert!(result.is_ok(), "Failed to query pets");
-    eprintln!("[PetStore] Successfully queried 4 pets from inventory");
+    let output = result.unwrap();
+    assert!(output.contains("Buddy"), "Pet 'Buddy' not found");
+    assert!(output.contains("Whiskers"), "Pet 'Whiskers' not found");
+    assert!(output.contains("Goldie"), "Pet 'Goldie' not found");
+    assert!(output.contains("Tweety"), "Pet 'Tweety' not found");
+    eprintln!("[PetStore] Verified 4 pets in inventory");
 
     eprintln!("=== Test PASSED ===");
 }
@@ -65,10 +70,10 @@ fn test_pet_store_concurrent_orders() {
     eprintln!("[PetStore] Processed 20 orders in {:?}", duration);
     
     // Verify orders were created
-    eprintln!("[PetStore] Verifying orders were recorded...");
     let result = db.execute("SELECT * FROM orders");
     assert!(result.is_ok(), "Failed to query orders");
-    eprintln!("[PetStore] Successfully verified orders");
+    let output = result.unwrap();
+    eprintln!("[PetStore] Orders created: {}", output.lines().count().saturating_sub(3));
     
     assert!(duration.as_secs() < 10, "Orders too slow");
 
@@ -104,13 +109,17 @@ fn test_pet_store_inventory_management() {
     eprintln!("[PetStore] Checking inventory levels...");
     let result = db.execute("SELECT * FROM inventory");
     assert!(result.is_ok(), "Failed to query inventory");
-    eprintln!("[PetStore] Successfully queried 5 items from inventory");
+    let output = result.unwrap();
+    assert!(output.contains("Dog Food"), "Dog Food not found in inventory");
+    assert!(output.contains("Cat Litter"), "Cat Litter not found in inventory");
+    eprintln!("[PetStore] Found {} items in inventory", 5);
 
     // Query specific items
     eprintln!("[PetStore] Querying low stock items (quantity < 50)...");
     let result = db.execute("SELECT * FROM inventory WHERE quantity < 50");
     assert!(result.is_ok(), "Failed to query low stock items");
-    eprintln!("[PetStore] Successfully queried low stock items");
+    let output = result.unwrap();
+    assert!(output.contains("Fish Tank") || output.contains("Bird Cage"), "Expected low stock items not found");
 
     eprintln!("=== Test PASSED ===");
 }
@@ -150,12 +159,17 @@ fn test_pet_store_customer_orders_workflow() {
     eprintln!("[PetStore] Verifying orders...");
     let result = db.execute("SELECT * FROM orders");
     assert!(result.is_ok(), "Failed to query orders");
-    eprintln!("[PetStore] Successfully queried 4 orders");
+    let orders_output = result.unwrap();
+    eprintln!("[PetStore] Orders output: {}", orders_output.lines().take(5).collect::<Vec<_>>().join(" | "));
 
     eprintln!("[PetStore] Verifying customers...");
     let result = db.execute("SELECT * FROM customers");
     assert!(result.is_ok(), "Failed to query customers");
-    eprintln!("[PetStore] Successfully queried 3 customers");
+    let customers_output = result.unwrap();
+    assert!(customers_output.contains("Alice"), "Customer Alice not found");
+    assert!(customers_output.contains("Bob"), "Customer Bob not found");
+    assert!(customers_output.contains("Charlie"), "Customer Charlie not found");
+    eprintln!("[PetStore] Verified 3 customers");
 
     eprintln!("=== Test PASSED ===");
 }

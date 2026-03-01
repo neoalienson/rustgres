@@ -81,17 +81,17 @@ impl Response {
             }
             Response::RowDescriptionDetailed { columns } => {
                 writer.write_all(b"T")?;
-                
+
                 // Calculate length
                 let mut length = 4 + 2; // length field + field count
                 for col in columns {
                     length += col.name.len() + 1; // name + null terminator
                     length += 4 + 2 + 4 + 2 + 4 + 2; // oids and sizes
                 }
-                
+
                 writer.write_all(&(length as i32).to_be_bytes())?;
                 writer.write_all(&(columns.len() as i16).to_be_bytes())?;
-                
+
                 for col in columns {
                     writer.write_all(col.name.as_bytes())?;
                     writer.write_all(b"\0")?;
@@ -105,7 +105,7 @@ impl Response {
             }
             Response::DataRowDetailed { fields } => {
                 writer.write_all(b"D")?;
-                
+
                 // Calculate length
                 let mut length = 4 + 2; // length field + field count
                 for field in fields {
@@ -114,10 +114,10 @@ impl Response {
                         length += data.len();
                     }
                 }
-                
+
                 writer.write_all(&(length as i32).to_be_bytes())?;
                 writer.write_all(&(fields.len() as i16).to_be_bytes())?;
-                
+
                 for field in fields {
                     match field {
                         None => {

@@ -103,11 +103,7 @@ impl<S: Read + Write> Connection<S> {
         rows: Vec<Vec<crate::catalog::Value>>,
     ) -> Result<ResultSet, String> {
         // If we have "*", we need to get actual column count from first row
-        let actual_column_count = if !rows.is_empty() {
-            rows[0].len()
-        } else {
-            column_names.len()
-        };
+        let actual_column_count = if !rows.is_empty() { rows[0].len() } else { column_names.len() };
 
         // Build column metadata
         let columns: Vec<ColumnMetadata> = (0..actual_column_count)
@@ -250,7 +246,7 @@ impl<S: Read + Write> Connection<S> {
                     select.limit,
                     select.offset,
                 )?;
-                
+
                 // Build result set
                 let result_set = self.build_result_set(&columns, rows)?;
                 Ok(ExecutionResult::ResultSet(result_set))

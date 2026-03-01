@@ -155,7 +155,10 @@ impl DbConnection {
 
         if output.status.success() {
             let result = String::from_utf8_lossy(&output.stdout).to_string();
-            eprintln!("[DB] Success");
+            eprintln!("[DB] Success (output length: {} bytes)", result.len());
+            if sql.to_uppercase().starts_with("SELECT") && result.len() > 100 {
+                eprintln!("[DB] Output preview: {}...", result.chars().take(200).collect::<String>());
+            }
             Ok(result)
         } else {
             let err = String::from_utf8_lossy(&output.stderr).to_string();

@@ -25,10 +25,7 @@ pub struct Row {
 
 impl ResultSet {
     pub fn new(columns: Vec<ColumnMetadata>) -> Self {
-        Self {
-            columns,
-            rows: Vec::new(),
-        }
+        Self { columns, rows: Vec::new() }
     }
 
     pub fn add_row(&mut self, row: Row) {
