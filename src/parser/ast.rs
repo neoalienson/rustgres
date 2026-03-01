@@ -314,8 +314,14 @@ pub enum BinaryOperator {
     And,
     Or,
     Like,
+    ILike,
     In,
+    Any,
+    All,
+    Some,
     Between,
+    Add,
+    StringConcat,
 }
 
 /// Unary operator

@@ -1,7 +1,7 @@
 use super::aggregation::Aggregator;
 use super::persistence::Persistence;
 use super::predicate::PredicateEvaluator;
-use super::{TableSchema, Tuple, Value};
+use super::{Function, TableSchema, Tuple, Value};
 use crate::parser::ast::{
     ColumnDef, CreateIndexStmt, CreateTriggerStmt, DataType, Expr, OrderByExpr, SelectStmt,
 };
@@ -15,6 +15,7 @@ pub struct Catalog {
     materialized_views: Arc<RwLock<HashMap<String, (SelectStmt, Vec<Vec<Value>>)>>>,
     triggers: Arc<RwLock<HashMap<String, CreateTriggerStmt>>>,
     indexes: Arc<RwLock<HashMap<String, CreateIndexStmt>>>,
+    functions: Arc<RwLock<HashMap<String, Vec<Function>>>>,
     data: Arc<RwLock<HashMap<String, Vec<Tuple>>>>,
     txn_mgr: Arc<TransactionManager>,
     data_dir: Option<String>,
@@ -28,6 +29,7 @@ impl Catalog {
             materialized_views: Arc::new(RwLock::new(HashMap::new())),
             triggers: Arc::new(RwLock::new(HashMap::new())),
             indexes: Arc::new(RwLock::new(HashMap::new())),
+            functions: Arc::new(RwLock::new(HashMap::new())),
             data: Arc::new(RwLock::new(HashMap::new())),
             txn_mgr: Arc::new(TransactionManager::new()),
             data_dir: None,
@@ -41,6 +43,7 @@ impl Catalog {
             materialized_views: Arc::new(RwLock::new(HashMap::new())),
             triggers: Arc::new(RwLock::new(HashMap::new())),
             indexes: Arc::new(RwLock::new(HashMap::new())),
+            functions: Arc::new(RwLock::new(HashMap::new())),
             data: Arc::new(RwLock::new(HashMap::new())),
             txn_mgr: Arc::new(TransactionManager::new()),
             data_dir: Some(data_dir.to_string()),
@@ -64,6 +67,10 @@ impl Catalog {
 
         if let Ok(indexes) = Persistence::load_indexes(data_dir) {
             *catalog.indexes.write().unwrap() = indexes;
+        }
+
+        if let Ok(functions) = Persistence::load_functions(data_dir) {
+            *catalog.functions.write().unwrap() = functions;
         }
 
         catalog
@@ -91,6 +98,11 @@ impl Catalog {
             let indexes_clone = self.indexes.read().unwrap().clone();
             if let Err(e) = Persistence::save_indexes(dir, &indexes_clone) {
                 log::error!("Indexes auto-save failed: {}", e);
+            }
+
+            let functions_clone = self.functions.read().unwrap().clone();
+            if let Err(e) = Persistence::save_functions(dir, &functions_clone) {
+                log::error!("Functions auto-save failed: {}", e);
             }
         }
     }
@@ -261,6 +273,22 @@ impl Catalog {
     pub fn list_tables(&self) -> Vec<String> {
         let tables = self.tables.read().unwrap();
         tables.keys().cloned().collect()
+    }
+
+    pub fn create_function(&self, func: Function) -> Result<(), String> {
+        let mut functions = self.functions.write().unwrap();
+        functions.entry(func.name.clone()).or_insert_with(Vec::new).push(func);
+        drop(functions);
+        self.auto_save();
+        Ok(())
+    }
+
+    pub fn get_function(&self, name: &str, arg_types: &[String]) -> Option<Function> {
+        let functions = self.functions.read().unwrap();
+        functions.get(name)?.iter()
+            .find(|f| f.parameters.len() == arg_types.len() &&
+                f.parameters.iter().zip(arg_types).all(|(p, t)| &p.data_type == t))
+            .cloned()
     }
 
     pub fn insert(&self, table: &str, values: Vec<Expr>) -> Result<(), String> {

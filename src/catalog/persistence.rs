@@ -1,4 +1,4 @@
-use super::{TableSchema, Tuple, Value};
+use super::{Function, TableSchema, Tuple, Value};
 use crate::parser::ast::{ColumnDef, CreateIndexStmt, CreateTriggerStmt, DataType, SelectStmt};
 use crate::transaction::{TransactionManager, TupleHeader};
 use std::collections::HashMap;
@@ -110,6 +110,25 @@ impl Persistence {
         let json =
             std::fs::read_to_string(&path).map_err(|e| format!("Failed to read indexes: {}", e))?;
         serde_json::from_str(&json).map_err(|e| format!("Failed to deserialize indexes: {}", e))
+    }
+
+    pub fn save_functions(data_dir: &str, functions: &HashMap<String, Vec<Function>>) -> Result<(), String> {
+        let path = format!("{}/functions.json", data_dir);
+        let json = serde_json::to_string(functions)
+            .map_err(|e| format!("Failed to serialize functions: {}", e))?;
+        std::fs::write(&path, json).map_err(|e| format!("Failed to write functions: {}", e))?;
+        log::info!("💾 Saved {} function groups", functions.len());
+        Ok(())
+    }
+
+    pub fn load_functions(data_dir: &str) -> Result<HashMap<String, Vec<Function>>, String> {
+        let path = format!("{}/functions.json", data_dir);
+        if !Path::new(&path).exists() {
+            return Ok(HashMap::new());
+        }
+        let json = std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read functions: {}", e))?;
+        serde_json::from_str(&json).map_err(|e| format!("Failed to deserialize functions: {}", e))
     }
 
     pub fn load(
@@ -225,9 +244,28 @@ fn write_value<W: Write>(writer: &mut W, value: &Value) -> Result<(), String> {
             writer.write_all(&[0]).map_err(|e| format!("Write error: {}", e))?;
             writer.write_all(&n.to_le_bytes()).map_err(|e| format!("Write error: {}", e))?;
         }
+        Value::Float(f) => {
+            writer.write_all(&[3]).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&f.to_le_bytes()).map_err(|e| format!("Write error: {}", e))?;
+        }
+        Value::Bool(b) => {
+            writer.write_all(&[4]).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&[if *b { 1 } else { 0 }]).map_err(|e| format!("Write error: {}", e))?;
+        }
         Value::Text(s) => {
             writer.write_all(&[1]).map_err(|e| format!("Write error: {}", e))?;
             write_string(writer, s)?;
+        }
+        Value::Array(arr) => {
+            writer.write_all(&[5]).map_err(|e| format!("Write error: {}", e))?;
+            write_u32(writer, arr.len() as u32)?;
+            for v in arr {
+                write_value(writer, v)?;
+            }
+        }
+        Value::Json(j) => {
+            writer.write_all(&[6]).map_err(|e| format!("Write error: {}", e))?;
+            write_string(writer, j)?;
         }
         Value::Null => {
             writer.write_all(&[2]).map_err(|e| format!("Write error: {}", e))?;
@@ -251,6 +289,28 @@ fn read_value<R: Read>(reader: &mut R) -> Result<Value, String> {
             Ok(Value::Text(s))
         }
         2 => Ok(Value::Null),
+        3 => {
+            let mut buf = [0u8; 8];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(Value::Float(f64::from_le_bytes(buf)))
+        }
+        4 => {
+            let mut buf = [0u8; 1];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(Value::Bool(buf[0] != 0))
+        }
+        5 => {
+            let len = read_u32(reader)?;
+            let mut arr = Vec::new();
+            for _ in 0..len {
+                arr.push(read_value(reader)?);
+            }
+            Ok(Value::Array(arr))
+        }
+        6 => {
+            let s = read_string(reader)?;
+            Ok(Value::Json(s))
+        }
         _ => Err(format!("Unknown value type: {}", buf[0])),
     }
 }

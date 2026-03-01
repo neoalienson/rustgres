@@ -31,5 +31,8 @@ test_wal/
 *.bak
 *.tmp
 
+# Temporary files
+/tmp/
+
 # Config overrides
 config.local.yaml

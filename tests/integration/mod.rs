@@ -1,4 +1,6 @@
 // Integration tests - test full system behavior with real I/O
+mod advanced_index_test;
+mod advanced_sql_test;
 mod buffer_pool_disk_test;
 mod catalog_test;
 mod directory_test;
@@ -21,3 +23,4 @@ mod trigger_test;
 mod view_test;
 mod wal_disk_test;
 mod wal_test;
+mod parallel_executor_test;

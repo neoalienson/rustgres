@@ -21,7 +21,7 @@
 - Recursive CTEs
 - Correlated subqueries
 
-**Estimated Timeline**: Q2 2024
+**Estimated Timeline**: Q2 2026
 
 ---
 
@@ -43,7 +43,7 @@
 - Slow query log and lock monitoring
 - Buffer pool statistics
 
-**Estimated Timeline**: Q3 2024
+**Estimated Timeline**: Q3 2026
 
 ---
 
@@ -77,7 +77,7 @@
 - Array operations
 - Range types and operators
 
-**Estimated Timeline**: Q4 2024
+**Estimated Timeline**: Q4 2026
 
 ---
 
@@ -100,7 +100,7 @@
 - Extensions API
 - pg_dump/pg_restore compatibility
 
-**Estimated Timeline**: Q1 2025
+**Estimated Timeline**: Q1 2027
 
 ---
 
@@ -129,7 +129,7 @@
 - Monitoring dashboards
 - Cloud deployment templates
 
-**Estimated Timeline**: Q2 2025
+**Estimated Timeline**: Q2 2027
 
 ---
 
@@ -159,7 +159,7 @@
 - Persistent memory (PMEM) support
 - Zero-copy networking (io_uring)
 
-**Estimated Timeline**: 2025+
+**Estimated Timeline**: 2027+
 
 ---
 
@@ -226,5 +226,5 @@ Track feature requests and community feedback here.
 
 ---
 
-**Last Updated**: 2024-02-28
-**Next Review**: Q2 2024
+**Last Updated**: 2026-03-01
+**Next Review**: Q2 2026

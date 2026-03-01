@@ -27,7 +27,7 @@ impl Filter {
                     BinaryOperator::GreaterThanOrEqual => Ok(left_val >= right_val),
                     BinaryOperator::And => Ok(left_val == b"1" && right_val == b"1"),
                     BinaryOperator::Or => Ok(left_val == b"1" || right_val == b"1"),
-                    BinaryOperator::Like | BinaryOperator::In | BinaryOperator::Between => {
+                    BinaryOperator::Like | BinaryOperator::ILike | BinaryOperator::In | BinaryOperator::Any | BinaryOperator::All | BinaryOperator::Some | BinaryOperator::Between | BinaryOperator::Add | BinaryOperator::StringConcat => {
                         Err(ExecutorError::TypeMismatch(
                             "Operator not yet supported in executor".to_string(),
                         ))
