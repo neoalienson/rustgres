@@ -89,8 +89,20 @@ impl RunningEnv {
 
     pub fn kill_container(&self) {
         eprintln!("[TestEnv] Killing container...");
+        // Find rustgres container by name pattern
+        let output = Command::new("docker")
+            .args(&["ps", "--filter", "name=rustgres", "--format", "{{.Names}}"])
+            .output()
+            .expect("Failed to list containers");
+        
+        let container_name = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .next()
+            .unwrap_or("rustgres-test")
+            .to_string();
+
         Command::new("docker")
-            .args(&["kill", "rustgres-test"])
+            .args(&["kill", &container_name])
             .output()
             .expect("Failed to kill container");
         eprintln!("[TestEnv] Container killed");
@@ -193,8 +205,20 @@ impl MetricsMonitor {
     }
 
     fn collect_metrics() -> ContainerMetrics {
+        // Try to find rustgres container by name pattern
         let output = Command::new("docker")
-            .args(&["stats", "--no-stream", "--format", "{{.MemUsage}}\t{{.CPUPerc}}", "rustgres-test"])
+            .args(&["ps", "--filter", "name=rustgres", "--format", "{{.Names}}"])
+            .output()
+            .expect("Failed to list containers");
+        
+        let container_name = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .next()
+            .unwrap_or("rustgres-test")
+            .to_string();
+
+        let output = Command::new("docker")
+            .args(&["stats", "--no-stream", "--format", "{{.MemUsage}}\t{{.CPUPerc}}", &container_name])
             .output()
             .expect("Failed to collect metrics");
 

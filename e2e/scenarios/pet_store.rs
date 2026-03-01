@@ -9,30 +9,30 @@ fn test_pet_store_basic_operations() {
 
     // Create schema
     eprintln!("[PetStore] Creating tables...");
-    db.execute("CREATE TABLE pets (id INT, name TEXT, species TEXT, price INT)").unwrap();
-    db.execute("CREATE TABLE customers (id INT, name TEXT, email TEXT)").unwrap();
-    db.execute("CREATE TABLE orders (id INT, customer_id INT, pet_id INT, quantity INT)").unwrap();
+    db.execute("CREATE TABLE pets_basic (id INT, name TEXT, species TEXT, price INT)").unwrap();
+    db.execute("CREATE TABLE customers_basic (id INT, name TEXT, email TEXT)").unwrap();
+    db.execute("CREATE TABLE orders_basic (id INT, customer_id INT, pet_id INT, quantity INT)").unwrap();
 
     // Add pets
     eprintln!("[PetStore] Adding pets to inventory...");
-    db.execute("INSERT INTO pets VALUES (1, 'Buddy', 'Dog', 500)").unwrap();
-    db.execute("INSERT INTO pets VALUES (2, 'Whiskers', 'Cat', 300)").unwrap();
-    db.execute("INSERT INTO pets VALUES (3, 'Goldie', 'Fish', 20)").unwrap();
-    db.execute("INSERT INTO pets VALUES (4, 'Tweety', 'Bird', 150)").unwrap();
+    db.execute("INSERT INTO pets_basic VALUES (1, 'Buddy', 'Dog', 500)").unwrap();
+    db.execute("INSERT INTO pets_basic VALUES (2, 'Whiskers', 'Cat', 300)").unwrap();
+    db.execute("INSERT INTO pets_basic VALUES (3, 'Goldie', 'Fish', 20)").unwrap();
+    db.execute("INSERT INTO pets_basic VALUES (4, 'Tweety', 'Bird', 150)").unwrap();
 
     // Add customers
     eprintln!("[PetStore] Registering customers...");
-    db.execute("INSERT INTO customers VALUES (1, 'Alice', 'alice@example.com')").unwrap();
-    db.execute("INSERT INTO customers VALUES (2, 'Bob', 'bob@example.com')").unwrap();
+    db.execute("INSERT INTO customers_basic VALUES (1, 'Alice', 'alice@example.com')").unwrap();
+    db.execute("INSERT INTO customers_basic VALUES (2, 'Bob', 'bob@example.com')").unwrap();
 
     // Place orders
     eprintln!("[PetStore] Processing orders...");
-    db.execute("INSERT INTO orders VALUES (1, 1, 1, 1)").unwrap();
-    db.execute("INSERT INTO orders VALUES (2, 2, 3, 2)").unwrap();
+    db.execute("INSERT INTO orders_basic VALUES (1, 1, 1, 1)").unwrap();
+    db.execute("INSERT INTO orders_basic VALUES (2, 2, 3, 2)").unwrap();
 
     // Query inventory
     eprintln!("[PetStore] Querying pet inventory...");
-    let result = db.execute("SELECT * FROM pets");
+    let result = db.execute("SELECT * FROM pets_basic");
     assert!(result.is_ok(), "Failed to query pets");
     let output = result.unwrap();
     assert!(output.contains("Buddy"), "Pet 'Buddy' not found");
@@ -40,6 +40,11 @@ fn test_pet_store_basic_operations() {
     assert!(output.contains("Goldie"), "Pet 'Goldie' not found");
     assert!(output.contains("Tweety"), "Pet 'Tweety' not found");
     eprintln!("[PetStore] Verified 4 pets in inventory");
+
+    // Cleanup
+    db.execute("DROP TABLE orders_basic").ok();
+    db.execute("DROP TABLE customers_basic").ok();
+    db.execute("DROP TABLE pets_basic").ok();
 
     eprintln!("=== Test PASSED ===");
 }
@@ -51,31 +56,35 @@ fn test_pet_store_concurrent_orders() {
     let db = env.rustgres();
 
     // Setup
-    db.execute("CREATE TABLE pets (id INT, name TEXT, stock INT)").unwrap();
-    db.execute("CREATE TABLE orders (id INT, pet_id INT, quantity INT)").unwrap();
+    db.execute("CREATE TABLE pets_concurrent (id INT, name TEXT, stock INT)").unwrap();
+    db.execute("CREATE TABLE orders_concurrent (id INT, pet_id INT, quantity INT)").unwrap();
     
     eprintln!("[PetStore] Stocking inventory...");
-    db.execute("INSERT INTO pets VALUES (1, 'Puppy', 100)").unwrap();
-    db.execute("INSERT INTO pets VALUES (2, 'Kitten', 50)").unwrap();
+    db.execute("INSERT INTO pets_concurrent VALUES (1, 'Puppy', 100)").unwrap();
+    db.execute("INSERT INTO pets_concurrent VALUES (2, 'Kitten', 50)").unwrap();
 
     // Simulate concurrent orders
     eprintln!("[PetStore] Simulating 20 concurrent orders...");
     let start = Instant::now();
     for i in 0..20 {
         let pet_id = (i % 2) + 1;
-        db.execute(&format!("INSERT INTO orders VALUES ({}, {}, 1)", i, pet_id)).ok();
+        db.execute(&format!("INSERT INTO orders_concurrent VALUES ({}, {}, 1)", i, pet_id)).ok();
     }
     let duration = start.elapsed();
 
     eprintln!("[PetStore] Processed 20 orders in {:?}", duration);
     
     // Verify orders were created
-    let result = db.execute("SELECT * FROM orders");
+    let result = db.execute("SELECT * FROM orders_concurrent");
     assert!(result.is_ok(), "Failed to query orders");
     let output = result.unwrap();
     eprintln!("[PetStore] Orders created: {}", output.lines().count().saturating_sub(3));
     
     assert!(duration.as_secs() < 10, "Orders too slow");
+
+    // Cleanup
+    db.execute("DROP TABLE orders_concurrent").ok();
+    db.execute("DROP TABLE pets_concurrent").ok();
 
     eprintln!("=== Test PASSED ===");
 }
@@ -121,6 +130,9 @@ fn test_pet_store_inventory_management() {
     let output = result.unwrap();
     assert!(output.contains("Fish Tank") || output.contains("Bird Cage"), "Expected low stock items not found");
 
+    // Cleanup
+    db.execute("DROP TABLE inventory").ok();
+
     eprintln!("=== Test PASSED ===");
 }
 
@@ -132,44 +144,49 @@ fn test_pet_store_customer_orders_workflow() {
 
     // Create tables
     eprintln!("[PetStore] Setting up database schema...");
-    db.execute("CREATE TABLE customers (id INT, name TEXT, loyalty_points INT)").unwrap();
-    db.execute("CREATE TABLE products (id INT, name TEXT, category TEXT, price INT)").unwrap();
-    db.execute("CREATE TABLE orders (id INT, customer_id INT, product_id INT, total INT)").unwrap();
+    db.execute("CREATE TABLE customers_workflow (id INT, name TEXT, loyalty_points INT)").unwrap();
+    db.execute("CREATE TABLE products_workflow (id INT, name TEXT, category TEXT, price INT)").unwrap();
+    db.execute("CREATE TABLE orders_workflow (id INT, customer_id INT, product_id INT, total INT)").unwrap();
 
     // Add customers
     eprintln!("[PetStore] Registering customers...");
-    db.execute("INSERT INTO customers VALUES (1, 'Alice', 100)").unwrap();
-    db.execute("INSERT INTO customers VALUES (2, 'Bob', 50)").unwrap();
-    db.execute("INSERT INTO customers VALUES (3, 'Charlie', 200)").unwrap();
+    db.execute("INSERT INTO customers_workflow VALUES (1, 'Alice', 100)").unwrap();
+    db.execute("INSERT INTO customers_workflow VALUES (2, 'Bob', 50)").unwrap();
+    db.execute("INSERT INTO customers_workflow VALUES (3, 'Charlie', 200)").unwrap();
 
     // Add products
     eprintln!("[PetStore] Adding products...");
-    db.execute("INSERT INTO products VALUES (1, 'Premium Dog Food', 'Food', 60)").unwrap();
-    db.execute("INSERT INTO products VALUES (2, 'Cat Scratching Post', 'Furniture', 80)").unwrap();
-    db.execute("INSERT INTO products VALUES (3, 'Aquarium Filter', 'Equipment', 45)").unwrap();
+    db.execute("INSERT INTO products_workflow VALUES (1, 'Premium Dog Food', 'Food', 60)").unwrap();
+    db.execute("INSERT INTO products_workflow VALUES (2, 'Cat Scratching Post', 'Furniture', 80)").unwrap();
+    db.execute("INSERT INTO products_workflow VALUES (3, 'Aquarium Filter', 'Equipment', 45)").unwrap();
 
     // Process orders
     eprintln!("[PetStore] Processing customer orders...");
-    db.execute("INSERT INTO orders VALUES (1, 1, 1, 60)").unwrap();
-    db.execute("INSERT INTO orders VALUES (2, 2, 2, 80)").unwrap();
-    db.execute("INSERT INTO orders VALUES (3, 1, 3, 45)").unwrap();
-    db.execute("INSERT INTO orders VALUES (4, 3, 1, 60)").unwrap();
+    db.execute("INSERT INTO orders_workflow VALUES (1, 1, 1, 60)").unwrap();
+    db.execute("INSERT INTO orders_workflow VALUES (2, 2, 2, 80)").unwrap();
+    db.execute("INSERT INTO orders_workflow VALUES (3, 1, 3, 45)").unwrap();
+    db.execute("INSERT INTO orders_workflow VALUES (4, 3, 1, 60)").unwrap();
 
     // Verify data
     eprintln!("[PetStore] Verifying orders...");
-    let result = db.execute("SELECT * FROM orders");
+    let result = db.execute("SELECT * FROM orders_workflow");
     assert!(result.is_ok(), "Failed to query orders");
     let orders_output = result.unwrap();
     eprintln!("[PetStore] Orders output: {}", orders_output.lines().take(5).collect::<Vec<_>>().join(" | "));
 
     eprintln!("[PetStore] Verifying customers...");
-    let result = db.execute("SELECT * FROM customers");
+    let result = db.execute("SELECT * FROM customers_workflow");
     assert!(result.is_ok(), "Failed to query customers");
     let customers_output = result.unwrap();
     assert!(customers_output.contains("Alice"), "Customer Alice not found");
     assert!(customers_output.contains("Bob"), "Customer Bob not found");
     assert!(customers_output.contains("Charlie"), "Customer Charlie not found");
     eprintln!("[PetStore] Verified 3 customers");
+
+    // Cleanup
+    db.execute("DROP TABLE orders_workflow").ok();
+    db.execute("DROP TABLE products_workflow").ok();
+    db.execute("DROP TABLE customers_workflow").ok();
 
     eprintln!("=== Test PASSED ===");
 }
@@ -208,6 +225,9 @@ fn test_pet_store_high_volume_sales() {
     eprintln!("[PetStore] Throughput: {:.2} transactions/sec", tps);
     
     assert!(tps > 5.0, "Transaction throughput too low: {:.2} TPS", tps);
+    
+    // Cleanup
+    db.execute("DROP TABLE sales").ok();
     
     eprintln!("=== Test PASSED ===");
 }
