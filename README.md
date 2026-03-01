@@ -4,7 +4,7 @@
 [![Integration Tests](https://github.com/neoalienson/rustgres/workflows/Integration%20Tests/badge.svg)](https://github.com/neoalienson/rustgres/actions/workflows/integration.yml)
 [![codecov](https://codecov.io/gh/neoalienson/rustgres/branch/main/graph/badge.svg)](https://codecov.io/gh/neoalienson/rustgres)
 [![License](https://img.shields.io/badge/license-Apache%202.0%2FMIT-blue.svg)](LICENSE)
-[![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
+[![Rust Version](https://img.shields.io/badge/rust-1.82%2B-orange.svg)](https://www.rust-lang.org)
 
 A **high-performance, PostgreSQL-compatible relational database management system** written in Rust - delivering ACID compliance, advanced query optimization, and modern concurrency with memory safety guarantees.
 
