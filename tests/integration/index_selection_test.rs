@@ -5,7 +5,7 @@ use rustgres::statistics::TableStats;
 fn test_index_selection_small_table() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 100, page_count: 1, avg_row_size: 100 };
-    let indexes = vec![IndexInfo { name: "idx_id".to_string(), columns: vec!["id".to_string()] }];
+    let indexes = vec![IndexInfo::new("idx_id".to_string(), vec!["id".to_string()])];
 
     let result = selector.select_index(&stats, &["id".to_string()], &indexes, 0.01);
     assert!(result.is_ok());
@@ -15,8 +15,7 @@ fn test_index_selection_small_table() {
 fn test_index_selection_large_table_low_selectivity() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 1000000, page_count: 10000, avg_row_size: 100 };
-    let indexes =
-        vec![IndexInfo { name: "idx_user_id".to_string(), columns: vec!["user_id".to_string()] }];
+    let indexes = vec![IndexInfo::new("idx_user_id".to_string(), vec!["user_id".to_string()])];
 
     let result = selector.select_index(&stats, &["user_id".to_string()], &indexes, 0.001);
     assert!(result.is_ok());
@@ -27,8 +26,7 @@ fn test_index_selection_large_table_low_selectivity() {
 fn test_index_selection_high_selectivity_prefers_seq_scan() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 1000, page_count: 10, avg_row_size: 100 };
-    let indexes =
-        vec![IndexInfo { name: "idx_status".to_string(), columns: vec!["status".to_string()] }];
+    let indexes = vec![IndexInfo::new("idx_status".to_string(), vec!["status".to_string()])];
 
     let result = selector.select_index(&stats, &["status".to_string()], &indexes, 0.95);
     assert!(result.is_ok());
@@ -39,9 +37,9 @@ fn test_index_selection_multiple_indexes() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 100000, page_count: 1000, avg_row_size: 100 };
     let indexes = vec![
-        IndexInfo { name: "idx_email".to_string(), columns: vec!["email".to_string()] },
-        IndexInfo { name: "idx_user_id".to_string(), columns: vec!["user_id".to_string()] },
-        IndexInfo { name: "idx_created_at".to_string(), columns: vec!["created_at".to_string()] },
+        IndexInfo::new("idx_email".to_string(), vec!["email".to_string()]),
+        IndexInfo::new("idx_user_id".to_string(), vec!["user_id".to_string()]),
+        IndexInfo::new("idx_created_at".to_string(), vec!["created_at".to_string()]),
     ];
 
     let result = selector.select_index(&stats, &["email".to_string()], &indexes, 0.01);
@@ -53,8 +51,7 @@ fn test_index_selection_multiple_indexes() {
 fn test_index_selection_no_matching_column() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 10000, page_count: 100, avg_row_size: 100 };
-    let indexes =
-        vec![IndexInfo { name: "idx_email".to_string(), columns: vec!["email".to_string()] }];
+    let indexes = vec![IndexInfo::new("idx_email".to_string(), vec!["email".to_string()])];
 
     let result = selector.select_index(&stats, &["name".to_string()], &indexes, 0.1);
     assert!(result.is_ok());
@@ -65,10 +62,10 @@ fn test_index_selection_no_matching_column() {
 fn test_index_selection_composite_index() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 50000, page_count: 500, avg_row_size: 100 };
-    let indexes = vec![IndexInfo {
-        name: "idx_user_email".to_string(),
-        columns: vec!["user_id".to_string(), "email".to_string()],
-    }];
+    let indexes = vec![IndexInfo::new(
+        "idx_user_email".to_string(),
+        vec!["user_id".to_string(), "email".to_string()],
+    )];
 
     let result = selector.select_index(&stats, &["user_id".to_string()], &indexes, 0.01);
     assert!(result.is_ok());
@@ -91,8 +88,8 @@ fn test_index_selection_multiple_filter_columns() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 20000, page_count: 200, avg_row_size: 100 };
     let indexes = vec![
-        IndexInfo { name: "idx_user_id".to_string(), columns: vec!["user_id".to_string()] },
-        IndexInfo { name: "idx_status".to_string(), columns: vec!["status".to_string()] },
+        IndexInfo::new("idx_user_id".to_string(), vec!["user_id".to_string()]),
+        IndexInfo::new("idx_status".to_string(), vec!["status".to_string()]),
     ];
 
     let result = selector.select_index(
@@ -109,7 +106,7 @@ fn test_index_selection_multiple_filter_columns() {
 fn test_index_selection_very_small_table() {
     let selector = IndexSelector::new();
     let stats = TableStats { row_count: 10, page_count: 1, avg_row_size: 50 };
-    let indexes = vec![IndexInfo { name: "idx_id".to_string(), columns: vec!["id".to_string()] }];
+    let indexes = vec![IndexInfo::new("idx_id".to_string(), vec!["id".to_string()])];
 
     let result = selector.select_index(&stats, &["id".to_string()], &indexes, 0.1);
     assert!(result.is_ok());

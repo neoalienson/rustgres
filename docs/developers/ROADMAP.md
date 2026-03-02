@@ -2,198 +2,357 @@
 
 RustGres development roadmap with planned features and milestones.
 
-## Version 0.1.0 (Alpha)
+## Completed Features ✅
 
 **Core Database Engine**
 - ✅ Page-based storage with buffer pool
-- ✅ B+Tree indexes
-- ✅ MVCC transaction manager
-- ✅ WAL and crash recovery (ARIES)
-- ✅ Basic SQL parser (SELECT, INSERT, UPDATE, DELETE)
-- ✅ Simple query optimizer
+- ✅ B+Tree indexes with concurrent access
+- ✅ MVCC transaction manager with snapshot isolation
+- ✅ WAL and crash recovery (ARIES protocol)
+- ✅ PostgreSQL wire protocol with result set serialization
+- ✅ Comprehensive SQL parser (DDL, DML, queries)
+- ✅ Cost-based query optimizer with statistics
 - ✅ Volcano-style execution engine
-- ✅ PostgreSQL wire protocol
-
-**Status**: Released
-
-## Version 0.2.0 (Alpha)
 
 **Query Optimization**
-- ✅ Cost-based optimizer with statistics
+- ✅ Cost-based optimizer with histogram statistics
 - ✅ Join ordering optimization (dynamic programming)
 - ✅ Predicate pushdown and projection pruning
-- 🚧 Index selection
+- ✅ Selectivity estimation with histograms
 - ✅ ANALYZE command for statistics collection
+- ✅ Index selection optimization with cost-based selection
 
 **Execution Engine**
+- ✅ Sequential scan with predicate evaluation
+- ✅ Index scan with B+Tree
+- ✅ Nested loop join
 - ✅ Hash join implementation
-- 🚧 Merge join implementation
-- ✅ Hash aggregation
+- ✅ Hash aggregation with GROUP BY
 - ✅ Sort operator with external merge sort
+- ✅ Filter and projection operators
+- ✅ LIMIT and OFFSET operators
 
 **SQL Features**
-- 🚧 Subqueries (correlated and uncorrelated)
-- 🚧 Common Table Expressions (CTEs)
-- 🚧 Window functions
-- 🚧 CASE expressions
+- ✅ DDL: CREATE TABLE, DROP TABLE, CREATE INDEX
+- ✅ DML: INSERT, UPDATE, DELETE
+- ✅ Queries: SELECT with WHERE, ORDER BY, GROUP BY, HAVING
+- ✅ Subqueries: Scalar and IN subqueries with caching
+- ✅ Common Table Expressions (CTEs) with WITH clause
+- ✅ Window functions: ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD
+- ✅ Set operations: UNION, UNION ALL, INTERSECT, EXCEPT
+- ✅ All JOIN types: INNER, LEFT, RIGHT, FULL OUTER
+- ✅ Aggregation: COUNT, SUM, AVG, MIN, MAX with DISTINCT
+- ✅ CASE expressions
+- ✅ PRIMARY KEY and FOREIGN KEY constraints
+
+**Testing Infrastructure**
+- ✅ 961 comprehensive tests (100% pass rate)
+- ✅ 489 unit tests across all modules
+- ✅ 85 edge case tests
+- ✅ Integration tests for cross-module features
+- ✅ Docker-based E2E testing framework
+- ✅ Performance comparison tests (RustGres vs PostgreSQL)
+- ✅ Load and soak testing infrastructure
+- ✅ Monitoring stack (Prometheus, Grafana, cAdvisor)
+
+**Development Tools**
+- ✅ Pre-commit hooks (secret scanning, formatting, linting)
+- ✅ CI/CD pipeline with automated testing
+- ✅ Code coverage tracking
+- ✅ Comprehensive documentation
+
+## Version 0.2.0 (Current - Alpha)
+
+**In Progress**
+- 🚧 Merge join implementation
+- 🚧 Correlated subqueries
+- 🚧 Query plan caching
+
+**Next Up**
+- ⏳ CHECK constraints
+- ⏳ UNIQUE constraints
+- ⏳ DEFAULT values
+- ⏳ AUTO_INCREMENT/SERIAL
+- ⏳ Transactions: BEGIN, COMMIT, ROLLBACK
+- ⏳ Savepoints
 
 
 ## Version 0.3.0 (Beta)
 
-**Parallel Execution**
-- Parallel sequential scan
-- Parallel hash join
-- Parallel aggregation
-- Parallel sort
-- Work-stealing scheduler
-- Morsel-driven parallelism
+**Transaction Enhancements**
+- Multi-statement transactions (BEGIN/COMMIT/ROLLBACK)
+- Savepoints (SAVEPOINT, ROLLBACK TO)
+- Transaction isolation levels (READ COMMITTED, REPEATABLE READ, SERIALIZABLE)
+- Deadlock detection and resolution
+- Lock timeout configuration
 
-**Advanced Indexes**
-- GiST (Generalized Search Tree)
-- GIN (Generalized Inverted Index)
-- BRIN (Block Range Index)
-- Hash indexes
-- Partial indexes
-- Expression indexes
+**Constraint System**
+- CHECK constraints with expression validation
+- UNIQUE constraints with index enforcement
+- DEFAULT values for columns
+- NOT NULL enforcement
+- ON DELETE/ON UPDATE actions for foreign keys (CASCADE, SET NULL, RESTRICT)
 
-**SQL Features**
-- Views and materialized views
-- Triggers (BEFORE/AFTER, FOR EACH ROW/STATEMENT)
-- Stored procedures (PL/pgSQL)
-- User-defined functions
-- Recursive CTEs
+**Advanced SQL**
+- Correlated subqueries
+- EXISTS and NOT EXISTS
+- Recursive CTEs (WITH RECURSIVE)
+- Lateral joins (LATERAL)
+- Table aliases and column aliases
 
-**Status**: Planned
+**Query Optimization**
+- Index selection based on cost model
+- Merge join implementation
+- Query plan caching
+- Prepared statements
+- Bind parameter support
+
+**Status**: Q2 2024
 
 ## Version 0.4.0 (Beta)
 
-**Replication**
-- Streaming replication (async)
-- Logical replication
-- Replication slots
-- Automatic failover
-- Read replicas
+**Parallel Execution**
+- Parallel sequential scan with worker threads
+- Parallel hash join
+- Parallel aggregation
+- Parallel sort with merge
+- Work-stealing scheduler
+- Configurable parallelism (max_parallel_workers)
 
-**Backup & Recovery**
-- Online backups (pg_basebackup)
-- Point-in-time recovery (PITR)
-- Incremental backups
-- Backup compression
+**Advanced Indexes**
+- Hash indexes for equality lookups
+- Partial indexes with WHERE clause
+- Expression indexes (functional indexes)
+- Multi-column indexes
+- Index-only scans
+- Covering indexes
 
-**Monitoring**
-- Prometheus metrics exporter
-- Query statistics (pg_stat_statements)
-- Slow query log
-- Lock monitoring
-- Buffer pool statistics
+**SQL Features**
+- Views (CREATE VIEW, DROP VIEW)
+- Materialized views with REFRESH
+- User-defined functions (SQL functions)
+- Aggregate functions (custom aggregates)
+- String functions (CONCAT, SUBSTRING, UPPER, LOWER)
+- Date/time functions (NOW, DATE_TRUNC, EXTRACT)
 
-**Status**: Planned
+**Data Types**
+- BOOLEAN type
+- DATE, TIME, TIMESTAMP types
+- DECIMAL/NUMERIC with precision
+- VARCHAR with length limits
+- TEXT type
+- BLOB/BYTEA for binary data
+
+**Status**: Q3 2024
 
 ## Version 0.5.0 (Beta)
 
-**Storage Enhancements**
-- LSM-Tree storage engine
-- Columnar storage for OLAP
-- Table partitioning (range, hash, list)
-- Compression (LZ4, Zstd)
-- TOAST (large object storage)
+**Replication & High Availability**
+- Streaming replication (async)
+- Logical replication with publications/subscriptions
+- Replication slots
+- Automatic failover with health checks
+- Read replicas with load balancing
+- Cascading replication
 
-**Performance**
+**Backup & Recovery**
+- Online backups (pg_basebackup compatible)
+- Point-in-time recovery (PITR)
+- Incremental backups
+- Backup compression (gzip, zstd)
+- Backup verification
+- Restore testing automation
+
+**Monitoring & Observability**
+- Prometheus metrics exporter
+- Query statistics (pg_stat_statements compatible)
+- Slow query log with configurable threshold
+- Lock monitoring and wait events
+- Buffer pool statistics
+- Connection pool metrics
+- Disk I/O statistics
+
+**Status**: Q4 2024
+
+## Version 0.6.0 (Beta)
+
+**Storage Enhancements**
+- Table partitioning (range, hash, list)
+- Partition pruning in query optimizer
+- Compression (LZ4, Zstd) for tables and indexes
+- TOAST (The Oversized-Attribute Storage Technique)
+- Vacuum improvements (parallel vacuum)
+- Autovacuum with configurable thresholds
+- Dead tuple cleanup optimization
+
+**Performance Optimizations**
 - Vectorized execution with SIMD
-- JIT compilation for expressions
-- Adaptive query execution
+- JIT compilation for expressions (LLVM)
+- Adaptive query execution with runtime statistics
 - Query result caching
 - Prepared statement caching
+- Connection pooling (built-in PgBouncer-like)
+- Batch insert optimization
 
-**SQL Features**
-- Full-text search
-- JSON/JSONB operators and functions
-- Array operations
-- Range types
-- Geometric types
+**Advanced SQL**
+- Full-text search with tsvector/tsquery
+- JSON/JSONB types with operators
+- Array types and operations
+- Range types (int4range, tsrange, etc.)
+- Composite types (user-defined types)
+- Enum types
 
-**Status**: Planned
+**Status**: Q1 2025
 
-## Version 0.6.0 (RC)
+## Version 0.7.0 (RC)
 
 **Security**
-- TLS/SSL support
+- TLS/SSL support with certificate validation
 - SCRAM-SHA-256 authentication
-- Certificate authentication
-- Row-level security (RLS)
-- Column-level encryption
-- Audit logging
+- Certificate-based authentication
+- Row-level security (RLS) policies
+- Column-level permissions
+- Audit logging with configurable events
+- Password policies and expiration
+- Role-based access control (RBAC)
 
 **Administration**
-- Online schema changes
-- Vacuum improvements (parallel vacuum)
-- Autovacuum tuning
-- Connection pooler (built-in)
-- Configuration management
+- Online schema changes (ALTER TABLE without locks)
+- Configuration hot reload
+- Dynamic memory allocation
+- Tablespace management
+- Database templates
+- pg_dump/pg_restore compatibility
+- Migration tools from PostgreSQL
 
 **Compatibility**
-- PostgreSQL 16 compatibility
-- Foreign data wrappers (FDW)
-- Extensions API
-- pg_dump/pg_restore compatibility
+- PostgreSQL 16 wire protocol compatibility
+- Foreign data wrappers (FDW) framework
+- Extensions API with dynamic loading
+- System catalog compatibility
+- Information schema views
 
-**Status**: Planned
+**Status**: Q2 2025
 
 ## Version 1.0.0 (Stable)
 
 **Production Readiness**
-- ✅ Comprehensive unit testing (306 tests)
-- 🚧 Integration testing
-- 🚧 Fuzz testing
-- 🚧 Performance benchmarks (TPC-C, TPC-H)
-- 🚧 Documentation (user guide, admin guide, internals)
-- 🚧 Migration tools (from PostgreSQL)
+- ✅ Comprehensive unit testing (553 tests)
+- ✅ Edge case testing (79 tests)
+- ✅ Docker-based E2E testing
+- 🚧 Fuzz testing (parser, optimizer, executor)
+- 🚧 Performance benchmarks (TPC-C, TPC-H, TPC-DS)
+- 🚧 Stress testing (1M+ QPS sustained)
+- 🚧 Chaos engineering tests
+- 🚧 Complete documentation suite
+- 🚧 Migration tools from PostgreSQL
 - 🚧 Production deployment guide
+- 🚧 Disaster recovery procedures
 
-**Stability**
-- ✅ Edge case handling (93 edge case tests)
-- 🚧 Bug fixes and stability improvements
-- 🚧 Performance tuning
-- 🚧 Memory leak detection and fixes
+**Stability & Reliability**
+- ✅ Edge case handling across all modules
+- 🚧 Memory leak detection and fixes (Valgrind, ASAN)
+- 🚧 Performance regression testing
+- 🚧 Long-running stability tests (7+ days)
+- 🚧 Resource leak detection
+- 🚧 Crash recovery testing
+- 🚧 Data corruption detection
 
-**Ecosystem**
-- Client libraries (Rust, Python, Node.js, Go)
-- GUI tools (pgAdmin compatibility)
-- Monitoring dashboards
-- Cloud deployment templates
+**Ecosystem & Tooling**
+- 🚧 Client libraries (Rust, Python, Node.js, Go, Java)
+- 🚧 ORM support (SQLAlchemy, Diesel, TypeORM)
+- 🚧 pgAdmin compatibility
+- 🚧 DBeaver support
+- 🚧 Grafana dashboards
+- 🚧 Kubernetes operator
+- 🚧 Docker Compose templates
+- 🚧 Terraform modules
+- 🚧 Ansible playbooks
 
-**Status**: Planned
+**Documentation**
+- 🚧 Complete user guide
+- 🚧 Administrator handbook
+- 🚧 SQL reference manual
+- 🚧 Performance tuning guide
+- 🚧 Troubleshooting guide
+- 🚧 Migration guide from PostgreSQL
+- 🚧 Internals documentation
+- 🚧 API documentation
 
-## Version 1.1.0+ (Future) 🔮
+**Status**: Q3 2025
 
-**Distributed Features**
-- Horizontal sharding
-- Distributed transactions (2PC, Raft)
-- Cross-shard queries
-- Automatic rebalancing
-- Multi-region support
+## Version 1.1.0 (Post-Stable)
 
-**Advanced Analytics**
-- Columnar execution engine
-- Vectorized aggregation
-- Approximate query processing
-- Machine learning integration (SQL/ML)
-- Time-series optimizations
+**Advanced Indexes**
+- GiST (Generalized Search Tree) for spatial data
+- GIN (Generalized Inverted Index) for full-text search
+- BRIN (Block Range Index) for large tables
+- Bloom filters for multi-column queries
+- Adaptive radix tree (ART) indexes
 
-**Cloud Native**
-- Kubernetes operator
-- Auto-scaling
-- Serverless mode
-- Multi-tenancy
-- Cloud storage integration (S3, GCS)
+**Triggers & Procedures**
+- Triggers (BEFORE/AFTER, FOR EACH ROW/STATEMENT)
+- Stored procedures (PL/pgSQL)
+- Event triggers
+- Trigger cascading
+- Deferred constraint checking
 
-**Performance**
+**Advanced Features**
+- Geometric types (point, line, polygon)
+- Network address types (inet, cidr, macaddr)
+- UUID generation functions
+- XML type and functions
+- HStore (key-value store)
+
+**Status**: Q4 2025
+
+## Version 1.2.0+ (Future) 🔮
+
+**Distributed Database**
+- Horizontal sharding with automatic routing
+- Distributed transactions (2PC, Raft consensus)
+- Cross-shard queries with distributed execution
+- Automatic shard rebalancing
+- Multi-region deployment with geo-replication
+- Conflict resolution strategies
+- Global secondary indexes
+
+**Columnar Storage & OLAP**
+- Columnar storage engine for analytics
+- Vectorized execution with Apache Arrow
+- Approximate query processing (sampling, sketches)
+- Materialized view auto-refresh
+- Time-series optimizations (compression, retention)
+- Window function optimizations
+- Parallel aggregation with SIMD
+
+**Cloud Native Features**
+- Kubernetes operator with CRDs
+- Auto-scaling based on load
+- Serverless mode (scale-to-zero)
+- Multi-tenancy with resource isolation
+- Cloud storage integration (S3, GCS, Azure Blob)
+- Separation of compute and storage
+- Snapshot-based backups to object storage
+
+**Machine Learning Integration**
+- SQL/ML for in-database ML
+- Model training and inference
+- Feature engineering functions
+- Integration with TensorFlow/PyTorch
+- Automated feature selection
+- Model versioning and deployment
+
+**Advanced Performance**
 - NUMA-aware memory allocation
-- GPU acceleration for analytics
+- GPU acceleration for analytics (CUDA)
 - Persistent memory (PMEM) support
 - Zero-copy networking (io_uring)
+- RDMA support for replication
+- Intelligent prefetching
+- Adaptive indexing
 
-**Status**: Research
+**Status**: Research & Experimentation
 
 ## Feature Requests
 
@@ -337,9 +496,9 @@ Follow development progress:
 
 Last updated: 2024-02-28
 
-## Recent Achievements (Phase 2.11)
+## Recent Achievements
 
-**SQL Feature Completion** ✅
+**Phase 2.11 - SQL Feature Completion** ✅
 - 553 comprehensive tests (100% pass rate)
 - Subqueries: Scalar and IN subqueries with result caching
 - CTEs: WITH clause with multiple CTEs and materialized execution
@@ -348,20 +507,27 @@ Last updated: 2024-02-28
 - All JOIN types: INNER, LEFT, RIGHT, FULL OUTER
 - Advanced aggregation: GROUP BY, HAVING, DISTINCT
 
+**Phase 2.12 - E2E Testing & Constraints** ✅
+- Docker-based E2E testing framework with 6 test modes
+- Performance comparison tests (RustGres vs PostgreSQL)
+- Load and soak testing with resource monitoring
+- Monitoring stack: Prometheus, Grafana, cAdvisor
+- PRIMARY KEY and FOREIGN KEY constraints
+- Referential integrity enforcement
+- PostgreSQL wire protocol result set serialization
+- Pre-commit hooks (secret scanning, formatting, linting)
+
 **Testing Infrastructure** ✅
-- 474 unit tests (100% pass rate)
-- 79 edge case tests across all modules
+- 553 total tests (100% pass rate)
+- 474 unit tests across all modules
+- 79 edge case tests
+- 50 parser edge case tests
+- E2E test scenarios (pet store, referential integrity)
 - Test execution time: <0.12s
-- Comprehensive coverage:
-  - Executor: 37 window function tests
-  - Subquery: 21 tests
-  - CTE: 21 tests
-  - Set operations: 42 tests
-  - Joins: 26 tests
-  - Aggregation: 35 tests
 
 **Code Quality** ✅
 - Minimal, focused implementations
 - Consistent error handling with Result types
 - Comprehensive edge case coverage
 - Clean separation of concerns
+- Automated code quality checks
