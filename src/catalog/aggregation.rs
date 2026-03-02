@@ -122,13 +122,13 @@ mod tests {
     use crate::transaction::TupleHeader;
 
     fn create_test_data() -> (TableSchema, Vec<Tuple>, Arc<TransactionManager>) {
-        let schema = TableSchema {
-            name: "test".to_string(),
-            columns: vec![
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
                 ColumnDef::new("category".to_string(), DataType::Text),
                 ColumnDef::new("value".to_string(), DataType::Int),
             ],
-        };
+        );
 
         let txn_mgr = Arc::new(TransactionManager::new());
         let txn = txn_mgr.begin();
@@ -192,13 +192,13 @@ mod tests {
 
     #[test]
     fn test_group_by() {
-        let schema = TableSchema {
-            name: "test".to_string(),
-            columns: vec![
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
                 ColumnDef::new("category".to_string(), DataType::Text),
                 ColumnDef::new("value".to_string(), DataType::Int),
             ],
-        };
+        );
 
         let rows = vec![
             vec![Value::Text("A".to_string()), Value::Int(10)],

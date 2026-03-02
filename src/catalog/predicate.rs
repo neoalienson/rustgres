@@ -174,14 +174,14 @@ mod tests {
     use crate::parser::ast::DataType;
 
     fn create_test_schema() -> TableSchema {
-        TableSchema {
-            name: "test".to_string(),
-            columns: vec![
+        TableSchema::new(
+            "test".to_string(),
+            vec![
                 ColumnDef::new("id".to_string(), DataType::Int),
                 ColumnDef::new("name".to_string(), DataType::Text),
                 ColumnDef::new("age".to_string(), DataType::Int),
             ],
-        }
+        )
     }
 
     #[test]

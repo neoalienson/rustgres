@@ -336,13 +336,13 @@ mod tests {
         let mut tables = HashMap::new();
         let mut data = HashMap::new();
 
-        let schema = TableSchema {
-            name: "users".to_string(),
-            columns: vec![
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
                 ColumnDef::new("id".to_string(), DataType::Int),
                 ColumnDef::new("name".to_string(), DataType::Text),
             ],
-        };
+        );
 
         let txn_mgr = Arc::new(TransactionManager::new());
         let txn = txn_mgr.begin();
@@ -378,13 +378,13 @@ mod tests {
         let mut tables = HashMap::new();
         let mut data = HashMap::new();
 
-        let schema = TableSchema {
-            name: "test".to_string(),
-            columns: vec![
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
                 ColumnDef::new("id".to_string(), DataType::Int),
                 ColumnDef::new("value".to_string(), DataType::Int),
             ],
-        };
+        );
 
         let txn_mgr = Arc::new(TransactionManager::new());
         let txn = txn_mgr.begin();
