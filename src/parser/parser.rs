@@ -7,6 +7,9 @@ mod dml;
 mod expr;
 mod select;
 
+#[cfg(test)]
+mod join_tests;
+
 /// SQL Parser
 pub struct Parser {
     tokens: Vec<Token>,

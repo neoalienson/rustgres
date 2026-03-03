@@ -147,6 +147,12 @@ impl Catalog {
         }
     }
 
+    pub fn flush_saves(&self) {
+        if self.data_dir.is_some() {
+            std::thread::sleep(std::time::Duration::from_millis(150));
+        }
+    }
+
     pub fn create_table(&self, name: String, columns: Vec<ColumnDef>) -> Result<(), String> {
         self.create_table_with_constraints(name, columns, None, Vec::new())
     }
@@ -237,6 +243,7 @@ impl Catalog {
         views.insert(name, query);
         drop(views);
         self.auto_save();
+        self.flush_saves();
         Ok(())
     }
 
@@ -248,6 +255,7 @@ impl Catalog {
         }
         drop(views);
         self.auto_save();
+        self.flush_saves();
         Ok(())
     }
 
@@ -303,6 +311,7 @@ impl Catalog {
         triggers.insert(trigger.name.clone(), trigger);
         drop(triggers);
         self.auto_save();
+        self.flush_saves();
         Ok(())
     }
 
@@ -314,6 +323,7 @@ impl Catalog {
         }
         drop(triggers);
         self.auto_save();
+        self.flush_saves();
         Ok(())
     }
 
@@ -332,6 +342,7 @@ impl Catalog {
         indexes.insert(index.name.clone(), index);
         drop(indexes);
         self.auto_save();
+        self.flush_saves();
         Ok(())
     }
 
