@@ -22,9 +22,8 @@ VaultGres is a high-performance, PostgreSQL-compatible relational database manag
 - 91 unit tests
 - Test execution time: <0.12s
 
-**Features**: See [COMPLETED_FEATURES.md](../../docs/project-status/COMPLETED_FEATURES.md) for detailed list
 
-**Roadmap**: See [PLANNED_FEATURES.md](../../docs/project-status/PLANNED_FEATURES.md) for upcoming features
+**Roadmap**: See [PLANNED_FEATURES.md](../../docs/developers/ROADMAP.md) for upcoming features
 
 ## Target Users
 

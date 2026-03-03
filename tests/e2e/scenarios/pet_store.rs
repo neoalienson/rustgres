@@ -2,49 +2,143 @@ use e2e::*;
 use std::time::Instant;
 
 #[test]
-fn test_pet_store_basic_operations() {
-    eprintln!("\n=== Test: Pet Store - Basic Operations ===");
+fn test_pet_store_comprehensive() {
+    eprintln!("\n=== Test: Pet Store - Comprehensive Features ===");
     let env = TestEnv::new().with_vaultgres().start();
     let db = env.vaultgres();
 
-    // Create schema
-    eprintln!("[PetStore] Creating tables...");
-    db.execute("CREATE TABLE pets_basic (id INT, name TEXT, species TEXT, price INT)").unwrap();
-    db.execute("CREATE TABLE customers_basic (id INT, name TEXT, email TEXT)").unwrap();
-    db.execute("CREATE TABLE orders_basic (id INT, customer_id INT, pet_id INT, quantity INT)").unwrap();
+    // Create tables with various data types and indexes
+    eprintln!("[PetStore] Creating schema with indexes...");
+    db.execute("CREATE TABLE pets (id SERIAL PRIMARY KEY, name TEXT, species TEXT, price DECIMAL(10,2), birth_date DATE, available BOOLEAN DEFAULT TRUE)").unwrap();
+    db.execute("CREATE INDEX idx_pets_species ON pets(species)").unwrap();
+    db.execute("CREATE INDEX idx_pets_price ON pets(price)").unwrap();
+    
+    db.execute("CREATE TABLE customers (id SERIAL PRIMARY KEY, name TEXT, email TEXT, joined_date TIMESTAMP DEFAULT NOW(), loyalty_points INT DEFAULT 0)").unwrap();
+    db.execute("CREATE INDEX idx_customers_email ON customers(email)").unwrap();
+    
+    db.execute("CREATE TABLE orders (id SERIAL PRIMARY KEY, customer_id INT, order_date TIMESTAMP DEFAULT NOW(), total DECIMAL(10,2))").unwrap();
+    db.execute("CREATE INDEX idx_orders_customer ON orders(customer_id)").unwrap();
+    
+    db.execute("CREATE TABLE order_items (id SERIAL, order_id INT, pet_id INT, quantity INT, price DECIMAL(10,2))").unwrap();
+    db.execute("CREATE INDEX idx_order_items_order ON order_items(order_id)").unwrap();
+    
+    db.execute("CREATE TABLE inventory (pet_id INT, stock INT, last_updated TIMESTAMP)").unwrap();
 
-    // Add pets
-    eprintln!("[PetStore] Adding pets to inventory...");
-    db.execute("INSERT INTO pets_basic VALUES (1, 'Buddy', 'Dog', 500)").unwrap();
-    db.execute("INSERT INTO pets_basic VALUES (2, 'Whiskers', 'Cat', 300)").unwrap();
-    db.execute("INSERT INTO pets_basic VALUES (3, 'Goldie', 'Fish', 20)").unwrap();
-    db.execute("INSERT INTO pets_basic VALUES (4, 'Tweety', 'Bird', 150)").unwrap();
+    // Batch insert pets
+    eprintln!("[PetStore] Batch inserting pets...");
+    db.execute("INSERT INTO pets (name, species, price, birth_date, available) VALUES ('Buddy', 'Dog', 500.00, '2023-01-15', TRUE), ('Whiskers', 'Cat', 300.50, '2023-03-20', TRUE), ('Goldie', 'Fish', 20.99, '2024-01-10', TRUE), ('Tweety', 'Bird', 150.00, '2023-06-05', FALSE), ('Max', 'Dog', 600.00, '2022-11-30', TRUE)").unwrap();
 
-    // Add customers
-    eprintln!("[PetStore] Registering customers...");
-    db.execute("INSERT INTO customers_basic VALUES (1, 'Alice', 'alice@example.com')").unwrap();
-    db.execute("INSERT INTO customers_basic VALUES (2, 'Bob', 'bob@example.com')").unwrap();
+    // Batch insert customers
+    eprintln!("[PetStore] Batch inserting customers...");
+    db.execute("INSERT INTO customers (name, email, loyalty_points) VALUES ('Alice', 'alice@example.com', 100), ('Bob', 'bob@example.com', 50), ('Charlie', 'charlie@example.com', 200)").unwrap();
 
-    // Place orders
-    eprintln!("[PetStore] Processing orders...");
-    db.execute("INSERT INTO orders_basic VALUES (1, 1, 1, 1)").unwrap();
-    db.execute("INSERT INTO orders_basic VALUES (2, 2, 3, 2)").unwrap();
+    // Transaction with savepoint
+    eprintln!("[PetStore] Testing transaction with savepoint...");
+    db.execute("BEGIN").unwrap();
+    db.execute("INSERT INTO orders (customer_id, total) VALUES (1, 500.00)").unwrap();
+    db.execute("SAVEPOINT sp1").unwrap();
+    db.execute("INSERT INTO order_items (order_id, pet_id, quantity, price) VALUES (1, 1, 1, 500.00)").unwrap();
+    db.execute("ROLLBACK TO sp1").unwrap();
+    db.execute("INSERT INTO order_items (order_id, pet_id, quantity, price) VALUES (1, 1, 1, 500.00), (1, 3, 2, 41.98)").unwrap();
+    db.execute("COMMIT").unwrap();
 
-    // Query inventory
-    eprintln!("[PetStore] Querying pet inventory...");
-    let result = db.execute("SELECT * FROM pets_basic");
-    assert!(result.is_ok(), "Failed to query pets");
+    // Create views
+    eprintln!("[PetStore] Creating views...");
+    db.execute("CREATE VIEW available_pets AS SELECT id, name, species, price FROM pets WHERE available = TRUE").unwrap();
+    db.execute("CREATE VIEW customer_orders AS SELECT c.name, o.id AS order_id, o.total FROM customers c JOIN orders o ON c.id = o.customer_id").unwrap();
+
+    // Create materialized view
+    eprintln!("[PetStore] Creating materialized view...");
+    db.execute("CREATE MATERIALIZED VIEW pet_sales_summary AS SELECT p.species, COUNT(*) AS sold_count FROM pets p JOIN order_items oi ON p.id = oi.pet_id GROUP BY p.species").unwrap();
+
+    // Test joins
+    eprintln!("[PetStore] Testing INNER JOIN...");
+    let result = db.execute("SELECT c.name, o.total FROM customers c INNER JOIN orders o ON c.id = o.customer_id");
+    assert!(result.is_ok());
+    assert!(result.unwrap().contains("Alice"));
+
+    eprintln!("[PetStore] Testing LEFT JOIN...");
+    let result = db.execute("SELECT c.name, o.id FROM customers c LEFT JOIN orders o ON c.id = o.customer_id");
+    assert!(result.is_ok());
+
+    // Test subqueries
+    eprintln!("[PetStore] Testing subquery...");
+    let result = db.execute("SELECT name, price FROM pets WHERE price > (SELECT AVG(price) FROM pets)");
+    assert!(result.is_ok());
+
+    eprintln!("[PetStore] Testing correlated subquery...");
+    let result = db.execute("SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders)");
+    assert!(result.is_ok());
+
+    // Test string functions
+    eprintln!("[PetStore] Testing string functions...");
+    let result = db.execute("SELECT UPPER(name), LOWER(species), LENGTH(name) FROM pets");
+    assert!(result.is_ok());
+    let result = db.execute("SELECT CONCAT(name, ' - ', species) FROM pets");
+    assert!(result.is_ok());
+    let result = db.execute("SELECT SUBSTRING(email, 1, 5) FROM customers");
+    assert!(result.is_ok());
+
+    // Test date/time functions
+    eprintln!("[PetStore] Testing date/time functions...");
+    let result = db.execute("SELECT name, EXTRACT(YEAR FROM birth_date) FROM pets");
+    assert!(result.is_ok());
+    let result = db.execute("SELECT NOW()");
+    assert!(result.is_ok());
+
+    // Test views
+    eprintln!("[PetStore] Querying views...");
+    let result = db.execute("SELECT * FROM available_pets");
+    assert!(result.is_ok());
+    let result = db.execute("SELECT * FROM customer_orders");
+    assert!(result.is_ok());
+
+    // Test materialized view
+    eprintln!("[PetStore] Querying materialized view...");
+    let result = db.execute("SELECT * FROM pet_sales_summary");
+    assert!(result.is_ok());
+
+    eprintln!("[PetStore] Stopping server for persistence test...");
+    drop(db);
+    drop(env);
+
+    // Restart and verify persistence
+    eprintln!("[PetStore] Restarting server...");
+    let env = TestEnv::new().with_vaultgres().start();
+    let db = env.vaultgres();
+
+    eprintln!("[PetStore] Verifying data persistence...");
+    let result = db.execute("SELECT * FROM pets");
+    assert!(result.is_ok());
     let output = result.unwrap();
-    assert!(output.contains("Buddy"), "Pet 'Buddy' not found");
-    assert!(output.contains("Whiskers"), "Pet 'Whiskers' not found");
-    assert!(output.contains("Goldie"), "Pet 'Goldie' not found");
-    assert!(output.contains("Tweety"), "Pet 'Tweety' not found");
-    eprintln!("[PetStore] Verified 4 pets in inventory");
+    assert!(output.contains("Buddy"));
+    assert!(output.contains("Whiskers"));
+
+    eprintln!("[PetStore] Verifying index persistence...");
+    let result = db.execute("SELECT * FROM pets WHERE species = 'Dog'");
+    assert!(result.is_ok());
+
+    eprintln!("[PetStore] Verifying view persistence...");
+    let result = db.execute("SELECT * FROM available_pets");
+    assert!(result.is_ok());
+
+    eprintln!("[PetStore] Verifying materialized view persistence...");
+    let result = db.execute("SELECT * FROM pet_sales_summary");
+    assert!(result.is_ok());
+
+    eprintln!("[PetStore] Verifying orders persistence...");
+    let result = db.execute("SELECT * FROM orders");
+    assert!(result.is_ok());
 
     // Cleanup
-    db.execute("DROP TABLE orders_basic").ok();
-    db.execute("DROP TABLE customers_basic").ok();
-    db.execute("DROP TABLE pets_basic").ok();
+    db.execute("DROP MATERIALIZED VIEW pet_sales_summary").ok();
+    db.execute("DROP VIEW customer_orders").ok();
+    db.execute("DROP VIEW available_pets").ok();
+    db.execute("DROP TABLE order_items").ok();
+    db.execute("DROP TABLE orders").ok();
+    db.execute("DROP TABLE inventory").ok();
+    db.execute("DROP TABLE customers").ok();
+    db.execute("DROP TABLE pets").ok();
 
     eprintln!("=== Test PASSED ===");
 }
