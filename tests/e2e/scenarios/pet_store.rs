@@ -128,12 +128,7 @@ fn test_pet_store_comprehensive() {
     assert!(result.is_ok());
 
     eprintln!("[PetStore] Stopping server for persistence test...");
-    drop(db);
-    drop(env);
-
-    // Restart and verify persistence
-    eprintln!("[PetStore] Restarting server...");
-    let env = TestEnv::new().with_vaultgres().start();
+    env.restart();
     let db = env.vaultgres();
 
     eprintln!("[PetStore] Verifying data persistence...");

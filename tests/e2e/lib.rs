@@ -42,6 +42,16 @@ impl TestEnv {
     }
 
     pub fn start(self) -> RunningEnv {
+        // Always clean up any existing containers and volumes for this project
+        eprintln!("[TestEnv] Cleaning up previous test environment...");
+        Command::new("docker")
+            .args(&["compose", "-p", &self.compose_project, "down", "-v"])
+            .status()
+            .expect("Failed to cleanup");
+        
+        // Wait for cleanup to complete
+        thread::sleep(Duration::from_secs(2));
+
         eprintln!("[TestEnv] Starting containers...");
         let mut services = vec![];
         if self.vaultgres_enabled { services.push("vaultgres"); }
@@ -109,13 +119,21 @@ impl RunningEnv {
     }
 
     pub fn restart(&self) {
-        eprintln!("[TestEnv] Restarting container...");
+        eprintln!("[TestEnv] Stopping container...");
         Command::new("docker")
-            .args(&["compose", "-p", &self.compose_project, "restart", "vaultgres"])
+            .args(&["compose", "-p", &self.compose_project, "stop", "vaultgres"])
             .output()
-            .expect("Failed to restart");
-        eprintln!("[TestEnv] Waiting 3s for restart...");
-        thread::sleep(Duration::from_secs(3));
+            .expect("Failed to stop");
+        eprintln!("[TestEnv] Waiting 2s...");
+        thread::sleep(Duration::from_secs(2));
+        
+        eprintln!("[TestEnv] Starting container...");
+        Command::new("docker")
+            .args(&["compose", "-p", &self.compose_project, "start", "vaultgres"])
+            .output()
+            .expect("Failed to start");
+        eprintln!("[TestEnv] Waiting 5s for restart...");
+        thread::sleep(Duration::from_secs(5));
         eprintln!("[TestEnv] Restarted!");
     }
 
@@ -126,15 +144,9 @@ impl RunningEnv {
 
 impl Drop for RunningEnv {
     fn drop(&mut self) {
-        if !self.persistence_enabled {
-            let _ = Command::new("docker")
-                .args(&["compose", "-p", &self.compose_project, "down", "-v"])
-                .output();
-        } else {
-            let _ = Command::new("docker")
-                .args(&["compose", "-p", &self.compose_project, "stop"])
-                .output();
-        }
+        let _ = Command::new("docker")
+            .args(&["compose", "-p", &self.compose_project, "down", "-v"])
+            .output();
     }
 }
 
