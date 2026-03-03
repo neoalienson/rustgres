@@ -129,7 +129,7 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Expression indexes (functional indexes)
 - ✅ Multi-column indexes
 - ✅ Index-only scans
-- Covering indexes
+- ✅ Covering indexes
 
 **SQL Features**
 - Views (CREATE VIEW, DROP VIEW)

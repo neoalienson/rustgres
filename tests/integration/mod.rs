@@ -8,6 +8,7 @@ mod buffer_pool_disk_test;
 mod catalog;
 mod catalog_test;
 mod check_constraint_test;
+mod covering_index_test;
 mod deadlock_test;
 mod default_value_test;
 mod directory_test;
