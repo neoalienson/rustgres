@@ -24,6 +24,9 @@ FROM gcr.io/distroless/static:nonroot
 # Copy binary from builder
 COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/vaultgres /usr/local/bin/vaultgres
 
+# Copy config file
+COPY docker/config.yaml /etc/vaultgres/config.yaml
+
 # Create data directory
 WORKDIR /var/lib/vaultgres
 
@@ -37,6 +40,9 @@ EXPOSE 5432
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD ["/usr/local/bin/vaultgres", "--version"]
 
+# Set config path
+ENV VAULTGRES_CONFIG=/etc/vaultgres/config.yaml
+
 # Run the database
 ENTRYPOINT ["/usr/local/bin/vaultgres"]
-CMD ["start", "-D", "/var/lib/vaultgres/data", "-p", "5432"]
+CMD ["start"]
