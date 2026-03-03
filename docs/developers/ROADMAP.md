@@ -134,10 +134,10 @@ VaultGres development roadmap with planned features and milestones.
 **SQL Features**
 - ✅ Views (CREATE VIEW, DROP VIEW)
 - ✅ Materialized views with REFRESH
-- User-defined functions (SQL functions)
-- Aggregate functions (custom aggregates)
-- String functions (CONCAT, SUBSTRING, UPPER, LOWER)
-- Date/time functions (NOW, DATE_TRUNC, EXTRACT)
+- ✅ User-defined functions (SQL functions)
+- ✅ Aggregate functions (custom aggregates)
+- ✅ String functions (CONCAT, SUBSTRING, UPPER, LOWER)
+- ✅ Date/time functions (NOW, DATE_TRUNC, EXTRACT)
 
 **Data Types**
 - BOOLEAN type
