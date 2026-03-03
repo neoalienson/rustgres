@@ -25,6 +25,7 @@ mod join_order_test;
 mod lateral_test;
 mod lock_timeout_test;
 mod materialized_view_test;
+mod multi_column_index_test;
 mod multi_statement_test;
 mod not_null_test;
 mod optimizer_test;
