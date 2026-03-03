@@ -128,7 +128,7 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Partial indexes with WHERE clause
 - ✅ Expression indexes (functional indexes)
 - ✅ Multi-column indexes
-- Index-only scans
+- ✅ Index-only scans
 - Covering indexes
 
 **SQL Features**
