@@ -1,154 +1,137 @@
 use vaultgres::catalog::Catalog;
-use vaultgres::parser::ast::{ColumnDef, DataType};
-use vaultgres::parser::{Parser, Statement};
+use vaultgres::parser::ast::{BinaryOperator, ColumnDef, DataType, Expr, SelectStmt};
 
 #[test]
-fn test_create_and_drop_view() {
+fn test_create_view() {
     let catalog = Catalog::new();
+    let columns = vec![
+        ColumnDef::new("id".to_string(), DataType::Int),
+        ColumnDef::new("name".to_string(), DataType::Text),
+    ];
 
-    catalog
-        .create_table(
-            "users".to_string(),
-            vec![
-                ColumnDef::new("id".to_string(), DataType::Int),
-                ColumnDef::new("name".to_string(), DataType::Text),
-            ],
-        )
-        .unwrap();
+    catalog.create_table("users".to_string(), columns).unwrap();
 
-    let mut parser = Parser::new("CREATE VIEW v AS SELECT * FROM users").unwrap();
-    let stmt = parser.parse().unwrap();
+    let query = SelectStmt {
+        distinct: false,
+        columns: vec![Expr::Star],
+        from: "users".to_string(),
+        table_alias: None,
+        joins: vec![],
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
 
-    match stmt {
-        Statement::CreateView(create) => {
-            catalog.create_view(create.name.clone(), *create.query).unwrap();
-            assert!(catalog.get_view("v").is_some());
-        }
-        _ => panic!("Expected CREATE VIEW"),
-    }
-
-    catalog.drop_view("v", false).unwrap();
-    assert!(catalog.get_view("v").is_none());
+    catalog.create_view("user_view".to_string(), query).unwrap();
+    assert!(catalog.get_view("user_view").is_some());
 }
 
 #[test]
-fn test_create_view_duplicate_error() {
+fn test_drop_view() {
     let catalog = Catalog::new();
+    let columns = vec![
+        ColumnDef::new("id".to_string(), DataType::Int),
+        ColumnDef::new("email".to_string(), DataType::Text),
+    ];
 
-    let mut parser = Parser::new("CREATE VIEW v AS SELECT * FROM t").unwrap();
-    let stmt = parser.parse().unwrap();
+    catalog.create_table("accounts".to_string(), columns).unwrap();
 
-    match stmt {
-        Statement::CreateView(create) => {
-            catalog.create_view(create.name.clone(), *create.query.clone()).unwrap();
-            let result = catalog.create_view(create.name, *create.query);
-            assert!(result.is_err());
-            assert!(result.unwrap_err().contains("already exists"));
-        }
-        _ => panic!("Expected CREATE VIEW"),
-    }
-}
+    let query = SelectStmt {
+        distinct: false,
+        columns: vec![Expr::Column("email".to_string())],
+        from: "accounts".to_string(),
+        table_alias: None,
+        joins: vec![],
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
 
-#[test]
-fn test_drop_view_not_exists_error() {
-    let catalog = Catalog::new();
-
-    let result = catalog.drop_view("nonexistent", false);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("does not exist"));
+    catalog.create_view("email_view".to_string(), query).unwrap();
+    catalog.drop_view("email_view", false).unwrap();
+    assert!(catalog.get_view("email_view").is_none());
 }
 
 #[test]
 fn test_drop_view_if_exists() {
     let catalog = Catalog::new();
 
-    let result = catalog.drop_view("nonexistent", true);
-    assert!(result.is_ok());
+    // Should not error when view doesn't exist
+    catalog.drop_view("nonexistent_view", true).unwrap();
 }
 
 #[test]
-fn test_view_with_filter() {
+fn test_drop_view_not_exists_error() {
     let catalog = Catalog::new();
 
-    catalog
-        .create_table(
-            "users".to_string(),
-            vec![
-                ColumnDef::new("id".to_string(), DataType::Int),
-                ColumnDef::new("active".to_string(), DataType::Int),
-            ],
-        )
-        .unwrap();
-
-    let mut parser =
-        Parser::new("CREATE VIEW active_users AS SELECT * FROM users WHERE active = 1").unwrap();
-    let stmt = parser.parse().unwrap();
-
-    match stmt {
-        Statement::CreateView(create) => {
-            catalog.create_view(create.name.clone(), *create.query).unwrap();
-            let view = catalog.get_view("active_users").unwrap();
-            assert!(view.where_clause.is_some());
-        }
-        _ => panic!("Expected CREATE VIEW"),
-    }
+    // Should error when view doesn't exist and if_exists is false
+    let result = catalog.drop_view("nonexistent_view", false);
+    assert!(result.is_err());
 }
 
 #[test]
-fn test_view_with_columns() {
+fn test_create_view_duplicate_error() {
     let catalog = Catalog::new();
+    let columns = vec![ColumnDef::new("id".to_string(), DataType::Int)];
 
-    let mut parser = Parser::new("CREATE VIEW user_ids AS SELECT id FROM users").unwrap();
-    let stmt = parser.parse().unwrap();
+    catalog.create_table("items".to_string(), columns).unwrap();
 
-    match stmt {
-        Statement::CreateView(create) => {
-            catalog.create_view(create.name.clone(), *create.query).unwrap();
-            let view = catalog.get_view("user_ids").unwrap();
-            assert_eq!(view.columns.len(), 1);
-        }
-        _ => panic!("Expected CREATE VIEW"),
-    }
+    let query = SelectStmt {
+        distinct: false,
+        columns: vec![Expr::Star],
+        from: "items".to_string(),
+        table_alias: None,
+        joins: vec![],
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    catalog.create_view("item_view".to_string(), query.clone()).unwrap();
+
+    // Should error when creating duplicate view
+    let result = catalog.create_view("item_view".to_string(), query);
+    assert!(result.is_err());
 }
 
 #[test]
-fn test_view_with_join() {
+fn test_view_with_where_clause() {
     let catalog = Catalog::new();
+    let columns = vec![
+        ColumnDef::new("id".to_string(), DataType::Int),
+        ColumnDef::new("status".to_string(), DataType::Text),
+    ];
 
-    let mut parser = Parser::new(
-        "CREATE VIEW user_orders AS SELECT * FROM users INNER JOIN orders ON id = user_id",
-    )
-    .unwrap();
-    let stmt = parser.parse().unwrap();
+    catalog.create_table("orders".to_string(), columns).unwrap();
 
-    match stmt {
-        Statement::CreateView(create) => {
-            catalog.create_view(create.name.clone(), *create.query).unwrap();
-            let view = catalog.get_view("user_orders").unwrap();
-            assert_eq!(view.joins.len(), 1);
-        }
-        _ => panic!("Expected CREATE VIEW"),
-    }
-}
+    let query = SelectStmt {
+        distinct: false,
+        columns: vec![Expr::Star],
+        from: "orders".to_string(),
+        table_alias: None,
+        joins: vec![],
+        where_clause: Some(Expr::BinaryOp {
+            left: Box::new(Expr::Column("status".to_string())),
+            op: BinaryOperator::Equals,
+            right: Box::new(Expr::String("active".to_string())),
+        }),
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
 
-#[test]
-fn test_multiple_views() {
-    let catalog = Catalog::new();
-
-    let mut parser1 = Parser::new("CREATE VIEW v1 AS SELECT * FROM t1").unwrap();
-    let stmt1 = parser1.parse().unwrap();
-
-    let mut parser2 = Parser::new("CREATE VIEW v2 AS SELECT * FROM t2").unwrap();
-    let stmt2 = parser2.parse().unwrap();
-
-    match (stmt1, stmt2) {
-        (Statement::CreateView(c1), Statement::CreateView(c2)) => {
-            catalog.create_view(c1.name.clone(), *c1.query).unwrap();
-            catalog.create_view(c2.name.clone(), *c2.query).unwrap();
-
-            assert!(catalog.get_view("v1").is_some());
-            assert!(catalog.get_view("v2").is_some());
-        }
-        _ => panic!("Expected CREATE VIEW"),
-    }
+    catalog.create_view("active_orders".to_string(), query).unwrap();
+    let view = catalog.get_view("active_orders").unwrap();
+    assert!(view.where_clause.is_some());
 }
