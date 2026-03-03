@@ -8,7 +8,10 @@ use crate::parser::ast::{
 };
 use crate::transaction::{IsolationLevel, Transaction, TransactionManager, TupleHeader};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, RwLock, Weak};
+use std::thread;
+use std::time::Duration;
 
 pub struct Catalog {
     tables: Arc<RwLock<HashMap<String, TableSchema>>>,
@@ -23,6 +26,7 @@ pub struct Catalog {
     savepoints: Arc<RwLock<HashMap<String, Vec<Tuple>>>>,
     txn_mgr: Arc<TransactionManager>,
     data_dir: Option<String>,
+    save_tx: Option<Sender<()>>,
 }
 
 impl Catalog {
@@ -40,10 +44,13 @@ impl Catalog {
             savepoints: Arc::new(RwLock::new(HashMap::new())),
             txn_mgr: Arc::new(TransactionManager::new()),
             data_dir: None,
+            save_tx: None,
         }
     }
 
     pub fn new_with_data_dir(data_dir: &str) -> Self {
+        let (tx, rx) = channel();
+
         let catalog = Self {
             tables: Arc::new(RwLock::new(HashMap::new())),
             views: Arc::new(RwLock::new(HashMap::new())),
@@ -57,15 +64,63 @@ impl Catalog {
             savepoints: Arc::new(RwLock::new(HashMap::new())),
             txn_mgr: Arc::new(TransactionManager::new()),
             data_dir: Some(data_dir.to_string()),
+            save_tx: Some(tx),
         };
 
-        let mut tables = catalog.tables.write().unwrap();
-        let mut data = catalog.data.write().unwrap();
-        if let Err(e) = Persistence::load(data_dir, &mut tables, &mut data, &catalog.txn_mgr) {
+        let tables = Arc::clone(&catalog.tables);
+        let views = Arc::clone(&catalog.views);
+        let triggers = Arc::clone(&catalog.triggers);
+        let indexes = Arc::clone(&catalog.indexes);
+        let functions = Arc::clone(&catalog.functions);
+        let data = Arc::clone(&catalog.data);
+        let dir = data_dir.to_string();
+
+        thread::spawn(move || {
+            let mut last_save = std::time::Instant::now();
+            while let Ok(_) = rx.recv() {
+                if last_save.elapsed() < Duration::from_millis(100) {
+                    thread::sleep(Duration::from_millis(100) - last_save.elapsed());
+                }
+
+                let tables_clone = tables.read().unwrap().clone();
+                let data_clone = data.read().unwrap().clone();
+                if let Err(e) = Persistence::save(&dir, &tables_clone, &data_clone) {
+                    log::error!("Async save failed: {}", e);
+                }
+
+                let views_clone = views.read().unwrap().clone();
+                if let Err(e) = Persistence::save_views(&dir, &views_clone) {
+                    log::error!("Async views save failed: {}", e);
+                }
+
+                let triggers_clone = triggers.read().unwrap().clone();
+                if let Err(e) = Persistence::save_triggers(&dir, &triggers_clone) {
+                    log::error!("Async triggers save failed: {}", e);
+                }
+
+                let indexes_clone = indexes.read().unwrap().clone();
+                if let Err(e) = Persistence::save_indexes(&dir, &indexes_clone) {
+                    log::error!("Async indexes save failed: {}", e);
+                }
+
+                let functions_clone = functions.read().unwrap().clone();
+                if let Err(e) = Persistence::save_functions(&dir, &functions_clone) {
+                    log::error!("Async functions save failed: {}", e);
+                }
+
+                last_save = std::time::Instant::now();
+            }
+        });
+
+        let mut tables_lock = catalog.tables.write().unwrap();
+        let mut data_lock = catalog.data.write().unwrap();
+        if let Err(e) =
+            Persistence::load(data_dir, &mut tables_lock, &mut data_lock, &catalog.txn_mgr)
+        {
             log::error!("Failed to load catalog: {}", e);
         }
-        drop(tables);
-        drop(data);
+        drop(tables_lock);
+        drop(data_lock);
 
         if let Ok(views) = Persistence::load_views(data_dir) {
             *catalog.views.write().unwrap() = views;
@@ -87,33 +142,8 @@ impl Catalog {
     }
 
     fn auto_save(&self) {
-        if let Some(ref dir) = self.data_dir {
-            let tables_clone = self.tables.read().unwrap().clone();
-            let data_clone = self.data.read().unwrap().clone();
-
-            if let Err(e) = Persistence::save(dir, &tables_clone, &data_clone) {
-                log::error!("Auto-save failed: {}", e);
-            }
-
-            let views_clone = self.views.read().unwrap().clone();
-            if let Err(e) = Persistence::save_views(dir, &views_clone) {
-                log::error!("Views auto-save failed: {}", e);
-            }
-
-            let triggers_clone = self.triggers.read().unwrap().clone();
-            if let Err(e) = Persistence::save_triggers(dir, &triggers_clone) {
-                log::error!("Triggers auto-save failed: {}", e);
-            }
-
-            let indexes_clone = self.indexes.read().unwrap().clone();
-            if let Err(e) = Persistence::save_indexes(dir, &indexes_clone) {
-                log::error!("Indexes auto-save failed: {}", e);
-            }
-
-            let functions_clone = self.functions.read().unwrap().clone();
-            if let Err(e) = Persistence::save_functions(dir, &functions_clone) {
-                log::error!("Functions auto-save failed: {}", e);
-            }
+        if let Some(ref tx) = self.save_tx {
+            let _ = tx.send(());
         }
     }
 
@@ -739,15 +769,23 @@ impl Catalog {
         assignments: Vec<(String, Expr)>,
         where_clause: Option<Expr>,
     ) -> Result<usize, String> {
+        let start = std::time::Instant::now();
         let schema =
             self.get_table(table).ok_or_else(|| format!("Table '{}' does not exist", table))?;
 
+        let txn_start = std::time::Instant::now();
         let txn = self.txn_mgr.begin();
         let snapshot = txn.snapshot.clone();
+        log::debug!("[PERF] UPDATE txn begin: {:?}", txn_start.elapsed());
 
+        let lock_start = std::time::Instant::now();
         let mut data = self.data.write().unwrap();
-        let tuples = data.get_mut(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
+        log::debug!("[PERF] UPDATE lock acquired: {:?}", lock_start.elapsed());
 
+        let tuples = data.get_mut(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
+        let tuple_count = tuples.len();
+
+        let scan_start = std::time::Instant::now();
         let mut updated = 0;
         for tuple in tuples.iter_mut() {
             if tuple.header.is_visible(&snapshot, &self.txn_mgr) {
@@ -782,9 +820,22 @@ impl Catalog {
                 updated += 1;
             }
         }
+        log::debug!(
+            "[PERF] UPDATE scan {} tuples, updated {}: {:?}",
+            tuple_count,
+            updated,
+            scan_start.elapsed()
+        );
 
+        let commit_start = std::time::Instant::now();
         self.txn_mgr.commit(txn.xid).map_err(|e| e.to_string())?;
+        log::debug!("[PERF] UPDATE commit: {:?}", commit_start.elapsed());
+
+        let save_start = std::time::Instant::now();
         self.auto_save();
+        log::debug!("[PERF] UPDATE auto_save: {:?}", save_start.elapsed());
+
+        log::info!("[PERF] UPDATE total: {:?} (updated {} rows)", start.elapsed(), updated);
         Ok(updated)
     }
 

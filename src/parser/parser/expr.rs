@@ -137,7 +137,13 @@ pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
         }
         Token::Identifier(name) => {
             parser.advance();
-            Ok(Expr::Column(name))
+            if matches!(parser.current_token(), Token::Dot) {
+                parser.advance();
+                let column = parser.expect_identifier()?;
+                Ok(Expr::QualifiedColumn { table: name, column })
+            } else {
+                Ok(Expr::Column(name))
+            }
         }
         Token::Number(n) => {
             parser.advance();

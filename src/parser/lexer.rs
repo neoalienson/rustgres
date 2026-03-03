@@ -159,6 +159,7 @@ pub enum Token {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+    Dot,
 
     // End of input
     EOF,
@@ -249,6 +250,10 @@ impl Lexer {
                 } else {
                     Ok(Token::GreaterThan)
                 }
+            }
+            '.' => {
+                self.advance();
+                Ok(Token::Dot)
             }
             '\'' => self.read_string(),
             '$' => self.read_parameter(),

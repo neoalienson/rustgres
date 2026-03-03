@@ -106,6 +106,11 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Recursive CTEs (WITH RECURSIVE)
 - ✅ Lateral joins (LATERAL)
 - ✅ Table aliases and column aliases
+- ✅ Qualified column references (table.column syntax in WHERE, CREATE VIEW)
+- 🚧 JOIN execution integration (executors exist but not wired to protocol layer)
+  - Hash join, merge join, nested loop join executors implemented
+  - Missing: Protocol layer integration to use executors for JOIN queries
+  - Missing: Multi-table schema resolution for qualified columns in SELECT
 
 **Query Optimization**
 - ✅ Prepared statements

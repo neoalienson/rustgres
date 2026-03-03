@@ -453,6 +453,10 @@ pub struct DeleteStmt {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Expr {
     Column(String),
+    QualifiedColumn {
+        table: String,
+        column: String,
+    },
     Number(i64),
     String(String),
     Star,

@@ -3,6 +3,7 @@ use std::time::Instant;
 
 #[test]
 fn test_pet_store_comprehensive() {
+    env_logger::builder().filter_level(log::LevelFilter::Debug).is_test(true).try_init().ok();
     eprintln!("\n=== Test: Pet Accessories Store - Comprehensive Features ===");
     let env = TestEnv::new().with_vaultgres().start();
     let db = env.vaultgres();

@@ -133,6 +133,14 @@ impl PredicateEvaluator {
                     .ok_or_else(|| format!("Column '{}' not found", name))?;
                 Ok(tuple[idx].clone())
             }
+            Expr::QualifiedColumn { table: _, column } => {
+                let idx = schema
+                    .columns
+                    .iter()
+                    .position(|c| &c.name == column)
+                    .ok_or_else(|| format!("Column '{}' not found", column))?;
+                Ok(tuple[idx].clone())
+            }
             Expr::Number(n) => Ok(Value::Int(*n)),
             Expr::String(s) => Ok(Value::Text(s.clone())),
             Expr::List(_) => Err("List not evaluable as value".to_string()),

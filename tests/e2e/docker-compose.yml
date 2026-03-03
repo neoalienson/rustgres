@@ -8,7 +8,7 @@ services:
       - vaultgres-wal:/var/lib/vaultgres/wal
       - ./vaultgres-config.yaml:/etc/vaultgres/config.yaml:ro
     environment:
-      - RUST_LOG=info
+      - RUST_LOG=debug
       - VAULTGRES_CONFIG=/etc/vaultgres/config.yaml
     command: ["start", "--config", "/etc/vaultgres/config.yaml"]
     healthcheck:

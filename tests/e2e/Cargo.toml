@@ -7,6 +7,10 @@ edition = "2021"
 path = "lib.rs"
 
 [[test]]
+name = "perf"
+path = "scenarios/perf_test.rs"
+
+[[test]]
 name = "smoke"
 path = "scenarios/smoke_tests.rs"
 
@@ -27,5 +31,7 @@ name = "soak"
 path = "soak/memory_leak.rs"
 
 [dependencies]
+log = "0.4"
+env_logger = "0.11"
 
 [dev-dependencies]

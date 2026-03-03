@@ -221,6 +221,7 @@ impl<S: Read + Write> Connection<S> {
                     .map(|expr| match expr {
                         Expr::Star => "*".to_string(),
                         Expr::Column(name) => name.clone(),
+                        Expr::QualifiedColumn { table: _, column } => column.clone(),
                         Expr::Aggregate { func, arg } => {
                             let func_name = match func {
                                 crate::parser::ast::AggregateFunc::Count => "COUNT",
