@@ -1,5 +1,5 @@
-use crate::catalog::*;
-use crate::parser::ast::{ColumnDef, DataType, Expr};
+use vaultgres::catalog::*;
+use vaultgres::parser::ast::{ColumnDef, DataType, Expr};
 
 #[test]
 fn test_insert() {

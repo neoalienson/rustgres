@@ -1,5 +1,5 @@
-use crate::catalog::*;
-use crate::parser::ast::{BinaryOperator, ColumnDef, DataType, Expr};
+use vaultgres::catalog::*;
+use vaultgres::parser::ast::{BinaryOperator, ColumnDef, DataType, Expr};
 
 #[test]
 fn test_select_with_where() {

@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::catalog::Catalog;
-    use crate::parser::ast::{ColumnDef, DataType, Expr};
+    use vaultgres::catalog::Catalog;
+    use vaultgres::parser::ast::{ColumnDef, DataType, Expr};
 
     #[test]
     fn test_list_tables() {

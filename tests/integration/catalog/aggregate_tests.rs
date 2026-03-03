@@ -1,5 +1,5 @@
-use crate::catalog::*;
-use crate::parser::ast::{ColumnDef, DataType, Expr};
+use vaultgres::catalog::*;
+use vaultgres::parser::ast::{ColumnDef, DataType, Expr};
 
 #[test]
 fn test_aggregate_count() {
@@ -152,7 +152,7 @@ fn test_having_clause() {
     let group_by = Some(vec!["category".to_string()]);
     let having = Some(Expr::BinaryOp {
         left: Box::new(Expr::Number(2)),
-        op: crate::parser::ast::BinaryOperator::GreaterThan,
+        op: vaultgres::parser::ast::BinaryOperator::GreaterThan,
         right: Box::new(Expr::Number(1)),
     });
 

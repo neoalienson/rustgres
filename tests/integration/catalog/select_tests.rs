@@ -1,5 +1,5 @@
-use crate::catalog::*;
-use crate::parser::ast::{ColumnDef, DataType, Expr, OrderByExpr};
+use vaultgres::catalog::*;
+use vaultgres::parser::ast::{ColumnDef, DataType, Expr, OrderByExpr};
 
 #[test]
 fn test_select_all() {

@@ -1,5 +1,5 @@
-use crate::catalog::*;
-use crate::parser::ast::{BinaryOperator, ColumnDef, DataType, Expr};
+use vaultgres::catalog::*;
+use vaultgres::parser::ast::{BinaryOperator, ColumnDef, DataType, Expr};
 
 #[test]
 fn test_insert_null_value() {
@@ -280,7 +280,7 @@ fn test_order_by_with_invalid_column() {
     catalog.create_table("data".to_string(), columns).unwrap();
     catalog.insert("data", vec![Expr::Number(1)]).unwrap();
 
-    let order_by = Some(vec![crate::parser::ast::OrderByExpr {
+    let order_by = Some(vec![vaultgres::parser::ast::OrderByExpr {
         column: "nonexistent".to_string(),
         ascending: true,
     }]);

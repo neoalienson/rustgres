@@ -1,5 +1,5 @@
-use crate::catalog::*;
-use crate::parser::ast::{ColumnDef, DataType};
+use vaultgres::catalog::*;
+use vaultgres::parser::ast::{ColumnDef, DataType};
 
 #[test]
 fn test_create_table() {

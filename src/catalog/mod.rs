@@ -11,9 +11,6 @@ mod tuple;
 mod unique;
 mod value;
 
-#[cfg(test)]
-mod tests;
-
 // Re-export public types
 pub use catalog::Catalog;
 pub use check::CheckValidator;
