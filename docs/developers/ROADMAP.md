@@ -124,7 +124,7 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Configurable parallelism (max_parallel_workers)
 
 **Advanced Indexes**
-- Hash indexes for equality lookups
+- ✅ Hash indexes for equality lookups
 - Partial indexes with WHERE clause
 - Expression indexes (functional indexes)
 - Multi-column indexes

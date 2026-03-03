@@ -21,6 +21,7 @@ pub mod btree;
 pub mod buffer_pool;
 pub mod disk;
 pub mod error;
+pub mod hash_index;
 pub mod heap;
 pub mod index;
 pub mod page;
