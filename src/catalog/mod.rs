@@ -13,6 +13,9 @@ mod tuple;
 mod unique;
 mod value;
 
+#[cfg(test)]
+mod datatype_tests;
+
 // Re-export public types
 pub use catalog::Catalog;
 pub use check::CheckValidator;

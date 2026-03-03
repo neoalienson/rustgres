@@ -223,6 +223,15 @@ fn write_data_type<W: Write>(writer: &mut W, dt: &DataType) -> Result<(), String
             writer.write_all(&[2]).map_err(|e| format!("Write error: {}", e))?;
             write_u32(writer, *len)?;
         }
+        DataType::Boolean => writer.write_all(&[3]).map_err(|e| format!("Write error: {}", e))?,
+        DataType::Date => writer.write_all(&[4]).map_err(|e| format!("Write error: {}", e))?,
+        DataType::Time => writer.write_all(&[5]).map_err(|e| format!("Write error: {}", e))?,
+        DataType::Timestamp => writer.write_all(&[6]).map_err(|e| format!("Write error: {}", e))?,
+        DataType::Decimal(p, s) => {
+            writer.write_all(&[7]).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&[*p, *s]).map_err(|e| format!("Write error: {}", e))?;
+        }
+        DataType::Bytea => writer.write_all(&[8]).map_err(|e| format!("Write error: {}", e))?,
     }
     Ok(())
 }
@@ -238,6 +247,16 @@ fn read_data_type<R: Read>(reader: &mut R) -> Result<DataType, String> {
             let len = read_u32(reader)?;
             Ok(DataType::Varchar(len))
         }
+        3 => Ok(DataType::Boolean),
+        4 => Ok(DataType::Date),
+        5 => Ok(DataType::Time),
+        6 => Ok(DataType::Timestamp),
+        7 => {
+            let mut buf = [0u8; 2];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(DataType::Decimal(buf[0], buf[1]))
+        }
+        8 => Ok(DataType::Bytea),
         _ => Err(format!("Unknown data type: {}", buf[0])),
     }
 }
@@ -272,6 +291,28 @@ fn write_value<W: Write>(writer: &mut W, value: &Value) -> Result<(), String> {
         Value::Json(j) => {
             writer.write_all(&[6]).map_err(|e| format!("Write error: {}", e))?;
             write_string(writer, j)?;
+        }
+        Value::Date(d) => {
+            writer.write_all(&[7]).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&d.to_le_bytes()).map_err(|e| format!("Write error: {}", e))?;
+        }
+        Value::Time(t) => {
+            writer.write_all(&[8]).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&t.to_le_bytes()).map_err(|e| format!("Write error: {}", e))?;
+        }
+        Value::Timestamp(ts) => {
+            writer.write_all(&[9]).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&ts.to_le_bytes()).map_err(|e| format!("Write error: {}", e))?;
+        }
+        Value::Decimal(v, s) => {
+            writer.write_all(&[10]).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&v.to_le_bytes()).map_err(|e| format!("Write error: {}", e))?;
+            writer.write_all(&[*s]).map_err(|e| format!("Write error: {}", e))?;
+        }
+        Value::Bytea(b) => {
+            writer.write_all(&[11]).map_err(|e| format!("Write error: {}", e))?;
+            write_u32(writer, b.len() as u32)?;
+            writer.write_all(b).map_err(|e| format!("Write error: {}", e))?;
         }
         Value::Null => {
             writer.write_all(&[2]).map_err(|e| format!("Write error: {}", e))?;
@@ -316,6 +357,35 @@ fn read_value<R: Read>(reader: &mut R) -> Result<Value, String> {
         6 => {
             let s = read_string(reader)?;
             Ok(Value::Json(s))
+        }
+        7 => {
+            let mut buf = [0u8; 4];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(Value::Date(i32::from_le_bytes(buf)))
+        }
+        8 => {
+            let mut buf = [0u8; 8];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(Value::Time(i64::from_le_bytes(buf)))
+        }
+        9 => {
+            let mut buf = [0u8; 8];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(Value::Timestamp(i64::from_le_bytes(buf)))
+        }
+        10 => {
+            let mut buf = [0u8; 16];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            let v = i128::from_le_bytes(buf);
+            let mut sbuf = [0u8; 1];
+            reader.read_exact(&mut sbuf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(Value::Decimal(v, sbuf[0]))
+        }
+        11 => {
+            let len = read_u32(reader)?;
+            let mut buf = vec![0u8; len as usize];
+            reader.read_exact(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            Ok(Value::Bytea(buf))
         }
         _ => Err(format!("Unknown value type: {}", buf[0])),
     }

@@ -459,6 +459,57 @@ fn parse_data_type(parser: &mut Parser) -> Result<DataType> {
                 Ok(DataType::Varchar(255))
             }
         }
+        Token::Boolean => {
+            parser.advance();
+            Ok(DataType::Boolean)
+        }
+        Token::Date => {
+            parser.advance();
+            Ok(DataType::Date)
+        }
+        Token::Time => {
+            parser.advance();
+            Ok(DataType::Time)
+        }
+        Token::Timestamp => {
+            parser.advance();
+            Ok(DataType::Timestamp)
+        }
+        Token::Decimal | Token::Numeric => {
+            parser.advance();
+            if parser.current_token() == &Token::LeftParen {
+                parser.advance();
+                if let Token::Number(p) = parser.current_token() {
+                    let precision = *p as u8;
+                    parser.advance();
+                    if parser.current_token() == &Token::Comma {
+                        parser.advance();
+                        if let Token::Number(s) = parser.current_token() {
+                            let scale = *s as u8;
+                            parser.advance();
+                            parser.expect(Token::RightParen)?;
+                            Ok(DataType::Decimal(precision, scale))
+                        } else {
+                            Err(ParseError::UnexpectedToken(format!(
+                                "{:?}",
+                                parser.current_token()
+                            )))
+                        }
+                    } else {
+                        parser.expect(Token::RightParen)?;
+                        Ok(DataType::Decimal(precision, 0))
+                    }
+                } else {
+                    Err(ParseError::UnexpectedToken(format!("{:?}", parser.current_token())))
+                }
+            } else {
+                Ok(DataType::Decimal(10, 0))
+            }
+        }
+        Token::Bytea | Token::Blob => {
+            parser.advance();
+            Ok(DataType::Bytea)
+        }
         _ => Err(ParseError::UnexpectedToken(format!("{:?}", parser.current_token()))),
     }
 }

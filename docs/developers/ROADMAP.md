@@ -111,7 +111,6 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Prepared statements
 - ✅ Bind parameter support
 
-**Status**: Q2 2024
 
 ## Version 0.4.0 (Beta)
 
@@ -140,14 +139,12 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Date/time functions (NOW, DATE_TRUNC, EXTRACT)
 
 **Data Types**
-- BOOLEAN type
-- DATE, TIME, TIMESTAMP types
-- DECIMAL/NUMERIC with precision
-- VARCHAR with length limits
-- TEXT type
-- BLOB/BYTEA for binary data
-
-**Status**: Q3 2024
+- ✅ BOOLEAN type
+- ✅ DATE, TIME, TIMESTAMP types
+- ✅ DECIMAL/NUMERIC with precision
+- ✅ VARCHAR with length limits
+- ✅ TEXT type
+- ✅ BLOB/BYTEA for binary data
 
 ## Version 0.5.0 (Beta)
 
@@ -175,8 +172,6 @@ VaultGres development roadmap with planned features and milestones.
 - Buffer pool statistics
 - Connection pool metrics
 - Disk I/O statistics
-
-**Status**: Q4 2024
 
 ## Version 0.6.0 (Beta)
 
@@ -206,8 +201,6 @@ VaultGres development roadmap with planned features and milestones.
 - Composite types (user-defined types)
 - Enum types
 
-**Status**: Q1 2025
-
 ## Version 0.7.0 (RC)
 
 **Security**
@@ -236,7 +229,6 @@ VaultGres development roadmap with planned features and milestones.
 - System catalog compatibility
 - Information schema views
 
-**Status**: Q2 2025
 
 ## Version 1.0.0 (Stable)
 
@@ -283,7 +275,6 @@ VaultGres development roadmap with planned features and milestones.
 - 🚧 Internals documentation
 - 🚧 API documentation
 
-**Status**: Q3 2025
 
 ## Version 1.1.0 (Post-Stable)
 
@@ -308,7 +299,6 @@ VaultGres development roadmap with planned features and milestones.
 - XML type and functions
 - HStore (key-value store)
 
-**Status**: Q4 2025
 
 ## Version 1.2.0+ (Future) 🔮
 

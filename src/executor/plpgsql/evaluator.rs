@@ -52,6 +52,11 @@ impl<'a> ExprEvaluator<'a> {
                     Value::Text(t) => t.clone(),
                     Value::Array(_) => "[array]".to_string(),
                     Value::Json(j) => j.clone(),
+                    Value::Date(d) => d.to_string(),
+                    Value::Time(t) => t.to_string(),
+                    Value::Timestamp(ts) => ts.to_string(),
+                    Value::Decimal(v, _) => v.to_string(),
+                    Value::Bytea(_) => "[binary]".to_string(),
                     Value::Null => "NULL".to_string(),
                 };
                 result = result.replace(&placeholder, &val_str);

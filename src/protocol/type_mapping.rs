@@ -21,6 +21,11 @@ pub fn value_to_pg_type(value: &Value) -> (i32, i16) {
         Value::Text(_) => (pg_types::TEXT, -1),
         Value::Json(_) => (pg_types::TEXT, -1),
         Value::Array(_) => (pg_types::TEXT, -1),
+        Value::Date(_) => (pg_types::INT4, 4),
+        Value::Time(_) => (pg_types::INT8, 8),
+        Value::Timestamp(_) => (pg_types::INT8, 8),
+        Value::Decimal(_, _) => (pg_types::TEXT, -1),
+        Value::Bytea(_) => (pg_types::TEXT, -1),
         Value::Null => (pg_types::TEXT, -1),
     }
 }
@@ -33,7 +38,17 @@ pub fn serialize_value(value: &Value) -> Option<Vec<u8>> {
         Value::Bool(b) => Some(if *b { b"t" } else { b"f" }.to_vec()),
         Value::Text(s) => Some(s.as_bytes().to_vec()),
         Value::Json(j) => Some(j.as_bytes().to_vec()),
-        Value::Array(_) => Some(b"[]".to_vec()), // Simplified
+        Value::Array(_) => Some(b"[]".to_vec()),
+        Value::Date(d) => Some(d.to_string().into_bytes()),
+        Value::Time(t) => Some(t.to_string().into_bytes()),
+        Value::Timestamp(ts) => Some(ts.to_string().into_bytes()),
+        Value::Decimal(v, s) => Some(
+            format!("{}.{}", v / 10_i128.pow(*s as u32), v % 10_i128.pow(*s as u32)).into_bytes(),
+        ),
+        Value::Bytea(b) => {
+            let hex_str = b.iter().map(|byte| format!("{:02x}", byte)).collect::<String>();
+            Some(format!("\\x{}", hex_str).into_bytes())
+        }
         Value::Null => None,
     }
 }

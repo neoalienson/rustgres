@@ -376,6 +376,12 @@ pub enum DataType {
     Serial,
     Text,
     Varchar(u32),
+    Boolean,
+    Date,
+    Time,
+    Timestamp,
+    Decimal(u8, u8),
+    Bytea,
 }
 
 /// SELECT statement

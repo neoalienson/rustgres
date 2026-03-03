@@ -52,6 +52,11 @@ impl RecursiveCTEExecutor {
                     }
                 }
                 Value::Json(j) => key.extend_from_slice(j.as_bytes()),
+                Value::Date(d) => key.extend_from_slice(&d.to_le_bytes()),
+                Value::Time(t) => key.extend_from_slice(&t.to_le_bytes()),
+                Value::Timestamp(ts) => key.extend_from_slice(&ts.to_le_bytes()),
+                Value::Decimal(v, _) => key.extend_from_slice(&v.to_le_bytes()),
+                Value::Bytea(b) => key.extend_from_slice(b),
                 Value::Null => key.push(0),
             }
             key.push(255);
