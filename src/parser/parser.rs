@@ -27,122 +27,34 @@ impl Parser {
 
     /// Parses a SQL statement
     pub fn parse(&mut self) -> Result<Statement> {
-        if self.current_token() == &Token::With {
-            return self.parse_with();
-        }
-
-        if self.current_token() == &Token::Declare {
-            return ddl::parse_declare_cursor(self);
-        }
-
-        if self.current_token() == &Token::Fetch {
-            return ddl::parse_fetch_cursor(self);
-        }
-
-        if self.current_token() == &Token::Close {
-            return ddl::parse_close_cursor(self);
-        }
-
-        if self.current_token() == &Token::Begin {
-            self.advance();
-            return Ok(Statement::Begin);
-        }
-
-        if self.current_token() == &Token::Commit {
-            self.advance();
-            return Ok(Statement::Commit);
-        }
-
-        if self.current_token() == &Token::Rollback {
-            self.advance();
-            if self.current_token() == &Token::To {
-                self.advance();
-                if self.current_token() == &Token::Savepoint {
-                    self.advance();
-                }
-                let name = self.expect_identifier()?;
-                return Ok(Statement::RollbackTo(name));
-            }
-            return Ok(Statement::Rollback);
-        }
-
-        if self.current_token() == &Token::Set {
-            self.advance();
-            if self.current_token() == &Token::Transaction {
-                self.advance();
-                self.expect(Token::Isolation)?;
-                self.expect(Token::Level)?;
-
-                let level = match self.current_token() {
-                    Token::Read => {
-                        self.advance();
-                        self.expect(Token::Committed)?;
-                        IsolationLevel::ReadCommitted
-                    }
-                    Token::Repeatable => {
-                        self.advance();
-                        self.expect(Token::Read)?;
-                        IsolationLevel::RepeatableRead
-                    }
-                    Token::Serializable => {
-                        self.advance();
-                        IsolationLevel::Serializable
-                    }
-                    _ => {
-                        return Err(ParseError::InvalidSyntax(
-                            "Invalid isolation level".to_string(),
-                        ))
-                    }
-                };
-                return Ok(Statement::SetTransaction(level));
-            }
-        }
-
-        if self.current_token() == &Token::Savepoint {
-            self.advance();
-            let name = self.expect_identifier()?;
-            return Ok(Statement::Savepoint(name));
-        }
-
-        if self.current_token() == &Token::Release {
-            self.advance();
-            if self.current_token() == &Token::Savepoint {
-                self.advance();
-            }
-            let name = self.expect_identifier()?;
-            return Ok(Statement::ReleaseSavepoint(name));
-        }
-
-        if self.current_token() == &Token::Prepare {
-            return self.parse_prepare();
-        }
-
-        if self.current_token() == &Token::Execute {
-            return self.parse_execute();
-        }
-
-        if self.current_token() == &Token::Deallocate {
-            self.advance();
-            let name = self.expect_identifier()?;
-            return Ok(Statement::Deallocate(name));
-        }
-
-        if self.current_token() == &Token::Select {
-            let select = select::parse_select(self)?;
-            // Check for set operations
-            match self.current_token() {
-                Token::Union => return self.parse_union(select),
-                Token::Intersect => return self.parse_intersect(select),
-                Token::Except => return self.parse_except(select),
-                _ => return Ok(select),
-            }
-        }
-
-        if self.current_token() == &Token::Refresh {
-            return self.parse_refresh();
-        }
-
         let stmt = match self.current_token() {
+            Token::With => self.parse_with(),
+            Token::Declare => ddl::parse_declare_cursor(self),
+            Token::Fetch => ddl::parse_fetch_cursor(self),
+            Token::Close => ddl::parse_close_cursor(self),
+            Token::Begin => {
+                self.advance();
+                Ok(Statement::Begin)
+            }
+            Token::Commit => {
+                self.advance();
+                Ok(Statement::Commit)
+            }
+            Token::Rollback => self.parse_rollback(),
+            Token::Set => self.parse_set(),
+            Token::Savepoint => {
+                self.advance();
+                Ok(Statement::Savepoint(self.expect_identifier()?))
+            }
+            Token::Release => self.parse_release(),
+            Token::Prepare => self.parse_prepare(),
+            Token::Execute => self.parse_execute(),
+            Token::Deallocate => {
+                self.advance();
+                Ok(Statement::Deallocate(self.expect_identifier()?))
+            }
+            Token::Select => self.parse_select_with_set_ops(),
+            Token::Refresh => self.parse_refresh(),
             Token::Insert => dml::parse_insert(self),
             Token::Update => dml::parse_update(self),
             Token::Delete => dml::parse_delete(self),
@@ -152,12 +64,70 @@ impl Parser {
             _ => Err(ParseError::UnexpectedToken(format!("{:?}", self.current_token()))),
         }?;
 
-        // Skip optional semicolon
         if self.current_token() == &Token::Semicolon {
             self.advance();
         }
-
         Ok(stmt)
+    }
+
+    fn parse_rollback(&mut self) -> Result<Statement> {
+        self.advance();
+        if self.current_token() == &Token::To {
+            self.advance();
+            if self.current_token() == &Token::Savepoint {
+                self.advance();
+            }
+            Ok(Statement::RollbackTo(self.expect_identifier()?))
+        } else {
+            Ok(Statement::Rollback)
+        }
+    }
+
+    fn parse_set(&mut self) -> Result<Statement> {
+        self.advance();
+        if self.current_token() != &Token::Transaction {
+            return Err(ParseError::InvalidSyntax("Expected TRANSACTION".to_string()));
+        }
+        self.advance();
+        self.expect(Token::Isolation)?;
+        self.expect(Token::Level)?;
+
+        let level = match self.current_token() {
+            Token::Read => {
+                self.advance();
+                self.expect(Token::Committed)?;
+                IsolationLevel::ReadCommitted
+            }
+            Token::Repeatable => {
+                self.advance();
+                self.expect(Token::Read)?;
+                IsolationLevel::RepeatableRead
+            }
+            Token::Serializable => {
+                self.advance();
+                IsolationLevel::Serializable
+            }
+            _ => return Err(ParseError::InvalidSyntax("Invalid isolation level".to_string())),
+        };
+        Ok(Statement::SetTransaction(level))
+    }
+
+    fn parse_release(&mut self) -> Result<Statement> {
+        self.advance();
+        if self.current_token() == &Token::Savepoint {
+            self.advance();
+        }
+        Ok(Statement::ReleaseSavepoint(self.expect_identifier()?))
+    }
+
+    fn parse_select_with_set_ops(&mut self) -> Result<Statement> {
+        let select = select::parse_select(self)?;
+        match self.current_token() {
+            Token::Union => self.parse_union(select),
+            Token::Intersect => self.parse_intersect(select),
+            Token::Except => self.parse_except(select),
+            _ => Ok(select),
+        }
     }
 
     fn parse_union(&mut self, left: Statement) -> Result<Statement> {
