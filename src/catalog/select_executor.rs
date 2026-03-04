@@ -46,8 +46,8 @@ impl SelectExecutor {
         distinct: bool,
         columns: Vec<Expr>,
         where_clause: Option<Expr>,
-        group_by: Option<Vec<String>>,
-        having: Option<Expr>,
+        _group_by: Option<Vec<String>>,
+        _having: Option<Expr>,
         order_by: Option<Vec<OrderByExpr>>,
         limit: Option<usize>,
         offset: Option<usize>,
@@ -56,7 +56,7 @@ impl SelectExecutor {
         txn_mgr: &Arc<TransactionManager>,
     ) -> Result<Vec<Vec<Value>>, String> {
         if columns.len() == 1 {
-            if let Some(Expr::Aggregate { .. }) = columns.get(0) {
+            if let Some(Expr::Aggregate { .. }) = columns.first() {
                 log::debug!("Taking Aggregator path: {:?}", columns[0]);
                 return Aggregator::execute(
                     catalog,
@@ -186,9 +186,9 @@ impl SelectExecutor {
         columns: &[Expr],
         schema: &TableSchema,
     ) -> Result<Vec<Value>, String> {
-        use crate::catalog::string_functions;
+        
 
-        if columns.is_empty() || matches!(columns.get(0), Some(Expr::Star)) {
+        if columns.is_empty() || matches!(columns.first(), Some(Expr::Star)) {
             return Ok(tuple.data.clone());
         }
 
@@ -196,7 +196,7 @@ impl SelectExecutor {
     }
 
     fn eval_expr(expr: &Expr, tuple: &Tuple, schema: &TableSchema) -> Result<Value, String> {
-        use crate::catalog::string_functions;
+        
         match expr {
             Expr::Column(name) => {
                 let idx = schema

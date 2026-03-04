@@ -1,6 +1,6 @@
 use super::{TableSchema, Tuple, UniqueValidator, Value};
 use crate::parser::ast::{ColumnDef, DataType, Expr};
-use crate::transaction::{Snapshot, TransactionManager};
+use crate::transaction::TransactionManager;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

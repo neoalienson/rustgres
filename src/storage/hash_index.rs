@@ -1,5 +1,4 @@
-use crate::catalog::Value;
-use crate::storage::error::{Result, StorageError};
+use crate::storage::error::Result;
 use dashmap::DashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -35,7 +34,7 @@ impl HashIndex {
 
     pub fn insert(&self, key: Key, tuple_id: TupleId) -> Result<()> {
         let hash = self.hash_key(&key);
-        self.buckets.entry(hash).or_insert_with(Vec::new).push((key, tuple_id));
+        self.buckets.entry(hash).or_default().push((key, tuple_id));
         Ok(())
     }
 

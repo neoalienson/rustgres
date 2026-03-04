@@ -5,82 +5,193 @@ pub struct PredicateEvaluator;
 
 impl PredicateEvaluator {
     pub fn evaluate(expr: &Expr, tuple: &[Value], schema: &TableSchema) -> Result<bool, String> {
+        Self::evaluate_with_subquery(expr, tuple, schema, &|_| {
+            Err("Subquery evaluation not supported in this context".to_string())
+        })
+    }
+
+    pub fn evaluate_with_subquery<F>(
+        expr: &Expr,
+        tuple: &[Value],
+        schema: &TableSchema,
+        subquery_eval: &F,
+    ) -> Result<bool, String>
+    where
+        F: Fn(&crate::parser::ast::SelectStmt) -> Result<Value, String>,
+    {
+        Self::evaluate_with_in_subquery(expr, tuple, schema, subquery_eval, &|_, _| {
+            Err("IN subquery not supported in this context".to_string())
+        })
+    }
+
+    pub fn evaluate_with_in_subquery<F, G>(
+        expr: &Expr,
+        tuple: &[Value],
+        schema: &TableSchema,
+        subquery_eval: &F,
+        in_subquery_eval: &G,
+    ) -> Result<bool, String>
+    where
+        F: Fn(&crate::parser::ast::SelectStmt) -> Result<Value, String>,
+        G: Fn(&crate::parser::ast::SelectStmt, &Value) -> Result<bool, String>,
+    {
         match expr {
-            Expr::BinaryOp { left, op, right } => {
-                Self::evaluate_binary_op(left, op, right, tuple, schema)
-            }
-            Expr::UnaryOp { op, expr } => Self::evaluate_unary_op(op, expr, tuple, schema),
+            Expr::BinaryOp { left, op, right } => Self::evaluate_binary_op_with_in_subquery(
+                left,
+                op,
+                right,
+                tuple,
+                schema,
+                subquery_eval,
+                in_subquery_eval,
+            ),
+            Expr::UnaryOp { op, expr } => Self::evaluate_unary_op_with_in_subquery(
+                op,
+                expr,
+                tuple,
+                schema,
+                subquery_eval,
+                in_subquery_eval,
+            ),
             Expr::IsNull(expr) => {
-                let val = Self::evaluate_expr(expr, tuple, schema)?;
+                let val = Self::evaluate_expr_with_subquery(expr, tuple, schema, subquery_eval)?;
                 Ok(matches!(val, Value::Null))
             }
             Expr::IsNotNull(expr) => {
-                let val = Self::evaluate_expr(expr, tuple, schema)?;
+                let val = Self::evaluate_expr_with_subquery(expr, tuple, schema, subquery_eval)?;
                 Ok(!matches!(val, Value::Null))
             }
             _ => Err("Unsupported predicate expression".to_string()),
         }
     }
 
-    fn evaluate_binary_op(
+    fn evaluate_binary_op_with_in_subquery<F, G>(
         left: &Expr,
         op: &BinaryOperator,
         right: &Expr,
         tuple: &[Value],
         schema: &TableSchema,
-    ) -> Result<bool, String> {
+        subquery_eval: &F,
+        in_subquery_eval: &G,
+    ) -> Result<bool, String>
+    where
+        F: Fn(&crate::parser::ast::SelectStmt) -> Result<Value, String>,
+        G: Fn(&crate::parser::ast::SelectStmt, &Value) -> Result<bool, String>,
+    {
         match op {
             BinaryOperator::In => {
-                let left_val = Self::evaluate_expr(left, tuple, schema)?;
-                if let Expr::List(values) = right {
-                    for val_expr in values {
-                        let val = Self::evaluate_expr(val_expr, tuple, schema)?;
-                        if left_val == val {
-                            return Ok(true);
+                let left_val =
+                    Self::evaluate_expr_with_subquery(left, tuple, schema, subquery_eval)?;
+
+                match right {
+                    Expr::List(values) => {
+                        for val_expr in values {
+                            let val = Self::evaluate_expr_with_subquery(
+                                val_expr,
+                                tuple,
+                                schema,
+                                subquery_eval,
+                            )?;
+                            if left_val == val {
+                                return Ok(true);
+                            }
                         }
+                        Ok(false)
                     }
-                    return Ok(false);
+                    Expr::Subquery(select) => {
+                        log::debug!("Evaluating IN subquery");
+                        in_subquery_eval(select, &left_val)
+                    }
+                    _ => Err("IN requires list or subquery".to_string()),
                 }
-                Err("IN requires list of values".to_string())
             }
             BinaryOperator::Between => {
-                let left_val = Self::evaluate_expr(left, tuple, schema)?;
+                let left_val =
+                    Self::evaluate_expr_with_subquery(left, tuple, schema, subquery_eval)?;
                 if let Expr::List(values) = right {
                     if values.len() == 2 {
-                        let lower = Self::evaluate_expr(&values[0], tuple, schema)?;
-                        let upper = Self::evaluate_expr(&values[1], tuple, schema)?;
+                        let lower = Self::evaluate_expr_with_subquery(
+                            &values[0],
+                            tuple,
+                            schema,
+                            subquery_eval,
+                        )?;
+                        let upper = Self::evaluate_expr_with_subquery(
+                            &values[1],
+                            tuple,
+                            schema,
+                            subquery_eval,
+                        )?;
                         return Ok(left_val >= lower && left_val <= upper);
                     }
                 }
                 Err("BETWEEN requires two values".to_string())
             }
             BinaryOperator::And => {
-                let left_result = Self::evaluate(left, tuple, schema)?;
-                let right_result = Self::evaluate(right, tuple, schema)?;
+                let left_result = Self::evaluate_with_in_subquery(
+                    left,
+                    tuple,
+                    schema,
+                    subquery_eval,
+                    in_subquery_eval,
+                )?;
+                let right_result = Self::evaluate_with_in_subquery(
+                    right,
+                    tuple,
+                    schema,
+                    subquery_eval,
+                    in_subquery_eval,
+                )?;
                 Ok(left_result && right_result)
             }
             BinaryOperator::Or => {
-                let left_result = Self::evaluate(left, tuple, schema)?;
-                let right_result = Self::evaluate(right, tuple, schema)?;
+                let left_result = Self::evaluate_with_in_subquery(
+                    left,
+                    tuple,
+                    schema,
+                    subquery_eval,
+                    in_subquery_eval,
+                )?;
+                let right_result = Self::evaluate_with_in_subquery(
+                    right,
+                    tuple,
+                    schema,
+                    subquery_eval,
+                    in_subquery_eval,
+                )?;
                 Ok(left_result || right_result)
             }
             _ => {
-                let left_val = Self::evaluate_expr(left, tuple, schema)?;
-                let right_val = Self::evaluate_expr(right, tuple, schema)?;
+                let left_val =
+                    Self::evaluate_expr_with_subquery(left, tuple, schema, subquery_eval)?;
+                let right_val =
+                    Self::evaluate_expr_with_subquery(right, tuple, schema, subquery_eval)?;
                 Self::compare_values(&left_val, op, &right_val)
             }
         }
     }
 
-    fn evaluate_unary_op(
+    fn evaluate_unary_op_with_in_subquery<F, G>(
         op: &UnaryOperator,
         expr: &Expr,
         tuple: &[Value],
         schema: &TableSchema,
-    ) -> Result<bool, String> {
+        subquery_eval: &F,
+        in_subquery_eval: &G,
+    ) -> Result<bool, String>
+    where
+        F: Fn(&crate::parser::ast::SelectStmt) -> Result<Value, String>,
+        G: Fn(&crate::parser::ast::SelectStmt, &Value) -> Result<bool, String>,
+    {
         match op {
             UnaryOperator::Not => {
-                let result = Self::evaluate(expr, tuple, schema)?;
+                let result = Self::evaluate_with_in_subquery(
+                    expr,
+                    tuple,
+                    schema,
+                    subquery_eval,
+                    in_subquery_eval,
+                )?;
                 Ok(!result)
             }
             _ => Err("Unsupported unary operator".to_string()),
@@ -119,11 +230,16 @@ impl PredicateEvaluator {
         }
     }
 
-    pub fn evaluate_expr(
+    pub fn evaluate_expr_with_subquery<F>(
         expr: &Expr,
         tuple: &[Value],
         schema: &TableSchema,
-    ) -> Result<Value, String> {
+        subquery_eval: &F,
+    ) -> Result<Value, String>
+    where
+        F: Fn(&crate::parser::ast::SelectStmt) -> Result<Value, String>,
+    {
+        log::trace!("evaluate_expr_with_subquery: expr variant={:?}", std::mem::discriminant(expr));
         match expr {
             Expr::Column(name) => {
                 let idx = schema
@@ -143,9 +259,26 @@ impl PredicateEvaluator {
             }
             Expr::Number(n) => Ok(Value::Int(*n)),
             Expr::String(s) => Ok(Value::Text(s.clone())),
+            Expr::Subquery(select) => {
+                log::debug!("Evaluating subquery for table: {}", select.from);
+                subquery_eval(select)
+            }
             Expr::List(_) => Err("List not evaluable as value".to_string()),
-            _ => Err("Unsupported expression".to_string()),
+            _ => {
+                log::warn!("Unsupported expression type in predicate evaluation");
+                Err("Unsupported expression".to_string())
+            }
         }
+    }
+
+    pub fn evaluate_expr(
+        expr: &Expr,
+        tuple: &[Value],
+        schema: &TableSchema,
+    ) -> Result<Value, String> {
+        Self::evaluate_expr_with_subquery(expr, tuple, schema, &|_| {
+            Err("Subquery evaluation not supported in this context".to_string())
+        })
     }
 
     pub fn evaluate_having(expr: &Expr, row: &[Value]) -> Result<bool, String> {

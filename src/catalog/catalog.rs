@@ -1,19 +1,17 @@
-use super::aggregation::Aggregator;
 use super::crud_helper::CrudHelper;
 use super::insert_validator::InsertValidator;
 use super::persistence::Persistence;
-use super::predicate::PredicateEvaluator;
 use super::select_executor::SelectExecutor;
 use super::update_delete_executor::UpdateDeleteExecutor;
-use super::{Function, TableSchema, Tuple, UniqueValidator, Value};
+use super::{Function, TableSchema, Tuple, Value};
 use crate::parser::ast::{
-    ColumnDef, CreateIndexStmt, CreateTriggerStmt, DataType, Expr, ForeignKeyAction, ForeignKeyDef,
-    OrderByExpr, SelectStmt, UniqueConstraint,
+    ColumnDef, CreateIndexStmt, CreateTriggerStmt, Expr, ForeignKeyAction, ForeignKeyDef,
+    OrderByExpr, SelectStmt,
 };
 use crate::transaction::{IsolationLevel, Transaction, TransactionManager, TupleHeader};
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -81,7 +79,7 @@ impl Catalog {
 
         thread::spawn(move || {
             let mut last_save = std::time::Instant::now();
-            while let Ok(_) = rx.recv() {
+            while rx.recv().is_ok() {
                 if last_save.elapsed() < Duration::from_millis(100) {
                     thread::sleep(Duration::from_millis(100) - last_save.elapsed());
                 }
@@ -633,7 +631,7 @@ impl Catalog {
                 .map(|(name, _)| name.clone());
 
             if let Some(table) = table_name {
-                data.entry(table).or_insert_with(Vec::new).push(tuple.clone());
+                data.entry(table).or_default().push(tuple.clone());
             }
         }
         Ok(())

@@ -87,7 +87,7 @@ impl ParallelHashAgg {
     ) -> Result<Vec<SimpleTuple>, ExecutorError> {
         let num_workers = config.max_workers();
         let pool = WorkerPool::new(num_workers);
-        let chunk_size = (row_count + num_workers - 1) / num_workers;
+        let chunk_size = row_count.div_ceil(num_workers);
 
         let (result_sender, result_receiver) = bounded(num_workers);
 

@@ -1,5 +1,5 @@
 use crate::catalog::Value;
-use crate::storage::btree::{BTree, TupleId};
+use crate::storage::btree::BTree;
 use crate::storage::hash_index::HashIndex;
 
 pub struct IndexOnlyScan {

@@ -37,7 +37,7 @@ impl Eval {
                     ));
                 }
                 string_functions::StringFunctions::upper(args[0].clone())
-                    .map_err(|e| ExecutorError::TypeMismatch(e))
+                    .map_err(ExecutorError::TypeMismatch)
             }
             "LOWER" => {
                 if args.len() != 1 {
@@ -46,7 +46,7 @@ impl Eval {
                     ));
                 }
                 string_functions::StringFunctions::lower(args[0].clone())
-                    .map_err(|e| ExecutorError::TypeMismatch(e))
+                    .map_err(ExecutorError::TypeMismatch)
             }
             "LENGTH" => {
                 if args.len() != 1 {
@@ -55,7 +55,7 @@ impl Eval {
                     ));
                 }
                 string_functions::StringFunctions::length(args[0].clone())
-                    .map_err(|e| ExecutorError::TypeMismatch(e))
+                    .map_err(ExecutorError::TypeMismatch)
             }
             _ => Err(ExecutorError::ColumnNotFound(name.to_string())),
         }

@@ -1,5 +1,4 @@
 use super::index_trait::{Index, IndexError, IndexType, TupleId};
-use crate::storage::page::PageId;
 
 pub struct BRINIndex {
     ranges: Vec<BlockRange>,

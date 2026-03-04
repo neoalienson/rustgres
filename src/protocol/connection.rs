@@ -287,7 +287,7 @@ impl<S: Read + Write> Connection<S> {
         select: crate::parser::ast::SelectStmt,
     ) -> Result<ExecutionResult, String> {
         use crate::catalog::predicate::PredicateEvaluator;
-        use crate::parser::ast::{Expr, JoinType};
+        use crate::parser::ast::JoinType;
 
         log::info!(
             "[JOIN] Executing JOIN query. From: {}, Joins: {}",
@@ -390,7 +390,7 @@ impl<S: Read + Write> Connection<S> {
     fn extract_column_names(
         &self,
         exprs: &[crate::parser::ast::Expr],
-        schemas: &[(String, crate::catalog::TableSchema)],
+        _schemas: &[(String, crate::catalog::TableSchema)],
     ) -> Result<Vec<String>, String> {
         use crate::parser::ast::Expr;
         exprs

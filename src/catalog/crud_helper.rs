@@ -1,4 +1,3 @@
-use crate::parser::ast::{CreateIndexStmt, CreateTriggerStmt, SelectStmt};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

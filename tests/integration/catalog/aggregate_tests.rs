@@ -11,9 +11,12 @@ fn test_aggregate_count() {
     catalog.insert("data", vec![Expr::Number(2)]).unwrap();
     catalog.insert("data", vec![Expr::Number(3)]).unwrap();
 
-    let rows = catalog
-        .select("data", false, vec!["AGG:COUNT:*".to_string()], None, None, None, None, None, None)
-        .unwrap();
+    let agg_expr = Expr::Aggregate {
+        func: crate::parser::ast::AggregateFunc::Count,
+        arg: Box::new(Expr::Star),
+    };
+    let rows =
+        catalog.select("data", false, vec![agg_expr], None, None, None, None, None, None).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0][0], Value::Int(3));
 }
@@ -28,19 +31,12 @@ fn test_aggregate_sum() {
     catalog.insert("data", vec![Expr::Number(20)]).unwrap();
     catalog.insert("data", vec![Expr::Number(30)]).unwrap();
 
-    let rows = catalog
-        .select(
-            "data",
-            false,
-            vec!["AGG:SUM:value".to_string()],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+    let agg_expr = Expr::Aggregate {
+        func: crate::parser::ast::AggregateFunc::Sum,
+        arg: Box::new(Expr::Column("value".to_string())),
+    };
+    let rows =
+        catalog.select("data", false, vec![agg_expr], None, None, None, None, None, None).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0][0], Value::Int(60));
 }
@@ -55,19 +51,12 @@ fn test_aggregate_avg() {
     catalog.insert("data", vec![Expr::Number(20)]).unwrap();
     catalog.insert("data", vec![Expr::Number(30)]).unwrap();
 
-    let rows = catalog
-        .select(
-            "data",
-            false,
-            vec!["AGG:AVG:value".to_string()],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+    let agg_expr = Expr::Aggregate {
+        func: crate::parser::ast::AggregateFunc::Avg,
+        arg: Box::new(Expr::Column("value".to_string())),
+    };
+    let rows =
+        catalog.select("data", false, vec![agg_expr], None, None, None, None, None, None).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0][0], Value::Int(20));
 }
@@ -82,33 +71,21 @@ fn test_aggregate_min_max() {
     catalog.insert("data", vec![Expr::Number(50)]).unwrap();
     catalog.insert("data", vec![Expr::Number(30)]).unwrap();
 
+    let agg_expr_min = Expr::Aggregate {
+        func: crate::parser::ast::AggregateFunc::Min,
+        arg: Box::new(Expr::Column("value".to_string())),
+    };
     let rows = catalog
-        .select(
-            "data",
-            false,
-            vec!["AGG:MIN:value".to_string()],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        .select("data", false, vec![agg_expr_min], None, None, None, None, None, None)
         .unwrap();
     assert_eq!(rows[0][0], Value::Int(10));
 
+    let agg_expr_max = Expr::Aggregate {
+        func: crate::parser::ast::AggregateFunc::Max,
+        arg: Box::new(Expr::Column("value".to_string())),
+    };
     let rows = catalog
-        .select(
-            "data",
-            false,
-            vec!["AGG:MAX:value".to_string()],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        .select("data", false, vec![agg_expr_max], None, None, None, None, None, None)
         .unwrap();
     assert_eq!(rows[0][0], Value::Int(50));
 }
@@ -129,7 +106,17 @@ fn test_group_by() {
 
     let group_by = Some(vec!["category".to_string()]);
     let rows = catalog
-        .select("data", false, vec!["category".to_string()], None, group_by, None, None, None, None)
+        .select(
+            "data",
+            false,
+            vec![Expr::Column("category".to_string())],
+            None,
+            group_by,
+            None,
+            None,
+            None,
+            None,
+        )
         .unwrap();
 
     assert_eq!(rows.len(), 2);
@@ -160,7 +147,7 @@ fn test_having_clause() {
         .select(
             "data",
             false,
-            vec!["category".to_string()],
+            vec![Expr::Column("category".to_string())],
             None,
             group_by,
             having,

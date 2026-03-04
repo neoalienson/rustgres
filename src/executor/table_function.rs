@@ -1,5 +1,5 @@
 use super::{ExecutorError, Tuple};
-use crate::catalog::{Function, FunctionLanguage, Value};
+use crate::catalog::{Function, Value};
 
 pub struct TableValuedFunctionExecutor {
     function: Function,

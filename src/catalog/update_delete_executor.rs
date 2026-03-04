@@ -1,7 +1,7 @@
 use super::{TableSchema, Tuple, Value};
 use crate::catalog::predicate::PredicateEvaluator;
 use crate::parser::ast::{DataType, Expr};
-use crate::transaction::{Snapshot, TransactionManager, TupleHeader};
+use crate::transaction::{Snapshot, TransactionManager};
 use std::sync::Arc;
 
 pub struct UpdateDeleteExecutor;

@@ -27,7 +27,7 @@ impl LockMonitor {
     }
 
     pub fn record_wait(&self, txn_id: u64, resource: String, lock_type: LockType) {
-        self.events.entry(txn_id).or_insert_with(Vec::new).push(LockEvent {
+        self.events.entry(txn_id).or_default().push(LockEvent {
             txn_id,
             resource,
             lock_type,

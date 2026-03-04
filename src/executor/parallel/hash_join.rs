@@ -58,7 +58,7 @@ impl ParallelHashJoin {
         let pool = WorkerPool::new(num_workers);
 
         // Build phase
-        let build_chunk = (build_rows + num_workers - 1) / num_workers;
+        let build_chunk = build_rows.div_ceil(num_workers);
         let (build_sender, build_receiver) = bounded(num_workers);
 
         for i in 0..num_workers {
@@ -83,7 +83,7 @@ impl ParallelHashJoin {
         }
 
         // Probe phase
-        let probe_chunk = (probe_rows + num_workers - 1) / num_workers;
+        let probe_chunk = probe_rows.div_ceil(num_workers);
         let (probe_sender, probe_receiver) = bounded(num_workers);
 
         for i in 0..num_workers {
