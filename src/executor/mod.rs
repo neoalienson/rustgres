@@ -37,6 +37,9 @@ mod union;
 mod unnest;
 mod window;
 
+#[cfg(test)]
+mod test_helpers;
+
 pub mod parallel;
 
 #[cfg(test)]

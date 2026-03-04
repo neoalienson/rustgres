@@ -1,39 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::executor::merge_join::MergeJoin;
-    use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
-
-    struct MockExecutor {
-        tuples: Vec<SimpleTuple>,
-        position: usize,
-    }
-
-    impl MockExecutor {
-        fn new(tuples: Vec<SimpleTuple>) -> Self {
-            Self { tuples, position: 0 }
-        }
-    }
-
-    impl SimpleExecutor for MockExecutor {
-        fn open(&mut self) -> Result<(), ExecutorError> {
-            self.position = 0;
-            Ok(())
-        }
-
-        fn next(&mut self) -> Result<Option<SimpleTuple>, ExecutorError> {
-            if self.position < self.tuples.len() {
-                let tuple = self.tuples[self.position].clone();
-                self.position += 1;
-                Ok(Some(tuple))
-            } else {
-                Ok(None)
-            }
-        }
-
-        fn close(&mut self) -> Result<(), ExecutorError> {
-            Ok(())
-        }
-    }
+    use crate::executor::test_helpers::{count_results, MockExecutor};
+    use crate::executor::{SimpleExecutor, SimpleTuple};
 
     #[test]
     fn test_merge_join_both_empty() {
@@ -84,11 +53,7 @@ mod tests {
             MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 10);
+        assert_eq!(count_results(&mut join).unwrap(), 10);
         join.close().unwrap();
     }
 
@@ -101,11 +66,7 @@ mod tests {
             MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 10);
+        assert_eq!(count_results(&mut join).unwrap(), 10);
         join.close().unwrap();
     }
 
@@ -118,11 +79,7 @@ mod tests {
             MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 25);
+        assert_eq!(count_results(&mut join).unwrap(), 25);
         join.close().unwrap();
     }
 
@@ -192,11 +149,7 @@ mod tests {
             MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 5);
+        assert_eq!(count_results(&mut join).unwrap(), 5);
         join.close().unwrap();
     }
 
@@ -213,11 +166,7 @@ mod tests {
             MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 3);
+        assert_eq!(count_results(&mut join).unwrap(), 3);
         join.close().unwrap();
     }
 
@@ -230,11 +179,7 @@ mod tests {
             MergeJoin::new(Box::new(MockExecutor::new(left)), Box::new(MockExecutor::new(right)));
 
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 100);
+        assert_eq!(count_results(&mut join).unwrap(), 100);
         join.close().unwrap();
     }
 

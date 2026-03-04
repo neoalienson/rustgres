@@ -1,39 +1,8 @@
 #[cfg(test)]
 mod tests {
+    use crate::executor::test_helpers::{count_results, MockExecutor};
     use crate::executor::window::{Window, WindowFunction};
-    use crate::executor::{ExecutorError, SimpleExecutor, SimpleTuple};
-
-    struct MockExecutor {
-        tuples: Vec<SimpleTuple>,
-        position: usize,
-    }
-
-    impl MockExecutor {
-        fn new(tuples: Vec<SimpleTuple>) -> Self {
-            Self { tuples, position: 0 }
-        }
-    }
-
-    impl SimpleExecutor for MockExecutor {
-        fn open(&mut self) -> Result<(), ExecutorError> {
-            self.position = 0;
-            Ok(())
-        }
-
-        fn next(&mut self) -> Result<Option<SimpleTuple>, ExecutorError> {
-            if self.position < self.tuples.len() {
-                let tuple = self.tuples[self.position].clone();
-                self.position += 1;
-                Ok(Some(tuple))
-            } else {
-                Ok(None)
-            }
-        }
-
-        fn close(&mut self) -> Result<(), ExecutorError> {
-            Ok(())
-        }
-    }
+    use crate::executor::{SimpleExecutor, SimpleTuple};
 
     #[test]
     fn test_row_number_zero_rows() {
@@ -185,11 +154,7 @@ mod tests {
         let mut window = Window::new(mock, WindowFunction::RowNumber);
 
         window.open().unwrap();
-        let mut count = 0;
-        while window.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 10000);
+        assert_eq!(count_results(&mut window).unwrap(), 10000);
         window.close().unwrap();
     }
 

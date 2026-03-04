@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::mock::MockExecutor;
+    use crate::executor::test_helpers::{count_results, MockExecutor};
     use crate::executor::{Join, JoinType, SimpleExecutor, SimpleTuple as Tuple};
 
     #[test]
@@ -53,11 +53,7 @@ mod tests {
         let mut join =
             Join::new(Box::new(left), Box::new(right), JoinType::Inner, Box::new(|_, _| true));
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 4);
+        assert_eq!(count_results(&mut join).unwrap(), 4);
         join.close().unwrap();
     }
 
@@ -76,11 +72,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 3);
+        assert_eq!(count_results(&mut join).unwrap(), 3);
         join.close().unwrap();
     }
 
@@ -99,11 +91,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 3);
+        assert_eq!(count_results(&mut join).unwrap(), 3);
         join.close().unwrap();
     }
 
@@ -118,11 +106,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -137,11 +121,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -156,11 +136,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -193,11 +169,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0] && l.data[1] < r.data[1]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -220,11 +192,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert!(count > 0);
+        assert!(count_results(&mut join).unwrap() > 0);
         join.close().unwrap();
     }
 
@@ -239,11 +207,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -258,11 +222,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -277,11 +237,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -296,11 +252,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut join).unwrap(), 2);
         join.close().unwrap();
     }
 
@@ -315,11 +267,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 4);
+        assert_eq!(count_results(&mut join).unwrap(), 4);
         join.close().unwrap();
     }
 
@@ -342,11 +290,7 @@ mod tests {
             Box::new(|l, r| l.data[0] == r.data[0]),
         );
         join.open().unwrap();
-        let mut count = 0;
-        while join.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 4);
+        assert_eq!(count_results(&mut join).unwrap(), 4);
         join.close().unwrap();
     }
 

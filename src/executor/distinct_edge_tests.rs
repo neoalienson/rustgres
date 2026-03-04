@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::mock::MockExecutor;
+    use crate::executor::test_helpers::{count_results, MockExecutor};
     use crate::executor::{Distinct, SimpleExecutor, SimpleTuple as Tuple};
 
     #[test]
@@ -45,11 +45,7 @@ mod tests {
         ]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 1);
+        assert_eq!(count_results(&mut distinct).unwrap(), 1);
         distinct.close().unwrap();
     }
 
@@ -64,11 +60,7 @@ mod tests {
         ]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 5);
+        assert_eq!(count_results(&mut distinct).unwrap(), 5);
         distinct.close().unwrap();
     }
 
@@ -81,11 +73,7 @@ mod tests {
         ]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut distinct).unwrap(), 2);
         distinct.close().unwrap();
     }
 
@@ -98,11 +86,7 @@ mod tests {
         ]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut distinct).unwrap(), 2);
         distinct.close().unwrap();
     }
 
@@ -115,11 +99,7 @@ mod tests {
         let input = MockExecutor::new(tuples);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 10);
+        assert_eq!(count_results(&mut distinct).unwrap(), 10);
         distinct.close().unwrap();
     }
 
@@ -134,11 +114,7 @@ mod tests {
         ]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut distinct).unwrap(), 2);
         distinct.close().unwrap();
     }
 
@@ -154,11 +130,7 @@ mod tests {
         ]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 3);
+        assert_eq!(count_results(&mut distinct).unwrap(), 3);
         distinct.close().unwrap();
     }
 
@@ -171,11 +143,7 @@ mod tests {
         ]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut distinct).unwrap(), 2);
         distinct.close().unwrap();
     }
 
@@ -184,11 +152,7 @@ mod tests {
         let input = MockExecutor::new(vec![Tuple { data: vec![] }, Tuple { data: vec![] }]);
         let mut distinct = Distinct::new(Box::new(input));
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 1);
+        assert_eq!(count_results(&mut distinct).unwrap(), 1);
         distinct.close().unwrap();
     }
 
@@ -224,11 +188,7 @@ mod tests {
         let mut distinct = Distinct::new(Box::new(input));
 
         distinct.open().unwrap();
-        let mut count = 0;
-        while distinct.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut distinct).unwrap(), 2);
         distinct.close().unwrap();
     }
 }

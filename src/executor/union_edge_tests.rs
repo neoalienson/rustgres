@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::executor::mock::MockExecutor;
+    use crate::executor::test_helpers::{count_results, MockExecutor};
     use crate::executor::{SimpleExecutor, SimpleTuple as Tuple, Union};
 
     #[test]
@@ -9,12 +9,7 @@ mod tests {
         let right = MockExecutor::new(vec![Tuple { data: vec![2] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut union).unwrap(), 2);
         union.close().unwrap();
     }
 
@@ -24,12 +19,7 @@ mod tests {
         let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 1);
+        assert_eq!(count_results(&mut union).unwrap(), 1);
         union.close().unwrap();
     }
 
@@ -39,12 +29,7 @@ mod tests {
         let right = MockExecutor::new(vec![Tuple { data: vec![1] }, Tuple { data: vec![1] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), true);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 4);
+        assert_eq!(count_results(&mut union).unwrap(), 4);
         union.close().unwrap();
     }
 
@@ -58,12 +43,7 @@ mod tests {
         let mut union =
             Union::new(Box::new(MockExecutor::new(left_tuples)), Box::new(right), false);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 10);
+        assert_eq!(count_results(&mut union).unwrap(), 10);
         union.close().unwrap();
     }
 
@@ -83,12 +63,7 @@ mod tests {
             true,
         );
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 100);
+        assert_eq!(count_results(&mut union).unwrap(), 100);
         union.close().unwrap();
     }
 
@@ -98,12 +73,7 @@ mod tests {
         let right = MockExecutor::new(vec![Tuple { data: vec![1, 2, 3, 4, 5] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 1);
+        assert_eq!(count_results(&mut union).unwrap(), 1);
         union.close().unwrap();
     }
 
@@ -113,12 +83,7 @@ mod tests {
         let right = MockExecutor::new(vec![Tuple { data: vec![1, 2, 3, 4, 5] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), true);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        assert_eq!(count_results(&mut union).unwrap(), 2);
         union.close().unwrap();
     }
 
@@ -136,12 +101,7 @@ mod tests {
         ]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 4);
+        assert_eq!(count_results(&mut union).unwrap(), 4);
         union.close().unwrap();
     }
 
@@ -159,12 +119,7 @@ mod tests {
         ]);
         let mut union = Union::new(Box::new(left), Box::new(right), true);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 6);
+        assert_eq!(count_results(&mut union).unwrap(), 6);
         union.close().unwrap();
     }
 
@@ -174,12 +129,7 @@ mod tests {
         let right = MockExecutor::new(vec![Tuple { data: vec![3] }, Tuple { data: vec![4] }]);
         let mut union = Union::new(Box::new(left), Box::new(right), false);
         union.open().unwrap();
-
-        let mut count = 0;
-        while union.next().unwrap().is_some() {
-            count += 1;
-        }
-        assert_eq!(count, 4);
+        assert_eq!(count_results(&mut union).unwrap(), 4);
         union.close().unwrap();
     }
 
