@@ -3,6 +3,8 @@ use super::crud_helper::CrudHelper;
 use super::insert_validator::InsertValidator;
 use super::persistence::Persistence;
 use super::predicate::PredicateEvaluator;
+use super::select_executor::SelectExecutor;
+use super::update_delete_executor::UpdateDeleteExecutor;
 use super::{Function, TableSchema, Tuple, UniqueValidator, Value};
 use crate::parser::ast::{
     ColumnDef, CreateIndexStmt, CreateTriggerStmt, DataType, Expr, ForeignKeyAction, ForeignKeyDef,
@@ -417,67 +419,34 @@ impl Catalog {
 
         let txn = self.txn_mgr.begin();
         let header = TupleHeader::new(txn.xid);
-        let mut tuples = Vec::with_capacity(batch.len());
 
-        for values in batch {
-            let mut tuple_data = Vec::new();
-            let num_provided = values.len();
-            let num_columns = schema.columns.len();
+        let tuples: Result<Vec<Tuple>, String> = batch
+            .into_iter()
+            .map(|values| {
+                if values.len() > schema.columns.len() {
+                    return Err(format!(
+                        "Too many values: expected {}, got {}",
+                        schema.columns.len(),
+                        values.len()
+                    ));
+                }
 
-            if num_provided > num_columns {
-                let _ = self.txn_mgr.commit(txn.xid);
-                return Err(format!(
-                    "Too many values: expected {}, got {}",
-                    num_columns, num_provided
-                ));
-            }
+                let tuple_data: Result<Vec<Value>, String> = schema
+                    .columns
+                    .iter()
+                    .enumerate()
+                    .map(|(i, col)| {
+                        InsertValidator::resolve_value(col, i, &values, table, &self.sequences)
+                    })
+                    .collect();
 
-            for (i, col) in schema.columns.iter().enumerate() {
-                let value = if i < num_provided {
-                    let val = match &values[i] {
-                        Expr::Number(n) => Value::Int(*n),
-                        Expr::String(s) => Value::Text(s.clone()),
-                        _ => {
-                            let _ = self.txn_mgr.commit(txn.xid);
-                            return Err("Invalid value expression".to_string());
-                        }
-                    };
-                    match (&col.data_type, &val) {
-                        (DataType::Int, Value::Int(_)) => {}
-                        (DataType::Serial, Value::Int(_)) => {}
-                        (DataType::Text, Value::Text(_)) => {}
-                        (DataType::Varchar(_), Value::Text(_)) => {}
-                        _ => {
-                            let _ = self.txn_mgr.commit(txn.xid);
-                            return Err(format!("Type mismatch for column '{}'", col.name));
-                        }
-                    }
-                    val
-                } else if col.is_auto_increment || col.data_type == DataType::Serial {
-                    let seq_key = format!("{}_{}", table, col.name);
-                    let mut sequences = self.sequences.write().unwrap();
-                    let next_val = sequences.entry(seq_key).or_insert(0);
-                    *next_val += 1;
-                    Value::Int(*next_val)
-                } else if let Some(ref default_expr) = col.default_value {
-                    match default_expr {
-                        Expr::Number(n) => Value::Int(*n),
-                        Expr::String(s) => Value::Text(s.clone()),
-                        _ => {
-                            let _ = self.txn_mgr.commit(txn.xid);
-                            return Err("Invalid default value expression".to_string());
-                        }
-                    }
-                } else {
-                    let _ = self.txn_mgr.commit(txn.xid);
-                    return Err(format!("Column '{}' has no default value", col.name));
-                };
-                tuple_data.push(value);
-            }
-            tuples.push(Tuple { header, data: tuple_data, column_map: HashMap::new() });
-        }
+                Ok(Tuple { header, data: tuple_data?, column_map: HashMap::new() })
+            })
+            .collect();
 
+        let tuples = tuples?;
         let count = tuples.len();
+
         let mut data = self.data.write().unwrap();
         data.get_mut(table).unwrap().extend(tuples);
         drop(data);
@@ -501,89 +470,23 @@ impl Catalog {
     ) -> Result<Vec<Vec<Value>>, String> {
         let schema =
             self.get_table(table).ok_or_else(|| format!("Table '{}' does not exist", table))?;
-
-        if columns.len() == 1 && columns[0].starts_with("AGG:") {
-            let data = self.data.read().unwrap();
-            let tuples = data.get(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
-            return Aggregator::execute(
-                table,
-                &columns[0],
-                where_clause,
-                tuples,
-                &schema,
-                &self.txn_mgr,
-            );
-        }
-
         let data = self.data.read().unwrap();
         let tuples = data.get(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
 
-        let snapshot = self.txn_mgr.get_snapshot();
-        let mut results = Vec::new();
-
-        for tuple in tuples {
-            if tuple.header.is_visible(&snapshot, &self.txn_mgr) {
-                if let Some(ref predicate) = where_clause {
-                    if !PredicateEvaluator::evaluate(predicate, &tuple.data, &schema)? {
-                        continue;
-                    }
-                }
-
-                if columns.is_empty() || columns[0] == "*" {
-                    results.push(tuple.data.clone());
-                } else {
-                    let mut row = Vec::new();
-                    for col_name in &columns {
-                        if let Some(idx) = schema.columns.iter().position(|c| &c.name == col_name) {
-                            row.push(tuple.data[idx].clone());
-                        } else {
-                            return Err(format!("Column '{}' not found", col_name));
-                        }
-                    }
-                    results.push(row);
-                }
-            }
-        }
-
-        if let Some(group_cols) = group_by {
-            results = Aggregator::apply_group_by(results, &group_cols, &columns, &schema)?;
-
-            if let Some(having_expr) = having {
-                results.retain(|row| {
-                    PredicateEvaluator::evaluate_having(&having_expr, row).unwrap_or(false)
-                });
-            }
-        }
-
-        if let Some(order_by_exprs) = order_by {
-            for order_expr in order_by_exprs.iter().rev() {
-                let col_idx = schema
-                    .columns
-                    .iter()
-                    .position(|c| c.name == order_expr.column)
-                    .ok_or_else(|| format!("Column '{}' not found", order_expr.column))?;
-
-                results.sort_by(|a, b| {
-                    let cmp = a[col_idx].cmp(&b[col_idx]);
-                    if order_expr.ascending {
-                        cmp
-                    } else {
-                        cmp.reverse()
-                    }
-                });
-            }
-        }
-
-        let start = offset.unwrap_or(0);
-        let end = limit.map(|l| start + l).unwrap_or(results.len());
-        results = results.into_iter().skip(start).take(end.saturating_sub(start)).collect();
-
-        if distinct {
-            let mut seen = std::collections::HashSet::new();
-            results.retain(|row| seen.insert(row.clone()));
-        }
-
-        Ok(results)
+        SelectExecutor::execute(
+            table,
+            distinct,
+            columns,
+            where_clause,
+            group_by,
+            having,
+            order_by,
+            limit,
+            offset,
+            tuples,
+            &schema,
+            &self.txn_mgr,
+        )
     }
 
     pub fn update(
@@ -592,73 +495,26 @@ impl Catalog {
         assignments: Vec<(String, Expr)>,
         where_clause: Option<Expr>,
     ) -> Result<usize, String> {
-        let start = std::time::Instant::now();
         let schema =
             self.get_table(table).ok_or_else(|| format!("Table '{}' does not exist", table))?;
 
-        let txn_start = std::time::Instant::now();
         let txn = self.txn_mgr.begin();
         let snapshot = txn.snapshot.clone();
-        log::debug!("[PERF] UPDATE txn begin: {:?}", txn_start.elapsed());
 
-        let lock_start = std::time::Instant::now();
         let mut data = self.data.write().unwrap();
-        log::debug!("[PERF] UPDATE lock acquired: {:?}", lock_start.elapsed());
-
         let tuples = data.get_mut(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
-        let tuple_count = tuples.len();
 
-        let scan_start = std::time::Instant::now();
-        let mut updated = 0;
-        for tuple in tuples.iter_mut() {
-            if tuple.header.is_visible(&snapshot, &self.txn_mgr) {
-                if let Some(ref predicate) = where_clause {
-                    if !PredicateEvaluator::evaluate(predicate, &tuple.data, &schema)? {
-                        continue;
-                    }
-                }
+        let updated = UpdateDeleteExecutor::update(
+            tuples,
+            &assignments,
+            &where_clause,
+            &schema,
+            &snapshot,
+            &self.txn_mgr,
+        )?;
 
-                for (col_name, expr) in &assignments {
-                    let idx = schema
-                        .columns
-                        .iter()
-                        .position(|c| &c.name == col_name)
-                        .ok_or_else(|| format!("Column '{}' not found", col_name))?;
-
-                    let value = match expr {
-                        Expr::Number(n) => Value::Int(*n),
-                        Expr::String(s) => Value::Text(s.clone()),
-                        _ => return Err("Invalid value expression".to_string()),
-                    };
-
-                    match (&schema.columns[idx].data_type, &value) {
-                        (DataType::Int, Value::Int(_)) => {}
-                        (DataType::Text, Value::Text(_)) => {}
-                        (DataType::Varchar(_), Value::Text(_)) => {}
-                        _ => return Err(format!("Type mismatch for column '{}'", col_name)),
-                    }
-
-                    tuple.data[idx] = value;
-                }
-                updated += 1;
-            }
-        }
-        log::debug!(
-            "[PERF] UPDATE scan {} tuples, updated {}: {:?}",
-            tuple_count,
-            updated,
-            scan_start.elapsed()
-        );
-
-        let commit_start = std::time::Instant::now();
         self.txn_mgr.commit(txn.xid).map_err(|e| e.to_string())?;
-        log::debug!("[PERF] UPDATE commit: {:?}", commit_start.elapsed());
-
-        let save_start = std::time::Instant::now();
         self.auto_save();
-        log::debug!("[PERF] UPDATE auto_save: {:?}", save_start.elapsed());
-
-        log::info!("[PERF] UPDATE total: {:?} (updated {} rows)", start.elapsed(), updated);
         Ok(updated)
     }
 
@@ -672,19 +528,14 @@ impl Catalog {
         let mut data = self.data.write().unwrap();
         let tuples = data.get_mut(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
 
-        let mut deleted = 0;
-        for tuple in tuples.iter_mut() {
-            if tuple.header.is_visible(&snapshot, &self.txn_mgr) {
-                if let Some(ref predicate) = where_clause {
-                    if !PredicateEvaluator::evaluate(predicate, &tuple.data, &schema)? {
-                        continue;
-                    }
-                }
-
-                tuple.header.delete(txn.xid);
-                deleted += 1;
-            }
-        }
+        let deleted = UpdateDeleteExecutor::delete(
+            tuples,
+            &where_clause,
+            &schema,
+            &snapshot,
+            &self.txn_mgr,
+            txn.xid,
+        )?;
 
         self.txn_mgr.commit(txn.xid).map_err(|e| e.to_string())?;
         self.auto_save();
