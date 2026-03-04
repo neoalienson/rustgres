@@ -3,8 +3,10 @@
 mod aggregation;
 mod catalog;
 mod check;
+mod crud_helper;
 mod datetime_functions;
 mod function;
+mod insert_validator;
 mod persistence;
 pub(crate) mod predicate;
 mod schema;

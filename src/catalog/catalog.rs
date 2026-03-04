@@ -1,4 +1,6 @@
 use super::aggregation::Aggregator;
+use super::crud_helper::CrudHelper;
+use super::insert_validator::InsertValidator;
 use super::persistence::Persistence;
 use super::predicate::PredicateEvaluator;
 use super::{Function, TableSchema, Tuple, UniqueValidator, Value};
@@ -234,34 +236,21 @@ impl Catalog {
     }
 
     pub fn create_view(&self, name: String, query: SelectStmt) -> Result<(), String> {
-        let mut views = self.views.write().unwrap();
-
-        if views.contains_key(&name) {
-            return Err(format!("View '{}' already exists", name));
-        }
-
-        views.insert(name, query);
-        drop(views);
+        CrudHelper::create(&self.views, name, query, "View")?;
         self.auto_save();
         self.flush_saves();
         Ok(())
     }
 
     pub fn drop_view(&self, name: &str, if_exists: bool) -> Result<(), String> {
-        let mut views = self.views.write().unwrap();
-
-        if views.remove(name).is_none() && !if_exists {
-            return Err(format!("View '{}' does not exist", name));
-        }
-        drop(views);
+        CrudHelper::drop(&self.views, name, if_exists, "View")?;
         self.auto_save();
         self.flush_saves();
         Ok(())
     }
 
     pub fn get_view(&self, name: &str) -> Option<SelectStmt> {
-        let views = self.views.read().unwrap();
-        views.get(name).cloned()
+        CrudHelper::get(&self.views, name)
     }
 
     pub fn create_materialized_view(&self, name: String, query: SelectStmt) -> Result<(), String> {
@@ -302,64 +291,38 @@ impl Catalog {
     }
 
     pub fn create_trigger(&self, trigger: CreateTriggerStmt) -> Result<(), String> {
-        let mut triggers = self.triggers.write().unwrap();
-
-        if triggers.contains_key(&trigger.name) {
-            return Err(format!("Trigger '{}' already exists", trigger.name));
-        }
-
-        triggers.insert(trigger.name.clone(), trigger);
-        drop(triggers);
+        CrudHelper::create(&self.triggers, trigger.name.clone(), trigger, "Trigger")?;
         self.auto_save();
         self.flush_saves();
         Ok(())
     }
 
     pub fn drop_trigger(&self, name: &str, if_exists: bool) -> Result<(), String> {
-        let mut triggers = self.triggers.write().unwrap();
-
-        if triggers.remove(name).is_none() && !if_exists {
-            return Err(format!("Trigger '{}' does not exist", name));
-        }
-        drop(triggers);
+        CrudHelper::drop(&self.triggers, name, if_exists, "Trigger")?;
         self.auto_save();
         self.flush_saves();
         Ok(())
     }
 
     pub fn get_trigger(&self, name: &str) -> Option<CreateTriggerStmt> {
-        let triggers = self.triggers.read().unwrap();
-        triggers.get(name).cloned()
+        CrudHelper::get(&self.triggers, name)
     }
 
     pub fn create_index(&self, index: CreateIndexStmt) -> Result<(), String> {
-        let mut indexes = self.indexes.write().unwrap();
-
-        if indexes.contains_key(&index.name) {
-            return Err(format!("Index '{}' already exists", index.name));
-        }
-
-        indexes.insert(index.name.clone(), index);
-        drop(indexes);
+        CrudHelper::create(&self.indexes, index.name.clone(), index, "Index")?;
         self.auto_save();
         self.flush_saves();
         Ok(())
     }
 
     pub fn drop_index(&self, name: &str, if_exists: bool) -> Result<(), String> {
-        let mut indexes = self.indexes.write().unwrap();
-
-        if indexes.remove(name).is_none() && !if_exists {
-            return Err(format!("Index '{}' does not exist", name));
-        }
-        drop(indexes);
+        CrudHelper::drop(&self.indexes, name, if_exists, "Index")?;
         self.auto_save();
         Ok(())
     }
 
     pub fn get_index(&self, name: &str) -> Option<CreateIndexStmt> {
-        let indexes = self.indexes.read().unwrap();
-        indexes.get(name).cloned()
+        CrudHelper::get(&self.indexes, name)
     }
 
     pub fn list_tables(&self) -> Vec<String> {
@@ -391,192 +354,41 @@ impl Catalog {
         let schema =
             self.get_table(table).ok_or_else(|| format!("Table '{}' does not exist", table))?;
 
+        if values.len() > schema.columns.len() {
+            return Err(format!(
+                "Too many values: expected {}, got {}",
+                schema.columns.len(),
+                values.len()
+            ));
+        }
+
         let txn = self.txn_mgr.begin();
         let header = TupleHeader::new(txn.xid);
 
-        let mut tuple_data = Vec::new();
+        let tuple_data: Result<Vec<Value>, String> = schema
+            .columns
+            .iter()
+            .enumerate()
+            .map(|(i, col)| InsertValidator::resolve_value(col, i, &values, table, &self.sequences))
+            .collect();
+        let tuple_data = tuple_data?;
 
-        // Handle partial inserts with DEFAULT values and AUTO_INCREMENT
-        let num_provided = values.len();
-        let num_columns = schema.columns.len();
+        InsertValidator::validate_not_null(&schema, &tuple_data)?;
 
-        if num_provided > num_columns {
-            return Err(format!("Too many values: expected {}, got {}", num_columns, num_provided));
-        }
-
-        for (i, col) in schema.columns.iter().enumerate() {
-            let value = if i < num_provided {
-                // Use provided value
-                let val = match &values[i] {
-                    Expr::Number(n) => Value::Int(*n),
-                    Expr::String(s) => Value::Text(s.clone()),
-                    _ => return Err("Invalid value expression".to_string()),
-                };
-
-                // Type check
-                match (&col.data_type, &val) {
-                    (DataType::Int, Value::Int(_)) => {}
-                    (DataType::Serial, Value::Int(_)) => {}
-                    (DataType::Text, Value::Text(_)) => {}
-                    (DataType::Varchar(_), Value::Text(_)) => {}
-                    _ => return Err(format!("Type mismatch for column '{}'", col.name)),
-                }
-                val
-            } else if col.is_auto_increment || col.data_type == DataType::Serial {
-                // Generate next sequence value
-                let seq_key = format!("{}_{}", table, col.name);
-                let mut sequences = self.sequences.write().unwrap();
-                let next_val = sequences.entry(seq_key).or_insert(0);
-                *next_val += 1;
-                Value::Int(*next_val)
-            } else if let Some(ref default_expr) = col.default_value {
-                // Use default value
-                match default_expr {
-                    Expr::Number(n) => Value::Int(*n),
-                    Expr::String(s) => Value::Text(s.clone()),
-                    _ => return Err("Invalid default value expression".to_string()),
-                }
-            } else {
-                return Err(format!("Column '{}' has no default value", col.name));
-            };
-
-            tuple_data.push(value);
-        }
-
-        // Validate NOT NULL constraints
-        for (i, col) in schema.columns.iter().enumerate() {
-            if (col.is_not_null || col.is_primary_key) && tuple_data[i] == Value::Null {
-                return Err(format!("Column '{}' cannot be NULL", col.name));
-            }
-        }
-
-        // Validate PRIMARY KEY uniqueness
-        if let Some(ref pk_cols) = schema.primary_key {
-            let pk_indices: Vec<usize> = pk_cols
-                .iter()
-                .map(|col| schema.columns.iter().position(|c| &c.name == col).unwrap())
-                .collect();
-
-            // Check for NULL in PK columns
-            for &idx in &pk_indices {
-                if tuple_data[idx] == Value::Null {
-                    return Err(format!(
-                        "Primary key column '{}' cannot be NULL",
-                        schema.columns[idx].name
-                    ));
-                }
-            }
-
-            // Check for duplicate PK
-            let data = self.data.read().unwrap();
-            if let Some(tuples) = data.get(table) {
-                let snapshot = self.txn_mgr.get_snapshot();
-                for existing in tuples {
-                    if existing.header.is_visible(&snapshot, &self.txn_mgr) {
-                        let mut pk_match = true;
-                        for &idx in &pk_indices {
-                            if existing.data[idx] != tuple_data[idx] {
-                                pk_match = false;
-                                break;
-                            }
-                        }
-                        if pk_match {
-                            return Err("Primary key violation: duplicate key value".to_string());
-                        }
-                    }
-                }
-            }
-        }
-
-        // Validate FOREIGN KEY references
-        for fk in &schema.foreign_keys {
-            let fk_indices: Vec<usize> = fk
-                .columns
-                .iter()
-                .map(|col| schema.columns.iter().position(|c| &c.name == col).unwrap())
-                .collect();
-
-            let fk_values: Vec<Value> =
-                fk_indices.iter().map(|&idx| tuple_data[idx].clone()).collect();
-
-            // Check if referenced row exists
-            let ref_schema = self
-                .get_table(&fk.ref_table)
-                .ok_or_else(|| format!("Referenced table '{}' does not exist", fk.ref_table))?;
-
-            let ref_indices: Vec<usize> = fk
-                .ref_columns
-                .iter()
-                .map(|col| ref_schema.columns.iter().position(|c| &c.name == col).unwrap())
-                .collect();
-
-            let data = self.data.read().unwrap();
-            let ref_tuples = data
-                .get(&fk.ref_table)
-                .ok_or_else(|| format!("Referenced table '{}' has no data", fk.ref_table))?;
-
-            let snapshot = self.txn_mgr.get_snapshot();
-            let mut found = false;
-            for ref_tuple in ref_tuples {
-                if ref_tuple.header.is_visible(&snapshot, &self.txn_mgr) {
-                    let mut match_found = true;
-                    for (i, &ref_idx) in ref_indices.iter().enumerate() {
-                        if ref_tuple.data[ref_idx] != fk_values[i] {
-                            match_found = false;
-                            break;
-                        }
-                    }
-                    if match_found {
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            if !found {
-                return Err(format!(
-                    "Foreign key violation: referenced row does not exist in table '{}'",
-                    fk.ref_table
-                ));
-            }
-        }
-
-        // Validate UNIQUE constraints
         let data = self.data.read().unwrap();
-        if let Some(tuples) = data.get(table) {
-            let snapshot = self.txn_mgr.get_snapshot();
-            let visible_tuples: Vec<Tuple> = tuples
-                .iter()
-                .filter(|t| t.header.is_visible(&snapshot, &self.txn_mgr))
-                .cloned()
-                .collect();
+        InsertValidator::validate_primary_key(&schema, &tuple_data, table, &data, &self.txn_mgr)?;
 
-            // Check column-level UNIQUE constraints
-            for (i, col) in schema.columns.iter().enumerate() {
-                if col.is_unique {
-                    let constraint = UniqueConstraint {
-                        name: Some(format!("{}_{}_unique", table, col.name)),
-                        columns: vec![col.name.clone()],
-                    };
-                    UniqueValidator::validate(&constraint, &tuple_data, &visible_tuples, &[i])?;
-                }
-            }
+        let tables = self.tables.read().unwrap();
+        InsertValidator::validate_foreign_keys(
+            &schema,
+            &tuple_data,
+            &data,
+            &tables,
+            &self.txn_mgr,
+        )?;
+        drop(tables);
 
-            // Check table-level UNIQUE constraints
-            for unique_constraint in &schema.unique_constraints {
-                let indices: Vec<usize> = unique_constraint
-                    .columns
-                    .iter()
-                    .map(|col| schema.columns.iter().position(|c| &c.name == col).unwrap())
-                    .collect();
-                UniqueValidator::validate(
-                    unique_constraint,
-                    &tuple_data,
-                    &visible_tuples,
-                    &indices,
-                )?;
-            }
-        }
+        InsertValidator::validate_unique(&schema, &tuple_data, table, &data, &self.txn_mgr)?;
         drop(data);
 
         let tuple = Tuple { header, data: tuple_data, column_map: HashMap::new() };
