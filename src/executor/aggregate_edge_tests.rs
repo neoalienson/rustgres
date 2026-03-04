@@ -43,157 +43,120 @@ mod tests {
         map
     }
 
+    fn test_aggregate(
+        func: AggregateFunction,
+        tuples: Vec<HashMap<String, Vec<u8>>>,
+        col: Option<&str>,
+        expected_key: &str,
+        expected_val: Option<u8>,
+    ) {
+        let input = TestExecutor::new(tuples);
+        let mut agg = Aggregate::new(Box::new(input), func, col.map(|s| s.to_string()));
+        agg.open().unwrap();
+        if let Some(val) = expected_val {
+            let result = agg.next().unwrap().unwrap();
+            assert_eq!(result.get(expected_key).unwrap()[0], val);
+        } else {
+            assert!(agg.next().unwrap().is_none());
+        }
+        agg.close().unwrap();
+    }
+
     #[test]
     fn test_count_single_row() {
-        let tuples = vec![make_tuple(1)];
-        let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(Box::new(input), AggregateFunction::Count, None);
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("count").unwrap()[0], 1);
-        agg.close().unwrap();
+        test_aggregate(AggregateFunction::Count, vec![make_tuple(1)], None, "count", Some(1));
     }
 
     #[test]
     fn test_sum_single_value() {
-        let tuples = vec![make_tuple(42)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("sum").unwrap()[0], 42);
-        agg.close().unwrap();
+        test_aggregate(
+            AggregateFunction::Sum,
+            vec![make_tuple(42)],
+            Some("value"),
+            "sum",
+            Some(42),
+        );
     }
 
     #[test]
     fn test_avg_single_value() {
-        let tuples = vec![make_tuple(50)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Avg, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("avg").unwrap()[0], 50);
-        agg.close().unwrap();
+        test_aggregate(
+            AggregateFunction::Avg,
+            vec![make_tuple(50)],
+            Some("value"),
+            "avg",
+            Some(50),
+        );
     }
 
     #[test]
     fn test_min_single_value() {
-        let tuples = vec![make_tuple(99)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Min, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("min").unwrap()[0], 99);
-        agg.close().unwrap();
+        test_aggregate(
+            AggregateFunction::Min,
+            vec![make_tuple(99)],
+            Some("value"),
+            "min",
+            Some(99),
+        );
     }
 
     #[test]
     fn test_max_single_value() {
-        let tuples = vec![make_tuple(1)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Max, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("max").unwrap()[0], 1);
-        agg.close().unwrap();
+        test_aggregate(AggregateFunction::Max, vec![make_tuple(1)], Some("value"), "max", Some(1));
     }
 
     #[test]
     fn test_sum_all_zeros() {
-        let tuples = vec![make_tuple(0), make_tuple(0), make_tuple(0)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("sum").unwrap()[0], 0);
-        agg.close().unwrap();
+        test_aggregate(
+            AggregateFunction::Sum,
+            vec![make_tuple(0), make_tuple(0), make_tuple(0)],
+            Some("value"),
+            "sum",
+            Some(0),
+        );
     }
 
     #[test]
     fn test_avg_empty_returns_zero() {
-        let tuples = vec![];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Avg, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("avg").unwrap()[0], 0);
-        agg.close().unwrap();
+        test_aggregate(AggregateFunction::Avg, vec![], Some("value"), "avg", Some(0));
     }
 
     #[test]
     fn test_sum_empty_returns_zero() {
-        let tuples = vec![];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Sum, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("sum").unwrap()[0], 0);
-        agg.close().unwrap();
+        test_aggregate(AggregateFunction::Sum, vec![], Some("value"), "sum", Some(0));
     }
 
     #[test]
     fn test_max_empty_returns_none() {
-        let tuples = vec![];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Max, Some("value".to_string()));
-
-        agg.open().unwrap();
-        assert!(agg.next().unwrap().is_none());
-        agg.close().unwrap();
+        test_aggregate(AggregateFunction::Max, vec![], Some("value"), "max", None);
     }
 
     #[test]
     fn test_min_all_same_value() {
-        let tuples = vec![make_tuple(5), make_tuple(5), make_tuple(5)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Min, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("min").unwrap()[0], 5);
-        agg.close().unwrap();
+        test_aggregate(
+            AggregateFunction::Min,
+            vec![make_tuple(5), make_tuple(5), make_tuple(5)],
+            Some("value"),
+            "min",
+            Some(5),
+        );
     }
 
     #[test]
     fn test_max_all_same_value() {
-        let tuples = vec![make_tuple(7), make_tuple(7), make_tuple(7)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Max, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("max").unwrap()[0], 7);
-        agg.close().unwrap();
+        test_aggregate(
+            AggregateFunction::Max,
+            vec![make_tuple(7), make_tuple(7), make_tuple(7)],
+            Some("value"),
+            "max",
+            Some(7),
+        );
     }
 
     #[test]
     fn test_count_large_dataset() {
         let tuples: Vec<_> = (0..255).map(|i| make_tuple(i as u8)).collect();
-        let input = TestExecutor::new(tuples);
-        let mut agg = Aggregate::new(Box::new(input), AggregateFunction::Count, None);
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        assert_eq!(result.get("count").unwrap()[0], 255);
-        agg.close().unwrap();
+        test_aggregate(AggregateFunction::Count, tuples, None, "count", Some(255));
     }
 
     #[test]
@@ -209,7 +172,6 @@ mod tests {
         assert!(agg.next().unwrap().is_none());
         agg.close().unwrap();
 
-        // Reopen should recompute
         agg.open().unwrap();
         let result2 = agg.next().unwrap().unwrap();
         assert_eq!(result2.get("sum").unwrap()[0], 30);
@@ -218,15 +180,12 @@ mod tests {
 
     #[test]
     fn test_avg_rounds_down() {
-        let tuples = vec![make_tuple(10), make_tuple(11)];
-        let input = TestExecutor::new(tuples);
-        let mut agg =
-            Aggregate::new(Box::new(input), AggregateFunction::Avg, Some("value".to_string()));
-
-        agg.open().unwrap();
-        let result = agg.next().unwrap().unwrap();
-        // (10 + 11) / 2 = 10 (integer division)
-        assert_eq!(result.get("avg").unwrap()[0], 10);
-        agg.close().unwrap();
+        test_aggregate(
+            AggregateFunction::Avg,
+            vec![make_tuple(10), make_tuple(11)],
+            Some("value"),
+            "avg",
+            Some(10),
+        );
     }
 }
