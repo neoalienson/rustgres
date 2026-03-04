@@ -36,51 +36,43 @@ impl Window {
         }
         self.input.close()?;
 
-        match self.function {
-            WindowFunction::RowNumber => {
-                for (i, tuple) in tuples.iter().enumerate() {
+        self.results = match self.function {
+            WindowFunction::RowNumber | WindowFunction::Rank | WindowFunction::DenseRank => tuples
+                .iter()
+                .enumerate()
+                .map(|(i, tuple)| {
                     let mut data = tuple.data.clone();
                     data.extend_from_slice(&(i as i64 + 1).to_le_bytes());
-                    self.results.push(SimpleTuple { data });
-                }
-            }
-            WindowFunction::Rank => {
-                for (i, tuple) in tuples.iter().enumerate() {
-                    let mut data = tuple.data.clone();
-                    data.extend_from_slice(&(i as i64 + 1).to_le_bytes());
-                    self.results.push(SimpleTuple { data });
-                }
-            }
-            WindowFunction::DenseRank => {
-                for (i, tuple) in tuples.iter().enumerate() {
-                    let mut data = tuple.data.clone();
-                    data.extend_from_slice(&(i as i64 + 1).to_le_bytes());
-                    self.results.push(SimpleTuple { data });
-                }
-            }
-            WindowFunction::Lag => {
-                for (i, tuple) in tuples.iter().enumerate() {
+                    SimpleTuple { data }
+                })
+                .collect(),
+            WindowFunction::Lag => tuples
+                .iter()
+                .enumerate()
+                .map(|(i, tuple)| {
                     let mut data = tuple.data.clone();
                     if i >= self.offset {
                         data.extend_from_slice(&tuples[i - self.offset].data);
                     } else {
                         data.push(0);
                     }
-                    self.results.push(SimpleTuple { data });
-                }
-            }
-            WindowFunction::Lead => {
-                for (i, tuple) in tuples.iter().enumerate() {
+                    SimpleTuple { data }
+                })
+                .collect(),
+            WindowFunction::Lead => tuples
+                .iter()
+                .enumerate()
+                .map(|(i, tuple)| {
                     let mut data = tuple.data.clone();
                     if i + self.offset < tuples.len() {
                         data.extend_from_slice(&tuples[i + self.offset].data);
                     } else {
                         data.push(0);
                     }
-                    self.results.push(SimpleTuple { data });
-                }
-            }
-        }
+                    SimpleTuple { data }
+                })
+                .collect(),
+        };
 
         Ok(())
     }
@@ -114,38 +106,7 @@ impl SimpleExecutor for Window {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    struct MockExecutor {
-        tuples: Vec<SimpleTuple>,
-        position: usize,
-    }
-
-    impl MockExecutor {
-        fn new(tuples: Vec<SimpleTuple>) -> Self {
-            Self { tuples, position: 0 }
-        }
-    }
-
-    impl SimpleExecutor for MockExecutor {
-        fn open(&mut self) -> Result<(), ExecutorError> {
-            self.position = 0;
-            Ok(())
-        }
-
-        fn next(&mut self) -> Result<Option<SimpleTuple>, ExecutorError> {
-            if self.position < self.tuples.len() {
-                let tuple = self.tuples[self.position].clone();
-                self.position += 1;
-                Ok(Some(tuple))
-            } else {
-                Ok(None)
-            }
-        }
-
-        fn close(&mut self) -> Result<(), ExecutorError> {
-            Ok(())
-        }
-    }
+    use crate::executor::test_helpers::MockExecutor;
 
     #[test]
     fn test_row_number() {

@@ -66,13 +66,10 @@ struct SeqScanOperator {
 impl ParallelOperator for SeqScanOperator {
     fn process_morsel(&self, mut morsel: Morsel) -> Result<Morsel, ExecutorError> {
         let row_count = self.catalog.row_count(&self.table_name);
-
-        for i in morsel.start_offset..morsel.end_offset {
-            if i < row_count {
-                morsel.tuples.push(SimpleTuple { data: vec![i as u8] });
-            }
-        }
-
+        morsel.tuples.extend(
+            (morsel.start_offset..morsel.end_offset.min(row_count))
+                .map(|i| SimpleTuple { data: vec![i as u8] }),
+        );
         Ok(morsel)
     }
 }
@@ -80,13 +77,10 @@ impl ParallelOperator for SeqScanOperator {
 impl ParallelOperator for ParallelSeqScan {
     fn process_morsel(&self, mut morsel: Morsel) -> Result<Morsel, ExecutorError> {
         let row_count = self.catalog.row_count(&self.table_name);
-
-        for i in morsel.start_offset..morsel.end_offset {
-            if i < row_count {
-                morsel.tuples.push(SimpleTuple { data: vec![i as u8] });
-            }
-        }
-
+        morsel.tuples.extend(
+            (morsel.start_offset..morsel.end_offset.min(row_count))
+                .map(|i| SimpleTuple { data: vec![i as u8] }),
+        );
         Ok(morsel)
     }
 }

@@ -11,18 +11,33 @@ pub enum SubqueryKind {
 pub struct CorrelatedExecutor;
 
 impl CorrelatedExecutor {
-    pub fn execute_not_exists(
+    fn filter_rows(
         outer_rows: &[Vec<Value>],
+        predicate: impl Fn(&[Value], &[Vec<Value>]) -> bool,
         subquery_fn: &dyn Fn(&[Value]) -> Result<Vec<Vec<Value>>, String>,
     ) -> Result<Vec<Vec<Value>>, String> {
         let mut result = Vec::new();
         for outer_row in outer_rows {
             let subquery_results = subquery_fn(outer_row)?;
-            if subquery_results.is_empty() {
+            if predicate(outer_row, &subquery_results) {
                 result.push(outer_row.clone());
             }
         }
         Ok(result)
+    }
+
+    pub fn execute_not_exists(
+        outer_rows: &[Vec<Value>],
+        subquery_fn: &dyn Fn(&[Value]) -> Result<Vec<Vec<Value>>, String>,
+    ) -> Result<Vec<Vec<Value>>, String> {
+        Self::filter_rows(outer_rows, |_, results| results.is_empty(), subquery_fn)
+    }
+
+    pub fn execute_exists(
+        outer_rows: &[Vec<Value>],
+        subquery_fn: &dyn Fn(&[Value]) -> Result<Vec<Vec<Value>>, String>,
+    ) -> Result<Vec<Vec<Value>>, String> {
+        Self::filter_rows(outer_rows, |_, results| !results.is_empty(), subquery_fn)
     }
 
     pub fn execute_not_in(
@@ -30,30 +45,13 @@ impl CorrelatedExecutor {
         outer_col_idx: usize,
         subquery_fn: &dyn Fn(&[Value]) -> Result<Vec<Vec<Value>>, String>,
     ) -> Result<Vec<Vec<Value>>, String> {
-        let mut result = Vec::new();
-        for outer_row in outer_rows {
-            let subquery_results = subquery_fn(outer_row)?;
-            let outer_value = &outer_row[outer_col_idx];
-
-            if !subquery_results.iter().any(|row| row.first() == Some(outer_value)) {
-                result.push(outer_row.clone());
-            }
-        }
-        Ok(result)
-    }
-
-    pub fn execute_exists(
-        outer_rows: &[Vec<Value>],
-        subquery_fn: &dyn Fn(&[Value]) -> Result<Vec<Vec<Value>>, String>,
-    ) -> Result<Vec<Vec<Value>>, String> {
-        let mut result = Vec::new();
-        for outer_row in outer_rows {
-            let subquery_results = subquery_fn(outer_row)?;
-            if !subquery_results.is_empty() {
-                result.push(outer_row.clone());
-            }
-        }
-        Ok(result)
+        Self::filter_rows(
+            outer_rows,
+            |outer_row, results| {
+                !results.iter().any(|row| row.first() == Some(&outer_row[outer_col_idx]))
+            },
+            subquery_fn,
+        )
     }
 
     pub fn execute_in(
@@ -61,16 +59,13 @@ impl CorrelatedExecutor {
         outer_col_idx: usize,
         subquery_fn: &dyn Fn(&[Value]) -> Result<Vec<Vec<Value>>, String>,
     ) -> Result<Vec<Vec<Value>>, String> {
-        let mut result = Vec::new();
-        for outer_row in outer_rows {
-            let subquery_results = subquery_fn(outer_row)?;
-            let outer_value = &outer_row[outer_col_idx];
-
-            if subquery_results.iter().any(|row| row.first() == Some(outer_value)) {
-                result.push(outer_row.clone());
-            }
-        }
-        Ok(result)
+        Self::filter_rows(
+            outer_rows,
+            |outer_row, results| {
+                results.iter().any(|row| row.first() == Some(&outer_row[outer_col_idx]))
+            },
+            subquery_fn,
+        )
     }
 
     pub fn execute_scalar(
