@@ -2,6 +2,32 @@ use tempfile::TempDir;
 use vaultgres::catalog::Catalog;
 use vaultgres::parser::{Parser, Statement};
 
+fn with_temp_catalog<F>(test: F)
+where
+    F: FnOnce(&str, &Catalog) + FnOnce(&str, &Catalog),
+{
+    let temp_dir = TempDir::new().unwrap();
+    let data_dir = temp_dir.path().to_str().unwrap();
+    {
+        let catalog = Catalog::new_with_data_dir(data_dir);
+        test(data_dir, &catalog);
+    }
+}
+
+fn execute_sql(catalog: &Catalog, sql: &str) {
+    let mut parser = Parser::new(sql).unwrap();
+    let stmt = parser.parse().unwrap();
+    match stmt {
+        Statement::CreateView(create) => {
+            catalog.create_view(create.name.clone(), *create.query).unwrap();
+        }
+        Statement::CreateTrigger(create) => {
+            catalog.create_trigger(create).unwrap();
+        }
+        _ => panic!("Unexpected statement type"),
+    }
+}
+
 #[test]
 fn test_view_persistence() {
     let temp_dir = TempDir::new().unwrap();
@@ -9,16 +35,7 @@ fn test_view_persistence() {
 
     {
         let catalog = Catalog::new_with_data_dir(data_dir);
-
-        let mut parser = Parser::new("CREATE VIEW v AS SELECT * FROM t").unwrap();
-        let stmt = parser.parse().unwrap();
-
-        match stmt {
-            Statement::CreateView(create) => {
-                catalog.create_view(create.name.clone(), *create.query).unwrap();
-            }
-            _ => panic!("Expected CREATE VIEW"),
-        }
+        execute_sql(&catalog, "CREATE VIEW v AS SELECT * FROM t");
     }
 
     {
@@ -34,17 +51,7 @@ fn test_trigger_persistence() {
 
     {
         let catalog = Catalog::new_with_data_dir(data_dir);
-
-        let mut parser =
-            Parser::new("CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW BEGIN END").unwrap();
-        let stmt = parser.parse().unwrap();
-
-        match stmt {
-            Statement::CreateTrigger(create) => {
-                catalog.create_trigger(create).unwrap();
-            }
-            _ => panic!("Expected CREATE TRIGGER"),
-        }
+        execute_sql(&catalog, "CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW BEGIN END");
     }
 
     {
@@ -60,18 +67,8 @@ fn test_multiple_views_persistence() {
 
     {
         let catalog = Catalog::new_with_data_dir(data_dir);
-
         for i in 0..5 {
-            let sql = format!("CREATE VIEW v{} AS SELECT * FROM t{}", i, i);
-            let mut parser = Parser::new(&sql).unwrap();
-            let stmt = parser.parse().unwrap();
-
-            match stmt {
-                Statement::CreateView(create) => {
-                    catalog.create_view(create.name.clone(), *create.query).unwrap();
-                }
-                _ => panic!("Expected CREATE VIEW"),
-            }
+            execute_sql(&catalog, &format!("CREATE VIEW v{} AS SELECT * FROM t{}", i, i));
         }
     }
 
@@ -90,19 +87,11 @@ fn test_multiple_triggers_persistence() {
 
     {
         let catalog = Catalog::new_with_data_dir(data_dir);
-
         for i in 0..5 {
-            let sql =
-                format!("CREATE TRIGGER t{} BEFORE INSERT ON users FOR EACH ROW BEGIN END", i);
-            let mut parser = Parser::new(&sql).unwrap();
-            let stmt = parser.parse().unwrap();
-
-            match stmt {
-                Statement::CreateTrigger(create) => {
-                    catalog.create_trigger(create).unwrap();
-                }
-                _ => panic!("Expected CREATE TRIGGER"),
-            }
+            execute_sql(
+                &catalog,
+                &format!("CREATE TRIGGER t{} BEFORE INSERT ON users FOR EACH ROW BEGIN END", i),
+            );
         }
     }
 
@@ -121,17 +110,7 @@ fn test_view_drop_persistence() {
 
     {
         let catalog = Catalog::new_with_data_dir(data_dir);
-
-        let mut parser = Parser::new("CREATE VIEW v AS SELECT * FROM t").unwrap();
-        let stmt = parser.parse().unwrap();
-
-        match stmt {
-            Statement::CreateView(create) => {
-                catalog.create_view(create.name.clone(), *create.query).unwrap();
-            }
-            _ => panic!("Expected CREATE VIEW"),
-        }
-
+        execute_sql(&catalog, "CREATE VIEW v AS SELECT * FROM t");
         catalog.drop_view("v", false).unwrap();
     }
 
@@ -148,18 +127,7 @@ fn test_trigger_drop_persistence() {
 
     {
         let catalog = Catalog::new_with_data_dir(data_dir);
-
-        let mut parser =
-            Parser::new("CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW BEGIN END").unwrap();
-        let stmt = parser.parse().unwrap();
-
-        match stmt {
-            Statement::CreateTrigger(create) => {
-                catalog.create_trigger(create).unwrap();
-            }
-            _ => panic!("Expected CREATE TRIGGER"),
-        }
-
+        execute_sql(&catalog, "CREATE TRIGGER t BEFORE INSERT ON users FOR EACH ROW BEGIN END");
         catalog.drop_trigger("t", false).unwrap();
     }
 

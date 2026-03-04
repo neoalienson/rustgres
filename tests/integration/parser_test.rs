@@ -1,291 +1,205 @@
 use vaultgres::parser::{parse, Expr, Parser, Statement};
 
-#[test]
-fn test_parse_simple_select() {
-    let stmt = parse("SELECT * FROM users").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.from, "users");
-            assert_eq!(s.columns, vec![Expr::Star]);
-            assert!(s.where_clause.is_none());
-        }
+fn parse_select(sql: &str) -> vaultgres::parser::ast::SelectStmt {
+    match parse(sql).unwrap() {
+        Statement::Select(s) => s,
         _ => panic!("Expected SELECT statement"),
     }
 }
 
-#[test]
-fn test_parse_select_with_columns() {
-    let stmt = parse("SELECT id, name FROM users").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.from, "users");
-            assert_eq!(s.columns.len(), 2);
-        }
-        _ => panic!("Expected SELECT statement"),
-    }
-}
-
-#[test]
-fn test_parse_select_with_where() {
-    let stmt = parse("SELECT * FROM users WHERE id = 1").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.from, "users");
-            assert!(s.where_clause.is_some());
-        }
-        _ => panic!("Expected SELECT statement"),
-    }
-}
-
-#[test]
-fn test_parse_insert() {
-    let stmt = parse("INSERT INTO users VALUES (1, 'Alice')").unwrap();
-
-    match stmt {
-        Statement::Insert(s) => {
-            assert_eq!(s.table, "users");
-            assert_eq!(s.values.len(), 2);
-            assert_eq!(s.values[0], Expr::Number(1));
-            assert_eq!(s.values[1], Expr::String("Alice".to_string()));
-        }
+fn parse_insert(sql: &str) -> vaultgres::parser::ast::InsertStmt {
+    match parse(sql).unwrap() {
+        Statement::Insert(s) => s,
         _ => panic!("Expected INSERT statement"),
     }
 }
 
-#[test]
-fn test_parse_update() {
-    let stmt = parse("UPDATE users SET name = 'Bob'").unwrap();
-
-    match stmt {
-        Statement::Update(s) => {
-            assert_eq!(s.table, "users");
-            assert_eq!(s.assignments.len(), 1);
-            assert_eq!(s.assignments[0].0, "name");
-        }
+fn parse_update(sql: &str) -> vaultgres::parser::ast::UpdateStmt {
+    match parse(sql).unwrap() {
+        Statement::Update(s) => s,
         _ => panic!("Expected UPDATE statement"),
     }
+}
+
+fn parse_delete(sql: &str) -> vaultgres::parser::ast::DeleteStmt {
+    match parse(sql).unwrap() {
+        Statement::Delete(s) => s,
+        _ => panic!("Expected DELETE statement"),
+    }
+}
+
+#[test]
+fn test_parse_simple_select() {
+    let s = parse_select("SELECT * FROM users");
+    assert_eq!(s.from, "users");
+    assert_eq!(s.columns, vec![Expr::Star]);
+    assert!(s.where_clause.is_none());
+}
+
+#[test]
+fn test_parse_select_with_columns() {
+    let s = parse_select("SELECT id, name FROM users");
+    assert_eq!(s.from, "users");
+    assert_eq!(s.columns.len(), 2);
+}
+
+#[test]
+fn test_parse_select_with_where() {
+    let s = parse_select("SELECT * FROM users WHERE id = 1");
+    assert_eq!(s.from, "users");
+    assert!(s.where_clause.is_some());
+}
+
+#[test]
+fn test_parse_insert() {
+    let s = parse_insert("INSERT INTO users VALUES (1, 'Alice')");
+    assert_eq!(s.table, "users");
+    assert_eq!(s.values.len(), 2);
+    assert_eq!(s.values[0], Expr::Number(1));
+    assert_eq!(s.values[1], Expr::String("Alice".to_string()));
+}
+
+#[test]
+fn test_parse_update() {
+    let s = parse_update("UPDATE users SET name = 'Bob'");
+    assert_eq!(s.table, "users");
+    assert_eq!(s.assignments.len(), 1);
+    assert_eq!(s.assignments[0].0, "name");
 }
 
 #[test]
 fn test_parse_update_with_where() {
-    let stmt = parse("UPDATE users SET name = 'Bob' WHERE id = 1").unwrap();
-
-    match stmt {
-        Statement::Update(s) => {
-            assert_eq!(s.table, "users");
-            assert!(s.where_clause.is_some());
-        }
-        _ => panic!("Expected UPDATE statement"),
-    }
+    let s = parse_update("UPDATE users SET name = 'Bob' WHERE id = 1");
+    assert_eq!(s.table, "users");
+    assert!(s.where_clause.is_some());
 }
 
 #[test]
 fn test_parse_delete() {
-    let stmt = parse("DELETE FROM users").unwrap();
-
-    match stmt {
-        Statement::Delete(s) => {
-            assert_eq!(s.table, "users");
-            assert!(s.where_clause.is_none());
-        }
-        _ => panic!("Expected DELETE statement"),
-    }
+    let s = parse_delete("DELETE FROM users");
+    assert_eq!(s.table, "users");
+    assert!(s.where_clause.is_none());
 }
 
 #[test]
 fn test_parse_delete_with_where() {
-    let stmt = parse("DELETE FROM users WHERE id = 1").unwrap();
-
-    match stmt {
-        Statement::Delete(s) => {
-            assert_eq!(s.table, "users");
-            assert!(s.where_clause.is_some());
-        }
-        _ => panic!("Expected DELETE statement"),
-    }
+    let s = parse_delete("DELETE FROM users WHERE id = 1");
+    assert_eq!(s.table, "users");
+    assert!(s.where_clause.is_some());
 }
 
 #[test]
 fn test_parse_multiple_assignments() {
-    let stmt = parse("UPDATE users SET name = 'Bob', age = 30").unwrap();
-
-    match stmt {
-        Statement::Update(s) => {
-            assert_eq!(s.assignments.len(), 2);
-            assert_eq!(s.assignments[0].0, "name");
-            assert_eq!(s.assignments[1].0, "age");
-        }
-        _ => panic!("Expected UPDATE statement"),
-    }
+    let s = parse_update("UPDATE users SET name = 'Bob', age = 30");
+    assert_eq!(s.assignments.len(), 2);
+    assert_eq!(s.assignments[0].0, "name");
+    assert_eq!(s.assignments[1].0, "age");
 }
 
 #[test]
 fn test_parse_case_insensitive() {
     let stmt1 = parse("select * from users").unwrap();
     let stmt2 = parse("SELECT * FROM users").unwrap();
-
     assert_eq!(stmt1, stmt2);
 }
 
 #[test]
 fn test_parse_error_invalid_syntax() {
-    let result = parse("SELECT FROM");
-    assert!(result.is_err());
+    assert!(parse("SELECT FROM").is_err());
 }
 
 #[test]
 fn test_parse_error_unexpected_token() {
-    let result = parse("INVALID STATEMENT");
-    assert!(result.is_err());
+    assert!(parse("INVALID STATEMENT").is_err());
 }
 
 #[test]
 fn test_parse_select_without_from() {
-    let stmt = parse("SELECT 1").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.from, "");
-            assert_eq!(s.columns.len(), 1);
-        }
-        _ => panic!("Expected SELECT statement"),
-    }
+    let s = parse_select("SELECT 1");
+    assert_eq!(s.from, "");
+    assert_eq!(s.columns.len(), 1);
 }
 
 #[test]
 fn test_parse_select_multiple_columns() {
-    let stmt = parse("SELECT id, name, email FROM users").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.columns.len(), 3);
-            assert_eq!(s.columns[0], Expr::Column("id".to_string()));
-            assert_eq!(s.columns[1], Expr::Column("name".to_string()));
-            assert_eq!(s.columns[2], Expr::Column("email".to_string()));
-        }
-        _ => panic!("Expected SELECT statement"),
-    }
+    let s = parse_select("SELECT id, name, email FROM users");
+    assert_eq!(s.columns.len(), 3);
+    assert_eq!(s.columns[0], Expr::Column("id".to_string()));
+    assert_eq!(s.columns[1], Expr::Column("name".to_string()));
+    assert_eq!(s.columns[2], Expr::Column("email".to_string()));
 }
 
 #[test]
 fn test_parse_insert_multiple_values() {
-    let stmt = parse("INSERT INTO users VALUES (1, 'Alice', 'alice@example.com')").unwrap();
-
-    match stmt {
-        Statement::Insert(s) => {
-            assert_eq!(s.values.len(), 3);
-            assert_eq!(s.values[0], Expr::Number(1));
-            assert_eq!(s.values[1], Expr::String("Alice".to_string()));
-            assert_eq!(s.values[2], Expr::String("alice@example.com".to_string()));
-        }
-        _ => panic!("Expected INSERT statement"),
-    }
+    let s = parse_insert("INSERT INTO users VALUES (1, 'Alice', 'alice@example.com')");
+    assert_eq!(s.values.len(), 3);
+    assert_eq!(s.values[0], Expr::Number(1));
+    assert_eq!(s.values[1], Expr::String("Alice".to_string()));
+    assert_eq!(s.values[2], Expr::String("alice@example.com".to_string()));
 }
 
 #[test]
 fn test_parse_update_multiple_assignments() {
-    let stmt = parse("UPDATE users SET name = 'Bob', age = 30, email = 'bob@example.com'").unwrap();
-
-    match stmt {
-        Statement::Update(s) => {
-            assert_eq!(s.assignments.len(), 3);
-            assert_eq!(s.assignments[0].0, "name");
-            assert_eq!(s.assignments[1].0, "age");
-            assert_eq!(s.assignments[2].0, "email");
-        }
-        _ => panic!("Expected UPDATE statement"),
-    }
+    let s = parse_update("UPDATE users SET name = 'Bob', age = 30, email = 'bob@example.com'");
+    assert_eq!(s.assignments.len(), 3);
+    assert_eq!(s.assignments[0].0, "name");
+    assert_eq!(s.assignments[1].0, "age");
+    assert_eq!(s.assignments[2].0, "email");
 }
 
 #[test]
 fn test_parse_with_semicolon() {
-    let stmt = parse("SELECT * FROM users;").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.from, "users");
-        }
-        _ => panic!("Expected SELECT statement"),
-    }
+    let s = parse_select("SELECT * FROM users;");
+    assert_eq!(s.from, "users");
 }
 
 #[test]
 fn test_parse_select_number() {
-    let stmt = parse("SELECT 42").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.columns.len(), 1);
-            assert_eq!(s.columns[0], Expr::Number(42));
-        }
-        _ => panic!("Expected SELECT statement"),
-    }
+    let s = parse_select("SELECT 42");
+    assert_eq!(s.columns.len(), 1);
+    assert_eq!(s.columns[0], Expr::Number(42));
 }
 
 #[test]
 fn test_parse_select_string() {
-    let stmt = parse("SELECT 'hello world'").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert_eq!(s.columns.len(), 1);
-            assert_eq!(s.columns[0], Expr::String("hello world".to_string()));
-        }
-        _ => panic!("Expected SELECT statement"),
-    }
+    let s = parse_select("SELECT 'hello world'");
+    assert_eq!(s.columns.len(), 1);
+    assert_eq!(s.columns[0], Expr::String("hello world".to_string()));
 }
 
 #[test]
 fn test_parse_where_equals() {
-    let stmt = parse("SELECT * FROM users WHERE id = 1").unwrap();
-
-    match stmt {
-        Statement::Select(s) => {
-            assert!(s.where_clause.is_some());
-            match s.where_clause.unwrap() {
-                Expr::BinaryOp { left, op: _, right } => {
-                    assert_eq!(*left, Expr::Column("id".to_string()));
-                    assert_eq!(*right, Expr::Number(1));
-                }
-                _ => panic!("Expected binary op"),
-            }
+    let s = parse_select("SELECT * FROM users WHERE id = 1");
+    assert!(s.where_clause.is_some());
+    match s.where_clause.unwrap() {
+        Expr::BinaryOp { left, op: _, right } => {
+            assert_eq!(*left, Expr::Column("id".to_string()));
+            assert_eq!(*right, Expr::Number(1));
         }
-        _ => panic!("Expected SELECT statement"),
+        _ => panic!("Expected binary op"),
     }
 }
 
 #[test]
 fn test_parse_empty_string() {
-    let result = parse("");
-    assert!(result.is_err());
+    assert!(parse("").is_err());
 }
 
 #[test]
 fn test_parse_whitespace_only() {
-    let result = parse("   \n\t  ");
-    assert!(result.is_err());
+    assert!(parse("   \n\t  ").is_err());
 }
 
 #[test]
 fn test_join_parsing() {
-    let sql = "SELECT * FROM users JOIN orders ON id = user_id";
-    let mut parser = Parser::new(sql).unwrap();
-    let stmt = parser.parse().unwrap();
-    match stmt {
-        Statement::Select(s) => assert_eq!(s.joins.len(), 1),
-        _ => panic!("Expected SELECT"),
-    }
+    let s = parse_select("SELECT * FROM users JOIN orders ON id = user_id");
+    assert_eq!(s.joins.len(), 1);
 }
 
 #[test]
 fn test_union_parsing() {
-    let sql = "SELECT id FROM users UNION SELECT id FROM orders";
-    let mut parser = Parser::new(sql).unwrap();
-    let stmt = parser.parse().unwrap();
-    match stmt {
+    let mut parser = Parser::new("SELECT id FROM users UNION SELECT id FROM orders").unwrap();
+    match parser.parse().unwrap() {
         Statement::Union(u) => assert!(!u.all),
         _ => panic!("Expected UNION"),
     }
@@ -293,22 +207,12 @@ fn test_union_parsing() {
 
 #[test]
 fn test_intersect_parsing() {
-    let sql = "SELECT id FROM users INTERSECT SELECT id FROM orders";
-    let mut parser = Parser::new(sql).unwrap();
-    let stmt = parser.parse().unwrap();
-    match stmt {
-        Statement::Intersect(_) => {}
-        _ => panic!("Expected INTERSECT"),
-    }
+    let mut parser = Parser::new("SELECT id FROM users INTERSECT SELECT id FROM orders").unwrap();
+    assert!(matches!(parser.parse().unwrap(), Statement::Intersect(_)));
 }
 
 #[test]
 fn test_except_parsing() {
-    let sql = "SELECT id FROM users EXCEPT SELECT id FROM orders";
-    let mut parser = Parser::new(sql).unwrap();
-    let stmt = parser.parse().unwrap();
-    match stmt {
-        Statement::Except(_) => {}
-        _ => panic!("Expected EXCEPT"),
-    }
+    let mut parser = Parser::new("SELECT id FROM users EXCEPT SELECT id FROM orders").unwrap();
+    assert!(matches!(parser.parse().unwrap(), Statement::Except(_)));
 }

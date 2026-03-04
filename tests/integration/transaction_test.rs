@@ -4,6 +4,22 @@ mod tests {
     use vaultgres::parser::ast::*;
     use vaultgres::parser::Parser;
 
+    fn setup_users_table(catalog: &Catalog) {
+        catalog
+            .create_table(
+                "users".to_string(),
+                vec![
+                    ColumnDef::new("id".to_string(), DataType::Int),
+                    ColumnDef::new("name".to_string(), DataType::Text),
+                ],
+            )
+            .unwrap();
+    }
+
+    fn insert_user(catalog: &Catalog, id: i64, name: &str) {
+        catalog.insert("users", vec![Expr::Number(id), Expr::String(name.to_string())]).unwrap();
+    }
+
     #[test]
     fn test_begin_transaction() {
         let catalog = Catalog::new();
@@ -52,39 +68,28 @@ mod tests {
     #[test]
     fn test_parse_begin() {
         let mut parser = Parser::new("BEGIN").unwrap();
-        let stmt = parser.parse().unwrap();
-        assert!(matches!(stmt, Statement::Begin));
+        assert!(matches!(parser.parse().unwrap(), Statement::Begin));
     }
 
     #[test]
     fn test_parse_commit() {
         let mut parser = Parser::new("COMMIT").unwrap();
-        let stmt = parser.parse().unwrap();
-        assert!(matches!(stmt, Statement::Commit));
+        assert!(matches!(parser.parse().unwrap(), Statement::Commit));
     }
 
     #[test]
     fn test_parse_rollback() {
         let mut parser = Parser::new("ROLLBACK").unwrap();
-        let stmt = parser.parse().unwrap();
-        assert!(matches!(stmt, Statement::Rollback));
+        assert!(matches!(parser.parse().unwrap(), Statement::Rollback));
     }
 
     #[test]
     fn test_transaction_with_insert() {
         let catalog = Catalog::new();
-        catalog
-            .create_table(
-                "users".to_string(),
-                vec![
-                    ColumnDef::new("id".to_string(), DataType::Int),
-                    ColumnDef::new("name".to_string(), DataType::Text),
-                ],
-            )
-            .unwrap();
+        setup_users_table(&catalog);
 
         catalog.begin_transaction().unwrap();
-        catalog.insert("users", vec![Expr::Number(1), Expr::String("Alice".to_string())]).unwrap();
+        insert_user(&catalog, 1, "Alice");
         catalog.commit_transaction().unwrap();
 
         assert_eq!(catalog.row_count("users"), 1);
@@ -93,18 +98,10 @@ mod tests {
     #[test]
     fn test_transaction_rollback_insert() {
         let catalog = Catalog::new();
-        catalog
-            .create_table(
-                "users".to_string(),
-                vec![
-                    ColumnDef::new("id".to_string(), DataType::Int),
-                    ColumnDef::new("name".to_string(), DataType::Text),
-                ],
-            )
-            .unwrap();
+        setup_users_table(&catalog);
 
         catalog.begin_transaction().unwrap();
-        catalog.insert("users", vec![Expr::Number(1), Expr::String("Alice".to_string())]).unwrap();
+        insert_user(&catalog, 1, "Alice");
         catalog.rollback_transaction().unwrap();
 
         assert_eq!(catalog.row_count("users"), 1);
@@ -113,22 +110,14 @@ mod tests {
     #[test]
     fn test_multiple_transactions() {
         let catalog = Catalog::new();
-        catalog
-            .create_table(
-                "users".to_string(),
-                vec![
-                    ColumnDef::new("id".to_string(), DataType::Int),
-                    ColumnDef::new("name".to_string(), DataType::Text),
-                ],
-            )
-            .unwrap();
+        setup_users_table(&catalog);
 
         catalog.begin_transaction().unwrap();
-        catalog.insert("users", vec![Expr::Number(1), Expr::String("Alice".to_string())]).unwrap();
+        insert_user(&catalog, 1, "Alice");
         catalog.commit_transaction().unwrap();
 
         catalog.begin_transaction().unwrap();
-        catalog.insert("users", vec![Expr::Number(2), Expr::String("Bob".to_string())]).unwrap();
+        insert_user(&catalog, 2, "Bob");
         catalog.commit_transaction().unwrap();
 
         assert_eq!(catalog.row_count("users"), 2);
