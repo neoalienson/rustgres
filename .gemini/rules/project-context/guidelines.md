@@ -109,7 +109,229 @@ impl Drop for TestServer {
 }
 ```
 
+### Logging Standards
+- **Framework**: Use `log` crate for logging facade, `env_logger` for implementation
+- **No Debug Prints**: Never use `println!`, `eprintln!`, or `dbg!` in production code
+- **Log Levels**: Use appropriate log levels for different scenarios
+  - `error!`: Critical errors that require immediate attention
+  - `warn!`: Warning conditions that should be investigated
+  - `info!`: Important informational messages (startup, shutdown, major operations)
+  - `debug!`: Detailed information for debugging (function entry/exit, state changes)
+  - `trace!`: Very detailed tracing information (loop iterations, expression evaluation)
+- **Compile-Time Control**: Logging is controlled at runtime via `RUST_LOG` environment variable
+- **Example**:
+```rust
+use log::{trace, debug, info, warn, error};
+
+pub fn execute_query(query: &str) -> Result<Vec<Row>, Error> {
+    info!("Executing query: {}", query);
+    debug!("Query length: {} bytes", query.len());
+    
+    let parsed = parse(query)?;
+    trace!("Parsed AST: {:?}", parsed);
+    
+    match optimize(&parsed) {
+        Ok(plan) => {
+            debug!("Optimized plan generated");
+            execute_plan(plan)
+        }
+        Err(e) => {
+            warn!("Optimization failed, using default plan: {}", e);
+            execute_plan(default_plan(&parsed))
+        }
+    }
+}
+```
+
+- **Runtime Configuration**: Set log level via environment variable
+```bash
+# Show all logs
+RUST_LOG=trace cargo run
+
+# Show only info and above
+RUST_LOG=info cargo run
+
+# Module-specific logging
+RUST_LOG=vaultgres=debug,storage=trace cargo run
+
+# In tests
+RUST_LOG=debug cargo test -- --nocapture
+```
+
+- **Test Logging**: Initialize logger in tests that need it
+```rust
+#[test]
+fn test_with_logging() {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .is_test(true)
+        .try_init()
+        .ok();
+    
+    // Test code with logging
+}
+```
+
 ## Semantic Patterns Overview
+
+### Complexity Reduction Patterns
+
+#### Function Table Pattern
+- Extract repeated logic into reusable helper functions
+- Reduces code duplication and improves maintainability
+- **Example**:
+```rust
+// Before: Repeated parsing logic
+fn parse_create_table() {
+    if self.peek() == Token::Identifier {
+        let name = self.consume_identifier()?;
+        // ...
+    }
+    if self.peek() == Token::Comma {
+        self.consume(Token::Comma)?;
+        let name = self.consume_identifier()?;
+        // ...
+    }
+}
+
+// After: Helper function
+fn parse_identifier_list(&mut self) -> Result<Vec<String>> {
+    let mut names = vec![self.consume_identifier()?];
+    while self.peek() == Token::Comma {
+        self.consume(Token::Comma)?;
+        names.push(self.consume_identifier()?);
+    }
+    Ok(names)
+}
+
+fn parse_create_table() {
+    let names = self.parse_identifier_list()?;
+    // ...
+}
+```
+
+#### Match Consolidation Pattern
+- Replace cascading if-else chains with single match statement
+- Improves readability and reduces cyclomatic complexity
+- **Example**:
+```rust
+// Before: Cascading if-else (complexity 10+)
+if token == Token::Create { parse_create() }
+else if token == Token::Select { parse_select() }
+else if token == Token::Insert { parse_insert() }
+else if token == Token::Update { parse_update() }
+else if token == Token::Delete { parse_delete() }
+// ...
+
+// After: Single match (complexity 1)
+match token {
+    Token::Create => parse_create(),
+    Token::Select => parse_select(),
+    Token::Insert => parse_insert(),
+    Token::Update => parse_update(),
+    Token::Delete => parse_delete(),
+    _ => Err("Unexpected token"),
+}
+```
+
+#### Enum Dispatch Pattern
+- Use enums to consolidate similar variants into single match
+- Reduces complexity by handling each variant in focused match arms
+- **Example**:
+```rust
+// Before: Multiple separate checks
+if is_column { handle_column() }
+if is_primary_key { handle_primary_key() }
+if is_foreign_key { handle_foreign_key() }
+
+// After: Enum dispatch
+enum TableElement {
+    Column(ColumnDef),
+    PrimaryKey(Vec<String>),
+    ForeignKey(ForeignKeyDef),
+}
+
+match element {
+    TableElement::Column(col) => handle_column(col),
+    TableElement::PrimaryKey(cols) => handle_primary_key(cols),
+    TableElement::ForeignKey(fk) => handle_foreign_key(fk),
+}
+```
+
+#### Module Extraction Pattern
+- Extract cohesive functionality into separate modules
+- Separates concerns and reduces file size
+- **Example**:
+```rust
+// Before: 1000-line catalog.rs with CRUD, validation, execution
+// src/catalog/catalog.rs (1000 lines)
+
+// After: Extracted modules
+// src/catalog/catalog.rs (600 lines) - main coordination
+// src/catalog/crud_helper.rs - create/drop/get operations
+// src/catalog/insert_validator.rs - validation logic
+// src/catalog/select_executor.rs - query execution
+// src/catalog/update_delete_executor.rs - update/delete operations
+```
+
+#### Helper Composition Pattern
+- Build complex operations from simple, focused helpers
+- Each helper does one thing well
+- **Example**:
+```rust
+// Simple helpers
+fn parse_type_name(&mut self) -> Result<String> { /* ... */ }
+fn parse_param_mode(&mut self) -> Result<ParamMode> { /* ... */ }
+fn parse_default_value(&mut self) -> Result<Option<Expr>> { /* ... */ }
+
+// Composed into complex operation
+fn parse_function_parameter(&mut self) -> Result<FunctionParam> {
+    let mode = self.parse_param_mode()?;
+    let name = self.consume_identifier()?;
+    let type_name = self.parse_type_name()?;
+    let default = self.parse_default_value()?;
+    Ok(FunctionParam { mode, name, type_name, default })
+}
+```
+
+#### Callback Pattern for Dependencies
+- Pass dependencies as callbacks to avoid circular dependencies
+- Enables testing and modularity
+- **Example**:
+```rust
+// Before: Direct dependency (circular)
+impl PredicateEvaluator {
+    fn evaluate(expr: &Expr, catalog: &Catalog) -> Result<bool> {
+        // Can't use Catalog here without circular dependency
+    }
+}
+
+// After: Callback pattern
+impl PredicateEvaluator {
+    fn evaluate_with_subquery<F>(
+        expr: &Expr,
+        subquery_eval: &F,
+    ) -> Result<bool>
+    where
+        F: Fn(&SelectStmt) -> Result<Value>,
+    {
+        match expr {
+            Expr::Subquery(select) => subquery_eval(select),
+            // ...
+        }
+    }
+}
+
+// Caller provides the dependency
+let subquery_eval = |select| catalog.execute_subquery(select);
+PredicateEvaluator::evaluate_with_subquery(expr, &subquery_eval)
+```
+
+### Complexity Targets
+- **Maximum Cyclomatic Complexity**: 8 per function
+- **File Size**: Prefer <1000 lines, extract modules if larger
+- **Function Length**: Prefer <50 lines, extract helpers if longer
+- **Parameter Count**: Prefer ≤8 parameters, use structs for more
 
 ### Builder Pattern for Complex Types
 - Use builder methods for types with multiple configuration options

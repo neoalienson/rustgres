@@ -492,6 +492,10 @@ pub enum Expr {
         conditions: Vec<(Expr, Expr)>,
         else_expr: Option<Box<Expr>>,
     },
+    FunctionCall {
+        name: String,
+        args: Vec<Expr>,
+    },
 }
 
 /// Aggregate functions

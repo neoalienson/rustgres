@@ -144,7 +144,7 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Aggregate functions (custom aggregates)
 - ✅ String functions (CONCAT, SUBSTRING, UPPER, LOWER)
 - ✅ Date/time functions (NOW, DATE_TRUNC, EXTRACT)
-- Subquery with AVG aggregate function fails with "Unsupported expression"
+- ✅ Subquery with AVG aggregate function
 
 
 **Data Types**

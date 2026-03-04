@@ -215,17 +215,24 @@ impl<S: Read + Write> Connection<S> {
                 Ok(ExecutionResult::CommandComplete("INSERT 0 1".to_string()))
             }
             Statement::Select(select) => {
+                log::debug!(
+                    "Executing SELECT: from={}, joins={}, has_where={}",
+                    select.from,
+                    select.joins.len(),
+                    select.where_clause.is_some()
+                );
                 if !select.joins.is_empty() {
                     return self.execute_join_query(select);
                 }
 
-                let columns: Vec<String> = select
+                let column_names: Vec<String> = select
                     .columns
                     .iter()
                     .map(|expr| match expr {
                         Expr::Star => "*".to_string(),
                         Expr::Column(name) => name.clone(),
                         Expr::QualifiedColumn { table: _, column } => column.clone(),
+                        Expr::FunctionCall { name, .. } => name.clone().to_lowercase(),
                         Expr::Aggregate { func, arg } => {
                             let func_name = match func {
                                 crate::parser::ast::AggregateFunc::Count => "COUNT",
@@ -248,17 +255,18 @@ impl<S: Read + Write> Connection<S> {
                 let rows = self.catalog.select(
                     &select.from,
                     select.distinct,
-                    columns.clone(),
-                    select.where_clause,
+                    select.columns,
+                    select.where_clause.clone(),
                     select.group_by,
                     select.having,
                     select.order_by,
                     select.limit,
                     select.offset,
                 )?;
+                log::trace!("catalog.select returned {} rows", rows.len());
 
                 // Build result set
-                let result_set = self.build_result_set(&columns, rows)?;
+                let result_set = self.build_result_set(&column_names, rows)?;
                 Ok(ExecutionResult::ResultSet(result_set))
             }
             Statement::Update(update) => {

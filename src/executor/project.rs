@@ -1,13 +1,24 @@
+use super::eval::Eval;
 use super::executor::{Executor, ExecutorError, Tuple};
+use crate::catalog::Value as CatalogValue;
+use crate::parser::ast::Expr;
 
 pub struct Project {
     child: Box<dyn Executor>,
-    columns: Vec<String>,
+    columns: Vec<Expr>,
 }
 
 impl Project {
-    pub fn new(child: Box<dyn Executor>, columns: Vec<String>) -> Self {
+    pub fn new(child: Box<dyn Executor>, columns: Vec<Expr>) -> Self {
         Self { child, columns }
+    }
+}
+
+fn from_catalog_value(val: CatalogValue) -> Vec<u8> {
+    match val {
+        CatalogValue::Text(s) => s.into_bytes(),
+        CatalogValue::Int(i) => i.to_string().into_bytes(),
+        _ => format!("{:?}", val).into_bytes(),
     }
 }
 
@@ -21,15 +32,17 @@ impl Executor for Project {
             None => Ok(None),
             Some(tuple) => {
                 let mut result = Tuple::new();
-                for col in &self.columns {
-                    if col == "*" {
+                for expr in &self.columns {
+                    if let Expr::Star = expr {
                         return Ok(Some(tuple));
                     }
-                    if let Some(val) = tuple.get(col) {
-                        result.insert(col.clone(), val.clone());
-                    } else {
-                        return Err(ExecutorError::ColumnNotFound(col.clone()));
-                    }
+                    let value = Eval::eval_expr(expr, &tuple)?;
+                    let col_name = match expr {
+                        Expr::Column(name) => name.clone(),
+                        Expr::FunctionCall { name, .. } => name.clone().to_lowercase(),
+                        _ => "?".to_string(),
+                    };
+                    result.insert(col_name, from_catalog_value(value));
                 }
                 Ok(Some(result))
             }
@@ -44,6 +57,7 @@ impl Executor for Project {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::ast::{BinaryOperator, Expr};
     use std::collections::HashMap;
 
     struct MockExecutor {
@@ -85,7 +99,7 @@ mod tests {
         tuple.insert("name".to_string(), b"test".to_vec());
 
         let mock = MockExecutor::new(vec![tuple]);
-        let mut project = Project::new(Box::new(mock), vec!["id".to_string()]);
+        let mut project = Project::new(Box::new(mock), vec![Expr::Column("id".to_string())]);
 
         project.open().unwrap();
         let result = project.next().unwrap().unwrap();
@@ -102,7 +116,7 @@ mod tests {
         tuple.insert("name".to_string(), b"test".to_vec());
 
         let mock = MockExecutor::new(vec![tuple.clone()]);
-        let mut project = Project::new(Box::new(mock), vec!["*".to_string()]);
+        let mut project = Project::new(Box::new(mock), vec![Expr::Star]);
 
         project.open().unwrap();
         let result = project.next().unwrap().unwrap();

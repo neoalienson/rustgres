@@ -13,9 +13,13 @@ echo -e "${GREEN}Building VaultGres Docker Image${NC}"
 VERSION=$(grep '^version' ../Cargo.toml | head -1 | cut -d'"' -f2)
 echo -e "${YELLOW}Version: ${VERSION}${NC}"
 
+# Get git hash
+GIT_HASH=$(git rev-parse --short HEAD)
+echo -e "${YELLOW}Git Hash: ${GIT_HASH}${NC}"
+
 # Build image
 echo -e "${YELLOW}Building image...${NC}"
-docker build -f Dockerfile -t vaultgres:${VERSION} -t vaultgres:latest ..
+docker build --build-arg GIT_HASH=${GIT_HASH} -f Dockerfile -t vaultgres:${VERSION} -t vaultgres:latest ..
 
 # Get image size
 SIZE=$(docker images vaultgres:latest --format "{{.Size}}")

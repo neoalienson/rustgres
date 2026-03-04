@@ -4,6 +4,10 @@ FROM rust:1.82-alpine AS builder
 # Install build dependencies
 RUN apk add --no-cache musl-dev
 
+# Set git hash build-arg
+ARG GIT_HASH
+ENV GIT_HASH=${GIT_HASH}
+
 # Create app directory
 WORKDIR /build
 

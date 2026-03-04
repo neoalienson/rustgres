@@ -71,6 +71,19 @@ fn parse_comparison(parser: &mut Parser) -> Result<Expr> {
     if parser.current_token() == &Token::In {
         parser.advance();
         parser.expect(Token::LeftParen)?;
+
+        // Check if it's a subquery
+        if parser.current_token() == &Token::Select {
+            let subquery = crate::parser::parser::select::parse_select_stmt(parser)?;
+            parser.expect(Token::RightParen)?;
+            return Ok(Expr::BinaryOp {
+                left: Box::new(left),
+                op: BinaryOperator::In,
+                right: Box::new(Expr::Subquery(Box::new(subquery))),
+            });
+        }
+
+        // Otherwise, parse list of values
         let mut values = vec![parse_primary(parser)?];
         while parser.current_token() == &Token::Comma {
             parser.advance();
@@ -141,6 +154,15 @@ pub fn parse_primary(parser: &mut Parser) -> Result<Expr> {
                 parser.advance();
                 let column = parser.expect_identifier()?;
                 Ok(Expr::QualifiedColumn { table: name, column })
+            } else if matches!(parser.current_token(), Token::LeftParen) {
+                parser.advance();
+                let args = if parser.current_token() != &Token::RightParen {
+                    parse_expr_list(parser)?
+                } else {
+                    vec![]
+                };
+                parser.expect(Token::RightParen)?;
+                Ok(Expr::FunctionCall { name, args })
             } else {
                 Ok(Expr::Column(name))
             }

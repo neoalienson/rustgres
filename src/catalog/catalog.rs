@@ -460,7 +460,7 @@ impl Catalog {
         &self,
         table: &str,
         distinct: bool,
-        columns: Vec<String>,
+        columns: Vec<Expr>,
         where_clause: Option<Expr>,
         group_by: Option<Vec<String>>,
         having: Option<Expr>,
@@ -474,6 +474,7 @@ impl Catalog {
         let tuples = data.get(table).ok_or_else(|| format!("Table '{}' has no data", table))?;
 
         SelectExecutor::execute_with_distinct(
+            self,
             table,
             distinct,
             columns,

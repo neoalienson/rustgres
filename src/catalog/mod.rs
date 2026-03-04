@@ -11,7 +11,7 @@ mod persistence;
 pub(crate) mod predicate;
 mod schema;
 mod select_executor;
-mod string_functions;
+pub mod string_functions;
 mod tuple;
 mod unique;
 mod update_delete_executor;

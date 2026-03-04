@@ -1,4 +1,4 @@
-use super::{predicate::PredicateEvaluator, TableSchema, Tuple, Value};
+use super::{predicate::PredicateEvaluator, Catalog, TableSchema, Tuple, Value};
 use crate::parser::ast::Expr;
 use crate::transaction::TransactionManager;
 use std::sync::Arc;
@@ -7,8 +7,9 @@ pub struct Aggregator;
 
 impl Aggregator {
     pub fn execute(
+        catalog: &Catalog,
         _table_name: &str,
-        agg_spec: &str,
+        agg_expr: &Expr,
         where_clause: Option<Expr>,
         tuples: &[Tuple],
         schema: &TableSchema,
@@ -16,24 +17,42 @@ impl Aggregator {
     ) -> Result<Vec<Vec<Value>>, String> {
         let snapshot = txn_mgr.get_snapshot();
 
-        let parts: Vec<&str> = agg_spec.split(':').collect();
-        if parts.len() < 2 {
-            return Err("Invalid aggregate specification".to_string());
-        }
+        let (func, arg_expr) = if let Expr::Aggregate { func, arg } = agg_expr {
+            (func, arg)
+        } else {
+            return Err("Invalid aggregate expression".to_string());
+        };
 
-        let func = parts[1];
-        let col_name = if parts.len() > 2 { Some(parts[2]) } else { None };
+        let col_name =
+            if let Expr::Column(name) = &**arg_expr { Some(name.as_str()) } else { None };
 
         let mut values = Vec::new();
         for tuple in tuples {
             if tuple.header.is_visible(&snapshot, txn_mgr) {
                 if let Some(ref predicate) = where_clause {
-                    if !PredicateEvaluator::evaluate(predicate, &tuple.data, schema)? {
+                    let subquery_eval = |select: &crate::parser::ast::SelectStmt| {
+                        super::select_executor::SelectExecutor::eval_scalar_subquery(
+                            catalog, select,
+                        )
+                    };
+                    let in_subquery_eval =
+                        |select: &crate::parser::ast::SelectStmt, value: &Value| {
+                            super::select_executor::SelectExecutor::eval_in_subquery(
+                                catalog, select, value,
+                            )
+                        };
+                    if !PredicateEvaluator::evaluate_with_in_subquery(
+                        predicate,
+                        &tuple.data,
+                        schema,
+                        &subquery_eval,
+                        &in_subquery_eval,
+                    )? {
                         continue;
                     }
                 }
 
-                if func == "COUNT" {
+                if let crate::parser::ast::AggregateFunc::Count = func {
                     values.push(Value::Int(1));
                 } else if let Some(col) = col_name {
                     let idx = schema
@@ -47,15 +66,15 @@ impl Aggregator {
         }
 
         let result = match func {
-            "COUNT" => Value::Int(values.len() as i64),
-            "SUM" => {
+            crate::parser::ast::AggregateFunc::Count => Value::Int(values.len() as i64),
+            crate::parser::ast::AggregateFunc::Sum => {
                 let sum: i64 = values
                     .iter()
                     .filter_map(|v| if let Value::Int(n) = v { Some(*n) } else { None })
                     .sum();
                 Value::Int(sum)
             }
-            "AVG" => {
+            crate::parser::ast::AggregateFunc::Avg => {
                 let nums: Vec<i64> = values
                     .iter()
                     .filter_map(|v| if let Value::Int(n) = v { Some(*n) } else { None })
@@ -66,9 +85,12 @@ impl Aggregator {
                     Value::Int(nums.iter().sum::<i64>() / nums.len() as i64)
                 }
             }
-            "MIN" => values.iter().min().cloned().unwrap_or(Value::Int(0)),
-            "MAX" => values.iter().max().cloned().unwrap_or(Value::Int(0)),
-            _ => return Err(format!("Unknown aggregate function: {}", func)),
+            crate::parser::ast::AggregateFunc::Min => {
+                values.iter().min().cloned().unwrap_or(Value::Int(0))
+            }
+            crate::parser::ast::AggregateFunc::Max => {
+                values.iter().max().cloned().unwrap_or(Value::Int(0))
+            }
         };
 
         Ok(vec![vec![result]])
@@ -160,9 +182,15 @@ mod tests {
     #[test]
     fn test_count_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Count,
+            arg: Box::new(Expr::Star),
+        };
 
         let result =
-            Aggregator::execute("test", "AGG:COUNT:*", None, &tuples, &schema, &txn_mgr).unwrap();
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0][0], Value::Int(3));
@@ -171,9 +199,15 @@ mod tests {
     #[test]
     fn test_sum_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Sum,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
 
         let result =
-            Aggregator::execute("test", "AGG:SUM:value", None, &tuples, &schema, &txn_mgr).unwrap();
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0][0], Value::Int(60));
@@ -182,9 +216,15 @@ mod tests {
     #[test]
     fn test_avg_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Avg,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
 
         let result =
-            Aggregator::execute("test", "AGG:AVG:value", None, &tuples, &schema, &txn_mgr).unwrap();
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0][0], Value::Int(20));
@@ -193,13 +233,24 @@ mod tests {
     #[test]
     fn test_min_max_aggregate() {
         let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr_min = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Min,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let agg_expr_max = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Max,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
 
         let result =
-            Aggregator::execute("test", "AGG:MIN:value", None, &tuples, &schema, &txn_mgr).unwrap();
+            Aggregator::execute(&catalog, "test", &agg_expr_min, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
         assert_eq!(result[0][0], Value::Int(10));
 
         let result =
-            Aggregator::execute("test", "AGG:MAX:value", None, &tuples, &schema, &txn_mgr).unwrap();
+            Aggregator::execute(&catalog, "test", &agg_expr_max, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
         assert_eq!(result[0][0], Value::Int(30));
     }
 

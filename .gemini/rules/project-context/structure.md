@@ -113,9 +113,9 @@ vaultgres/
 ├── data/                 # Runtime data directory
 ├── wal/                  # Write-ahead log files
 ├── target/               # Build artifacts
-├── .amazonq/             # Amazon Q configuration
+├── .gemini/             # Gemini configuration
 │   └── rules/
-│       └── memory-bank/  # Memory bank documentation
+│       └── project-context/  # Project context documentation
 ├── config.yaml           # Default server configuration
 ├── config.dev.yaml       # Development configuration
 ├── config.prod.yaml      # Production configuration
