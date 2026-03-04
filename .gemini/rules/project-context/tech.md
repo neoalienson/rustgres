@@ -72,7 +72,7 @@ cargo doc --no-deps --open
 cargo test
 
 # Run specific test suite
-cargo test --test unit_tests
+cargo test --lib
 cargo test --test integration_tests
 cargo test --test e2e_tests
 
