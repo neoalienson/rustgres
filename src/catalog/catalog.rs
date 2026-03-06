@@ -759,3 +759,61 @@ impl Default for Catalog {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::ast::{ColumnDef, DataType};
+
+    #[test]
+    fn test_create_and_get_table() {
+        let catalog = Catalog::new();
+        let columns = vec![ColumnDef::new("id".to_string(), DataType::Int)];
+        assert!(catalog.create_table("users".to_string(), columns.clone()).is_ok());
+
+        let schema = catalog.get_table("users").unwrap();
+        assert_eq!(schema.name, "users");
+        assert_eq!(schema.columns, columns);
+    }
+
+    #[test]
+    fn test_create_table_already_exists() {
+        let catalog = Catalog::new();
+        let columns = vec![ColumnDef::new("id".to_string(), DataType::Int)];
+        catalog.create_table("users".to_string(), columns.clone()).unwrap();
+
+        let result = catalog.create_table("users".to_string(), columns);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Table 'users' already exists");
+    }
+
+    #[test]
+    fn test_get_table_not_exists() {
+        let catalog = Catalog::new();
+        assert!(catalog.get_table("users").is_none());
+    }
+
+    #[test]
+    fn test_drop_table() {
+        let catalog = Catalog::new();
+        let columns = vec![ColumnDef::new("id".to_string(), DataType::Int)];
+        catalog.create_table("users".to_string(), columns).unwrap();
+
+        assert!(catalog.drop_table("users", false).is_ok());
+        assert!(catalog.get_table("users").is_none());
+    }
+
+    #[test]
+    fn test_drop_table_not_exists() {
+        let catalog = Catalog::new();
+        let result = catalog.drop_table("users", false);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Table 'users' does not exist");
+    }
+
+    #[test]
+    fn test_drop_table_if_exists() {
+        let catalog = Catalog::new();
+        assert!(catalog.drop_table("users", true).is_ok());
+    }
+}

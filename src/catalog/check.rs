@@ -186,6 +186,123 @@ mod tests {
         let tuple = create_tuple(vec![("value", Value::Int(9))]);
         assert!(CheckValidator::validate(&constraint, &tuple).is_err());
     }
+
+    // New tests for error cases in evaluate_expr and compare
+
+    #[test]
+    fn test_evaluate_expr_unsupported_unary_operator() {
+        let constraint = CheckConstraint {
+            name: None,
+            expr: Expr::UnaryOp {
+                op: crate::parser::ast::UnaryOperator::Minus, // Example of unsupported unary op for boolean result
+                expr: Box::new(Expr::BinaryOp {
+                    left: Box::new(Expr::Column("val".to_string())),
+                    op: BinaryOperator::Equals,
+                    right: Box::new(Expr::Number(1)),
+                }),
+            },
+        };
+        let tuple = create_tuple(vec![("val", Value::Int(1))]);
+        let result = CheckValidator::validate(&constraint, &tuple);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Unsupported unary operator in CHECK");
+    }
+
+    #[test]
+    fn test_evaluate_expr_unsupported_expression_type() {
+        let constraint = CheckConstraint {
+            name: None,
+            expr: Expr::FunctionCall {
+                // FunctionCall is not supported directly in evaluate_expr
+                name: "foo".to_string(),
+                args: vec![],
+            },
+        };
+        let tuple = create_tuple(vec![]);
+        let result = CheckValidator::validate(&constraint, &tuple);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Unsupported expression in CHECK");
+    }
+
+    #[test]
+    fn test_get_value_unsupported_expression_type() {
+        let constraint = CheckConstraint {
+            name: None,
+            expr: Expr::BinaryOp {
+                left: Box::new(Expr::Parameter(0)), // Parameter is not supported in get_value
+                op: BinaryOperator::Equals,
+                right: Box::new(Expr::Number(1)),
+            },
+        };
+        let tuple = create_tuple(vec![]);
+        let result = CheckValidator::validate(&constraint, &tuple);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Unsupported value expression in CHECK");
+    }
+
+    #[test]
+    fn test_compare_integer_logical_operators_error() {
+        let constraint = CheckConstraint {
+            name: None,
+            expr: Expr::BinaryOp {
+                left: Box::new(Expr::Number(1)),
+                op: BinaryOperator::And, // Logical operator with Int values
+                right: Box::new(Expr::Number(2)),
+            },
+        };
+        let tuple = create_tuple(vec![]);
+        let result = CheckValidator::validate(&constraint, &tuple);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Logical operators require boolean operands");
+    }
+
+    #[test]
+    fn test_compare_integer_unsupported_operator_error() {
+        let constraint = CheckConstraint {
+            name: None,
+            expr: Expr::BinaryOp {
+                left: Box::new(Expr::Number(1)),
+                op: BinaryOperator::Like, // Unsupported operator for Int values
+                right: Box::new(Expr::Number(2)),
+            },
+        };
+        let tuple = create_tuple(vec![]);
+        let result = CheckValidator::validate(&constraint, &tuple);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().starts_with("Unsupported operator:"));
+    }
+
+    #[test]
+    fn test_compare_text_unsupported_operator_error() {
+        let constraint = CheckConstraint {
+            name: None,
+            expr: Expr::BinaryOp {
+                left: Box::new(Expr::String("a".to_string())),
+                op: BinaryOperator::GreaterThan, // Unsupported operator for Text values
+                right: Box::new(Expr::String("b".to_string())),
+            },
+        };
+        let tuple = create_tuple(vec![]);
+        let result = CheckValidator::validate(&constraint, &tuple);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Text comparison only supports = and !=");
+    }
+
+    #[test]
+    fn test_compare_type_mismatch_error() {
+        let constraint = CheckConstraint {
+            name: None,
+            expr: Expr::BinaryOp {
+                left: Box::new(Expr::Number(1)),
+                op: BinaryOperator::Equals,
+                right: Box::new(Expr::String("a".to_string())),
+            },
+        };
+        let tuple = create_tuple(vec![]);
+        let result = CheckValidator::validate(&constraint, &tuple);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Type mismatch in CHECK constraint");
+    }
 }
 
 #[cfg(test)]

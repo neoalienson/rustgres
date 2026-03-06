@@ -2,7 +2,7 @@ use super::manager::{TransactionId, TransactionManager, FROZEN_XID};
 use super::snapshot::Snapshot;
 
 /// Tuple header for MVCC
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TupleHeader {
     pub xmin: TransactionId, // Creating transaction
     pub xmax: TransactionId, // Deleting transaction (0 if active)

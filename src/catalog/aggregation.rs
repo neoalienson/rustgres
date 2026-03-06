@@ -165,7 +165,7 @@ impl Aggregator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::ast::{ColumnDef, DataType};
+    use crate::parser::ast::{BinaryOperator, ColumnDef, DataType};
     use crate::transaction::TupleHeader;
     use std::collections::HashMap;
 
@@ -304,5 +304,227 @@ mod tests {
         .unwrap();
 
         assert_eq!(result.len(), 2);
+    }
+
+    // New tests for execute function error handling and edge cases
+
+    #[test]
+    fn test_execute_invalid_aggregate_expression() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Number(10); // Not an aggregate expression
+
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Invalid aggregate expression");
+    }
+
+    #[test]
+    fn test_execute_column_not_found() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Sum,
+            arg: Box::new(Expr::Column("non_existent".to_string())),
+        };
+
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Column 'non_existent' not found");
+    }
+
+    #[test]
+    fn test_execute_empty_tuples() {
+        let (schema, _tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Count,
+            arg: Box::new(Expr::Star),
+        };
+
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &[], &schema, &txn_mgr).unwrap();
+        assert_eq!(result[0][0], Value::Int(0));
+
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Sum,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &[], &schema, &txn_mgr).unwrap();
+        assert_eq!(result[0][0], Value::Int(0));
+
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Avg,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &[], &schema, &txn_mgr).unwrap();
+        assert_eq!(result[0][0], Value::Int(0));
+
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Min,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &[], &schema, &txn_mgr).unwrap();
+        assert_eq!(result[0][0], Value::Int(0));
+
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Max,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &[], &schema, &txn_mgr).unwrap();
+        assert_eq!(result[0][0], Value::Int(0));
+    }
+
+    #[test]
+    fn test_execute_aggregate_with_null_values() {
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
+                ColumnDef::new("id".to_string(), DataType::Int),
+                ColumnDef::new("value".to_string(), DataType::Int),
+            ],
+        );
+
+        let txn_mgr = Arc::new(TransactionManager::new());
+        let txn = txn_mgr.begin();
+        let header = TupleHeader::new(txn.xid);
+        txn_mgr.commit(txn.xid).unwrap();
+
+        let tuples = vec![
+            Tuple { header, data: vec![Value::Int(1), Value::Int(10)], column_map: HashMap::new() },
+            Tuple { header, data: vec![Value::Int(2), Value::Null], column_map: HashMap::new() },
+            Tuple { header, data: vec![Value::Int(3), Value::Int(20)], column_map: HashMap::new() },
+        ];
+
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Sum,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
+        assert_eq!(result[0][0], Value::Int(30)); // NULL values should be ignored
+
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Avg,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
+        assert_eq!(result[0][0], Value::Int(15)); // (10 + 20) / 2
+
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Min,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
+        assert_eq!(result[0][0], Value::Int(10));
+
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Max,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
+        assert_eq!(result[0][0], Value::Int(20));
+    }
+
+    #[test]
+    fn test_execute_count_with_where_clause() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Count,
+            arg: Box::new(Expr::Star),
+        };
+        let where_clause = Some(Expr::BinaryOp {
+            left: Box::new(Expr::Column("category".to_string())),
+            op: BinaryOperator::Equals,
+            right: Box::new(Expr::String("A".to_string())),
+        });
+
+        let result = Aggregator::execute(
+            &catalog,
+            "test",
+            &agg_expr,
+            where_clause,
+            &tuples,
+            &schema,
+            &txn_mgr,
+        )
+        .unwrap();
+
+        assert_eq!(result[0][0], Value::Int(2)); // Two tuples have category 'A'
+    }
+
+    #[test]
+    fn test_execute_sum_with_where_clause() {
+        let (schema, tuples, txn_mgr) = create_test_data();
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Sum,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let where_clause = Some(Expr::BinaryOp {
+            left: Box::new(Expr::Column("category".to_string())),
+            op: BinaryOperator::Equals,
+            right: Box::new(Expr::String("A".to_string())),
+        });
+
+        let result = Aggregator::execute(
+            &catalog,
+            "test",
+            &agg_expr,
+            where_clause,
+            &tuples,
+            &schema,
+            &txn_mgr,
+        )
+        .unwrap();
+
+        assert_eq!(result[0][0], Value::Int(40)); // 10 + 30
+    }
+
+    #[test]
+    fn test_execute_avg_empty_numeric_values() {
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
+                ColumnDef::new("id".to_string(), DataType::Int),
+                ColumnDef::new("value".to_string(), DataType::Text), // Not Int
+            ],
+        );
+
+        let txn_mgr = Arc::new(TransactionManager::new());
+        let txn = txn_mgr.begin();
+        let header = TupleHeader::new(txn.xid);
+        txn_mgr.commit(txn.xid).unwrap();
+
+        let tuples = vec![Tuple {
+            header,
+            data: vec![Value::Int(1), Value::Text("abc".to_string())],
+            column_map: HashMap::new(),
+        }];
+
+        let catalog = Catalog::new();
+        let agg_expr = Expr::Aggregate {
+            func: crate::parser::ast::AggregateFunc::Avg,
+            arg: Box::new(Expr::Column("value".to_string())),
+        };
+        let result =
+            Aggregator::execute(&catalog, "test", &agg_expr, None, &tuples, &schema, &txn_mgr)
+                .unwrap();
+        assert_eq!(result[0][0], Value::Int(0)); // Should be 0 when no numeric values
     }
 }

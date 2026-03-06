@@ -493,4 +493,116 @@ mod tests {
 
         assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
     }
+
+    #[test]
+    fn test_evaluate_in_operator_not_list() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(2)];
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("id".to_string())),
+            op: BinaryOperator::In,
+            right: Box::new(Expr::Number(1)), // Not a list
+        };
+
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).is_err());
+        assert_eq!(
+            PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap_err(),
+            "IN requires list or subquery"
+        );
+    }
+
+    #[test]
+    fn test_evaluate_between_invalid_values() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("age".to_string())),
+            op: BinaryOperator::Between,
+            right: Box::new(Expr::List(vec![Expr::Number(20)])), // Only one value
+        };
+
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).is_err());
+        assert_eq!(
+            PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap_err(),
+            "BETWEEN requires two values"
+        );
+    }
+
+    #[test]
+    fn test_evaluate_unsupported_unary_operator() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1)];
+        let expr = Expr::UnaryOp {
+            op: UnaryOperator::Minus,
+            expr: Box::new(Expr::Column("id".to_string())),
+        };
+
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).is_err());
+        assert_eq!(
+            PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap_err(),
+            "Unsupported unary operator"
+        );
+    }
+
+    #[test]
+    fn test_evaluate_like_non_text() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1), Value::Text("Alice".to_string()), Value::Int(25)];
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("id".to_string())),
+            op: BinaryOperator::Like,
+            right: Box::new(Expr::String("1".to_string())),
+        };
+
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).is_err());
+        assert_eq!(
+            PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap_err(),
+            "LIKE requires text values"
+        );
+    }
+
+    #[test]
+    fn test_evaluate_is_null_false() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1)];
+        let expr = Expr::IsNull(Box::new(Expr::Column("id".to_string())));
+        assert!(!PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_is_not_null_false() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Null];
+        let expr = Expr::IsNotNull(Box::new(Expr::Column("id".to_string())));
+        assert!(!PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap());
+    }
+
+    #[test]
+    fn test_evaluate_subquery_default_error() {
+        let schema = create_test_schema();
+        let tuple = vec![Value::Int(1)];
+        let expr = Expr::BinaryOp {
+            left: Box::new(Expr::Column("id".to_string())),
+            op: BinaryOperator::In,
+            right: Box::new(Expr::Subquery(Box::new(crate::parser::ast::SelectStmt {
+                columns: vec![],
+                from: "other".to_string(),
+                joins: vec![],
+                table_alias: None,
+                where_clause: None,
+                group_by: None,
+                having: None,
+                order_by: None,
+                limit: None,
+                offset: None,
+                distinct: false,
+            }))),
+        };
+
+        assert!(PredicateEvaluator::evaluate(&expr, &tuple, &schema).is_err());
+        assert_eq!(
+            PredicateEvaluator::evaluate(&expr, &tuple, &schema).unwrap_err(),
+            "IN subquery not supported in this context"
+        );
+    }
 }

@@ -394,7 +394,7 @@ fn read_value<R: Read>(reader: &mut R) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::ast::ColumnDef;
+    use crate::parser::ast::{ColumnDef, Expr, SelectStmt};
     use crate::transaction::TupleHeader;
     use std::fs;
 
@@ -502,5 +502,61 @@ mod tests {
         let result = Persistence::load(test_dir, &mut tables, &mut data, &txn_mgr);
         assert!(result.is_ok());
         assert_eq!(tables.len(), 0);
+    }
+
+    #[test]
+    fn test_save_and_load_views() {
+        let test_dir = "/tmp/vaultgres_test_views";
+        let _ = fs::remove_dir_all(test_dir);
+        fs::create_dir_all(test_dir).unwrap();
+
+        let mut views = HashMap::new();
+        views.insert(
+            "my_view".to_string(),
+            SelectStmt {
+                columns: vec![Expr::Star],
+                from: "users".to_string(),
+                joins: vec![],
+                table_alias: None,
+                where_clause: None,
+                group_by: None,
+                having: None,
+                order_by: None,
+                limit: None,
+                offset: None,
+                distinct: false,
+            },
+        );
+
+        Persistence::save_views(test_dir, &views).unwrap();
+        let loaded_views = Persistence::load_views(test_dir).unwrap();
+
+        assert_eq!(loaded_views.len(), 1);
+        assert!(loaded_views.contains_key("my_view"));
+
+        fs::remove_dir_all(test_dir).unwrap();
+    }
+
+    #[test]
+    fn test_load_nonexistent_views() {
+        let test_dir = "/tmp/vaultgres_test_nonexistent_views";
+        let _ = fs::remove_dir_all(test_dir);
+
+        let loaded_views = Persistence::load_views(test_dir).unwrap();
+        assert!(loaded_views.is_empty());
+    }
+
+    #[test]
+    fn test_load_invalid_views_json() {
+        let test_dir = "/tmp/vaultgres_test_invalid_views";
+        let _ = fs::remove_dir_all(test_dir);
+        fs::create_dir_all(test_dir).unwrap();
+        let path = format!("{}/views.json", test_dir);
+        std::fs::write(&path, "invalid json").unwrap();
+
+        let result = Persistence::load_views(test_dir);
+        assert!(result.is_err());
+
+        fs::remove_dir_all(test_dir).unwrap();
     }
 }

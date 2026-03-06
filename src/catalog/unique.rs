@@ -13,9 +13,21 @@ impl UniqueValidator {
         let new_values: Vec<Value> =
             column_indices.iter().map(|&idx| new_tuple[idx].clone()).collect();
 
+        // According to SQL standard, if any of the values in the new tuple for the unique constraint
+        // are NULL, it does not violate the unique constraint.
+        if new_values.iter().any(|v| *v == Value::Null) {
+            return Ok(());
+        }
+
         for existing in existing_tuples {
             let existing_values: Vec<Value> =
                 column_indices.iter().map(|&idx| existing.data[idx].clone()).collect();
+
+            // If any of the values in the existing tuple for the unique constraint are NULL,
+            // it also does not cause a violation with the new tuple (due to NULL != NULL)
+            if existing_values.iter().any(|v| *v == Value::Null) {
+                continue;
+            }
 
             if new_values == existing_values {
                 let name = constraint.name.as_deref().unwrap_or("unnamed");
@@ -129,6 +141,36 @@ mod tests {
 
         let duplicate = vec![Value::Int(2)];
         assert!(UniqueValidator::validate(&constraint, &duplicate, &existing, &[0]).is_err());
+    }
+
+    #[test]
+    fn test_unique_null_values_single_column() {
+        let constraint = UniqueConstraint {
+            name: Some("unique_nullable".to_string()),
+            columns: vec!["nullable_col".to_string()],
+        };
+
+        let existing = vec![create_tuple(vec![Value::Null])];
+        let new_tuple = vec![Value::Null]; // Inserting another NULL
+
+        let result = UniqueValidator::validate(&constraint, &new_tuple, &existing, &[0]);
+        // With corrected NULL handling, this should now be OK
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_unique_null_values_composite_key() {
+        let constraint = UniqueConstraint {
+            name: Some("unique_composite".to_string()),
+            columns: vec!["col1".to_string(), "col2".to_string()],
+        };
+
+        let existing = vec![create_tuple(vec![Value::Int(1), Value::Null])];
+        let new_tuple = vec![Value::Int(1), Value::Null]; // Inserting another (1, NULL)
+
+        let result = UniqueValidator::validate(&constraint, &new_tuple, &existing, &[0, 1]);
+        // With corrected NULL handling, this should now be OK
+        assert!(result.is_ok());
     }
 }
 

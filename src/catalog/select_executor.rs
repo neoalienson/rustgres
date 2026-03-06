@@ -298,3 +298,89 @@ impl SelectExecutor {
         results.retain(|row| seen.insert(row.clone()));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::ast::ColumnDef;
+    use crate::parser::ast::DataType;
+
+    // --- apply_limit_offset tests ---
+
+    #[test]
+    fn test_apply_limit_offset_no_limit_no_offset() {
+        let data = vec![vec![Value::Int(1)], vec![Value::Int(2)]];
+        let result = SelectExecutor::apply_limit_offset(data.clone(), None, None);
+        assert_eq!(result, data);
+    }
+
+    #[test]
+    fn test_apply_limit_offset_with_limit() {
+        let data = vec![vec![Value::Int(1)], vec![Value::Int(2)], vec![Value::Int(3)]];
+        let result = SelectExecutor::apply_limit_offset(data, Some(2), None);
+        assert_eq!(result, vec![vec![Value::Int(1)], vec![Value::Int(2)]]);
+    }
+
+    #[test]
+    fn test_apply_limit_offset_with_offset() {
+        let data = vec![vec![Value::Int(1)], vec![Value::Int(2)], vec![Value::Int(3)]];
+        let result = SelectExecutor::apply_limit_offset(data, None, Some(1));
+        assert_eq!(result, vec![vec![Value::Int(2)], vec![Value::Int(3)]]);
+    }
+
+    #[test]
+    fn test_apply_limit_offset_with_limit_and_offset() {
+        let data = vec![
+            vec![Value::Int(1)],
+            vec![Value::Int(2)],
+            vec![Value::Int(3)],
+            vec![Value::Int(4)],
+        ];
+        let result = SelectExecutor::apply_limit_offset(data, Some(2), Some(1));
+        assert_eq!(result, vec![vec![Value::Int(2)], vec![Value::Int(3)]]);
+    }
+
+    #[test]
+    fn test_apply_limit_offset_limit_greater_than_len() {
+        let data = vec![vec![Value::Int(1)], vec![Value::Int(2)]];
+        let result = SelectExecutor::apply_limit_offset(data.clone(), Some(5), None);
+        assert_eq!(result, data);
+    }
+
+    #[test]
+    fn test_apply_limit_offset_offset_greater_than_len() {
+        let data = vec![vec![Value::Int(1)], vec![Value::Int(2)]];
+        let result = SelectExecutor::apply_limit_offset(data, None, Some(5));
+        assert!(result.is_empty());
+    }
+
+    // --- apply_distinct tests ---
+
+    #[test]
+    fn test_apply_distinct_unique_rows() {
+        let mut data = vec![vec![Value::Int(1)], vec![Value::Int(2)]];
+        let expected = data.clone();
+        SelectExecutor::apply_distinct(&mut data);
+        assert_eq!(data, expected);
+    }
+
+    #[test]
+    fn test_apply_distinct_with_duplicates() {
+        let mut data = vec![
+            vec![Value::Int(1)],
+            vec![Value::Int(2)],
+            vec![Value::Int(1)],
+            vec![Value::Int(3)],
+            vec![Value::Int(2)],
+        ];
+        SelectExecutor::apply_distinct(&mut data);
+        assert_eq!(data, vec![vec![Value::Int(1)], vec![Value::Int(2)], vec![Value::Int(3)]]);
+    }
+
+    #[test]
+    fn test_apply_distinct_empty() {
+        let mut data: Vec<Vec<Value>> = vec![];
+        SelectExecutor::apply_distinct(&mut data);
+        assert!(data.is_empty());
+    }
+}

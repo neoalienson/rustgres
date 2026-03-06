@@ -76,7 +76,7 @@ impl HashAggExecutor {
 
             // Update aggregate states
             for (i, agg_expr) in aggregates.iter().enumerate() {
-                if let Expr::Aggregate { func, arg } = agg_expr {
+                if let Expr::Aggregate { func: _func, arg } = agg_expr {
                     let arg_val = Eval::eval_expr(arg, &tuple)?;
 
                     match &mut entry.1[i] {
@@ -147,7 +147,7 @@ impl HashAggExecutor {
                 let agg_value = match &agg_states[i] {
                     AggregateState::Count(c) => Value::Int(*c),
                     AggregateState::Sum(s) => Value::Int(*s),
-                    AggregateState::Avg { sum: _, count } => {
+                    AggregateState::Avg { sum: _, count: _count } => {
                         // For empty input, AVG returns NULL
                         Value::Null
                     }

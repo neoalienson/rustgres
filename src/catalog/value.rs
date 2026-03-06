@@ -122,3 +122,123 @@ impl std::fmt::Display for Value {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    // Helper to calculate hash
+    fn calculate_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+        t.hash(&mut s);
+        s.finish()
+    }
+
+    #[test]
+    fn test_to_bytes() {
+        assert_eq!(Value::Int(123).to_bytes(), 123i64.to_le_bytes().to_vec());
+        assert_eq!(Value::Float(12.3).to_bytes(), 12.3f64.to_le_bytes().to_vec());
+        assert_eq!(Value::Bool(true).to_bytes(), vec![1]);
+        assert_eq!(Value::Text("hello".to_string()).to_bytes(), "hello".as_bytes().to_vec());
+        assert_eq!(Value::Array(vec![]).to_bytes(), b"ARRAY".to_vec());
+        assert_eq!(Value::Json("{}".to_string()).to_bytes(), b"JSON".to_vec());
+        assert_eq!(Value::Date(100).to_bytes(), 100i32.to_le_bytes().to_vec());
+        assert_eq!(Value::Time(200).to_bytes(), 200i64.to_le_bytes().to_vec());
+        assert_eq!(Value::Timestamp(300).to_bytes(), 300i64.to_le_bytes().to_vec());
+        assert_eq!(Value::Decimal(123, 2).to_bytes(), b"DECIMAL".to_vec());
+        assert_eq!(Value::Bytea(vec![1, 2, 3]).to_bytes(), vec![1, 2, 3]);
+        assert_eq!(Value::Null.to_bytes(), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn test_partial_eq() {
+        assert_eq!(Value::Int(1), Value::Int(1));
+        assert_ne!(Value::Int(1), Value::Int(2));
+        assert_eq!(Value::Text("a".to_string()), Value::Text("a".to_string()));
+        assert_ne!(Value::Text("a".to_string()), Value::Text("b".to_string()));
+        assert_eq!(Value::Null, Value::Null);
+        assert_ne!(Value::Int(1), Value::Null); // Different types are not equal
+        assert_ne!(Value::Int(1), Value::Text("1".to_string()));
+    }
+
+    #[test]
+    fn test_partial_ord() {
+        assert!(Value::Int(1) < Value::Int(2));
+        assert!(Value::Int(2) > Value::Int(1));
+        assert!(Value::Int(1) <= Value::Int(1));
+
+        assert!(Value::Text("a".to_string()) < Value::Text("b".to_string()));
+        assert!(Value::Text("b".to_string()) > Value::Text("a".to_string()));
+
+        assert_eq!(Value::Int(1).partial_cmp(&Value::Null), None);
+        assert_eq!(Value::Null.partial_cmp(&Value::Int(1)), None);
+        assert_eq!(Value::Null.partial_cmp(&Value::Null), Some(std::cmp::Ordering::Equal));
+
+        // Decimal with different scale should be None
+        assert_eq!(Value::Decimal(10, 1).partial_cmp(&Value::Decimal(100, 2)), None);
+        // Decimal with same scale should compare
+        assert_eq!(
+            Value::Decimal(10, 1).partial_cmp(&Value::Decimal(20, 1)),
+            Some(std::cmp::Ordering::Less)
+        );
+    }
+
+    #[test]
+    fn test_ord() {
+        assert_eq!(Value::Int(1).cmp(&Value::Int(2)), std::cmp::Ordering::Less);
+        assert_eq!(Value::Int(2).cmp(&Value::Int(1)), std::cmp::Ordering::Greater);
+        assert_eq!(Value::Int(1).cmp(&Value::Int(1)), std::cmp::Ordering::Equal);
+
+        assert_eq!(
+            Value::Text("a".to_string()).cmp(&Value::Text("b".to_string())),
+            std::cmp::Ordering::Less
+        );
+        assert_eq!(Value::Null.cmp(&Value::Null), std::cmp::Ordering::Equal);
+
+        // Ord for mismatched types defaults to Equal, this might be unexpected but is defined by the impl
+        assert_eq!(Value::Int(1).cmp(&Value::Text("1".to_string())), std::cmp::Ordering::Equal);
+    }
+
+    #[test]
+    fn test_hash() {
+        let h1 = calculate_hash(&Value::Int(1));
+        let h2 = calculate_hash(&Value::Int(1));
+        let h3 = calculate_hash(&Value::Int(2));
+        assert_eq!(h1, h2);
+        assert_ne!(h1, h3);
+
+        let h_text1 = calculate_hash(&Value::Text("hello".to_string()));
+        let h_text2 = calculate_hash(&Value::Text("hello".to_string()));
+        let h_text3 = calculate_hash(&Value::Text("world".to_string()));
+        assert_eq!(h_text1, h_text2);
+        assert_ne!(h_text1, h_text3);
+
+        let h_null1 = calculate_hash(&Value::Null);
+        let h_null2 = calculate_hash(&Value::Null);
+        assert_eq!(h_null1, h_null2);
+
+        // Different types should generally hash differently
+        assert_ne!(calculate_hash(&Value::Int(1)), calculate_hash(&Value::Float(1.0)));
+    }
+
+    #[test]
+    fn test_display() {
+        assert_eq!(format!("{}", Value::Int(123)), "123");
+        assert_eq!(format!("{}", Value::Float(12.3)), "12.3");
+        assert_eq!(format!("{}", Value::Bool(true)), "true");
+        assert_eq!(format!("{}", Value::Text("hello".to_string())), "hello");
+        assert_eq!(format!("{}", Value::Array(vec![])), "ARRAY");
+        assert_eq!(
+            format!("{}", Value::Json("{\"key\":\"value\"}".to_string())),
+            "{\"key\":\"value\"}"
+        );
+        assert_eq!(format!("{}", Value::Date(100)), "100");
+        assert_eq!(format!("{}", Value::Time(200)), "200");
+        assert_eq!(format!("{}", Value::Timestamp(300)), "300");
+        assert_eq!(format!("{}", Value::Decimal(123, 2)), "123.2");
+        assert_eq!(format!("{}", Value::Bytea(vec![1, 2, 3])), "BYTEA");
+        assert_eq!(format!("{}", Value::Null), "NULL");
+    }
+}

@@ -185,3 +185,159 @@ impl InsertValidator {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::{TableSchema, Value};
+    use crate::parser::ast::{ColumnDef, DataType, Expr, UniqueConstraint};
+    use std::sync::{Arc, RwLock};
+
+    // Helper function to create a ColumnDef
+    fn create_col_def(
+        name: &str,
+        data_type: DataType,
+        is_not_null: bool,
+        is_primary_key: bool,
+        is_auto_increment: bool,
+        default_value: Option<Expr>,
+    ) -> ColumnDef {
+        ColumnDef {
+            name: name.to_string(),
+            data_type,
+            is_primary_key,
+            is_not_null,
+            is_unique: false,
+            is_auto_increment,
+            default_value,
+            foreign_key: None,
+        }
+    }
+
+    #[test]
+    fn test_resolve_value_explicit_value() {
+        let col = create_col_def("id", DataType::Int, false, false, false, None);
+        let values = vec![Expr::Number(10)];
+        let sequences = Arc::new(RwLock::new(HashMap::new()));
+        let resolved =
+            InsertValidator::resolve_value(&col, 0, &values, "test_table", &sequences).unwrap();
+        assert_eq!(resolved, Value::Int(10));
+    }
+
+    #[test]
+    fn test_resolve_value_type_mismatch() {
+        let col = create_col_def("id", DataType::Int, false, false, false, None);
+        let values = vec![Expr::String("hello".to_string())];
+        let sequences = Arc::new(RwLock::new(HashMap::new()));
+        let resolved = InsertValidator::resolve_value(&col, 0, &values, "test_table", &sequences);
+        assert!(resolved.is_err());
+        assert_eq!(resolved.unwrap_err(), "Type mismatch for column 'id'");
+    }
+
+    #[test]
+    fn test_resolve_value_auto_increment() {
+        let col = create_col_def("id", DataType::Serial, false, false, true, None);
+        let values = vec![];
+        let sequences = Arc::new(RwLock::new(HashMap::new()));
+        let resolved1 =
+            InsertValidator::resolve_value(&col, 0, &values, "test_table", &sequences).unwrap();
+        assert_eq!(resolved1, Value::Int(1));
+
+        let resolved2 =
+            InsertValidator::resolve_value(&col, 0, &values, "test_table", &sequences).unwrap();
+        assert_eq!(resolved2, Value::Int(2));
+    }
+
+    #[test]
+    fn test_resolve_value_default_value() {
+        let col = create_col_def(
+            "name",
+            DataType::Text,
+            false,
+            false,
+            false,
+            Some(Expr::String("default_name".to_string())),
+        );
+        let values = vec![];
+        let sequences = Arc::new(RwLock::new(HashMap::new()));
+        let resolved =
+            InsertValidator::resolve_value(&col, 0, &values, "test_table", &sequences).unwrap();
+        assert_eq!(resolved, Value::Text("default_name".to_string()));
+    }
+
+    #[test]
+    fn test_resolve_value_no_value_no_default_no_auto_increment() {
+        let col = create_col_def("age", DataType::Int, false, false, false, None);
+        let values = vec![];
+        let sequences = Arc::new(RwLock::new(HashMap::new()));
+        let resolved = InsertValidator::resolve_value(&col, 0, &values, "test_table", &sequences);
+        assert!(resolved.is_err());
+        assert_eq!(resolved.unwrap_err(), "Column 'age' has no default value");
+    }
+
+    #[test]
+    fn test_validate_not_null_success() {
+        let col1 = create_col_def("id", DataType::Int, true, false, false, None);
+        let col2 = create_col_def("name", DataType::Text, false, false, false, None);
+        let schema = TableSchema {
+            name: "test_table".to_string(),
+            columns: vec![col1, col2],
+            primary_key: None,
+            foreign_keys: vec![],
+            unique_constraints: vec![],
+            check_constraints: vec![],
+        };
+        let tuple_data = vec![Value::Int(1), Value::Text("test".to_string())];
+        assert!(InsertValidator::validate_not_null(&schema, &tuple_data).is_ok());
+    }
+
+    #[test]
+    fn test_validate_not_null_failure_not_null_column() {
+        let col1 = create_col_def("id", DataType::Int, true, false, false, None);
+        let col2 = create_col_def("name", DataType::Text, false, false, false, None);
+        let schema = TableSchema {
+            name: "test_table".to_string(),
+            columns: vec![col1, col2],
+            primary_key: None,
+            foreign_keys: vec![],
+            unique_constraints: vec![],
+            check_constraints: vec![],
+        };
+        let tuple_data = vec![Value::Null, Value::Text("test".to_string())];
+        let result = InsertValidator::validate_not_null(&schema, &tuple_data);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Column 'id' cannot be NULL");
+    }
+
+    #[test]
+    fn test_validate_not_null_failure_primary_key_column() {
+        let col1 = create_col_def("id", DataType::Int, false, true, false, None);
+        let col2 = create_col_def("name", DataType::Text, false, false, false, None);
+        let schema = TableSchema {
+            name: "test_table".to_string(),
+            columns: vec![col1, col2],
+            primary_key: Some(vec!["id".to_string()]),
+            foreign_keys: vec![],
+            unique_constraints: vec![],
+            check_constraints: vec![],
+        };
+        let tuple_data = vec![Value::Null, Value::Text("test".to_string())];
+        let result = InsertValidator::validate_not_null(&schema, &tuple_data);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Column 'id' cannot be NULL");
+    }
+
+    #[test]
+    fn test_validate_not_null_empty_schema() {
+        let schema = TableSchema {
+            name: "test_table".to_string(),
+            columns: vec![],
+            primary_key: None,
+            foreign_keys: vec![],
+            unique_constraints: vec![],
+            check_constraints: vec![],
+        };
+        let tuple_data = vec![];
+        assert!(InsertValidator::validate_not_null(&schema, &tuple_data).is_ok());
+    }
+}
