@@ -258,7 +258,7 @@ impl Lexer {
             '\'' => self.read_string(),
             '$' => self.read_parameter(),
             _ if ch.is_ascii_digit() => self.read_number(),
-            _ if ch.is_ascii_alphabetic() => self.read_identifier(),
+            _ if ch.is_ascii_alphabetic() || ch == '_' => self.read_identifier(),
             _ => Err(ParseError::UnexpectedToken(ch.to_string())),
         }
     }
@@ -542,5 +542,292 @@ mod tests {
         assert_eq!(tokens[3], Token::LessThanOrEqual);
         assert_eq!(tokens[4], Token::GreaterThan);
         assert_eq!(tokens[5], Token::GreaterThanOrEqual);
+    }
+
+    // --- New tests ---
+
+    #[test]
+    fn test_tokenize_all_keywords() {
+        let mut lexer = Lexer::new(
+            "SELECT INSERT UPDATE DELETE FROM WHERE INTO VALUES SET CREATE TABLE INT TEXT VARCHAR BOOLEAN DATE TIME TIMESTAMP DECIMAL NUMERIC BYTEA BLOB DESCRIBE DROP IF EXISTS ORDER BY ASC DESC LIMIT OFFSET COUNT SUM AVG MIN MAX AND OR GROUP HAVING DISTINCT LIKE IN BETWEEN NOT IS NULL JOIN LATERAL INNER LEFT RIGHT FULL ON UNION ALL INTERSECT EXCEPT WITH RECURSIVE AS OVER PARTITION ROW_NUMBER RANK DENSE_RANK LAG LEAD CASE WHEN THEN ELSE END VIEW MATERIALIZED REFRESH TRIGGER BEFORE AFTER FOR EACH ROW STATEMENT BEGIN COMMIT ROLLBACK SAVEPOINT RELEASE TO TRANSACTION ISOLATION LEVEL READ COMMITTED REPEATABLE SERIALIZABLE PREPARE EXECUTE DEALLOCATE INDEX UNIQUE FUNCTION PROCEDURE RETURNS LANGUAGE SQL PLPGSQL DECLARE CURSOR FETCH CLOSE NEXT PRIOR FIRST LAST ABSOLUTE RELATIVE FORWARD BACKWARD SETOF VARIADIC INOUT OUT IMMUTABLE STABLE VOLATILE COST ROWS PRIMARY KEY FOREIGN REFERENCES DEFAULT SERIAL AUTO_INCREMENT",
+        );
+        let tokens = lexer.tokenize().unwrap();
+        let expected_tokens = vec![
+            Token::Select,
+            Token::Insert,
+            Token::Update,
+            Token::Delete,
+            Token::From,
+            Token::Where,
+            Token::Into,
+            Token::Values,
+            Token::Set,
+            Token::Create,
+            Token::Table,
+            Token::Int,
+            Token::Text,
+            Token::Varchar,
+            Token::Boolean,
+            Token::Date,
+            Token::Time,
+            Token::Timestamp,
+            Token::Decimal,
+            Token::Numeric,
+            Token::Bytea,
+            Token::Blob,
+            Token::Describe,
+            Token::Drop,
+            Token::If,
+            Token::Exists,
+            Token::Order,
+            Token::By,
+            Token::Asc,
+            Token::Descending,
+            Token::Limit,
+            Token::Offset,
+            Token::Count,
+            Token::Sum,
+            Token::Avg,
+            Token::Min,
+            Token::Max,
+            Token::And,
+            Token::Or,
+            Token::Group,
+            Token::Having,
+            Token::Distinct,
+            Token::Like,
+            Token::In,
+            Token::Between,
+            Token::Not,
+            Token::Is,
+            Token::Null,
+            Token::Join,
+            Token::Lateral,
+            Token::Inner,
+            Token::Left,
+            Token::Right,
+            Token::Full,
+            Token::On,
+            Token::Union,
+            Token::All,
+            Token::Intersect,
+            Token::Except,
+            Token::With,
+            Token::Recursive,
+            Token::As,
+            Token::Over,
+            Token::Partition,
+            Token::RowNumber,
+            Token::Rank,
+            Token::DenseRank,
+            Token::Lag,
+            Token::Lead,
+            Token::Case,
+            Token::When,
+            Token::Then,
+            Token::Else,
+            Token::End,
+            Token::View,
+            Token::Materialized,
+            Token::Refresh,
+            Token::Trigger,
+            Token::Before,
+            Token::After,
+            Token::For,
+            Token::Each,
+            Token::Row,
+            Token::Statement,
+            Token::Begin,
+            Token::Commit,
+            Token::Rollback,
+            Token::Savepoint,
+            Token::Release,
+            Token::To,
+            Token::Transaction,
+            Token::Isolation,
+            Token::Level,
+            Token::Read,
+            Token::Committed,
+            Token::Repeatable,
+            Token::Serializable,
+            Token::Prepare,
+            Token::Execute,
+            Token::Deallocate,
+            Token::Index,
+            Token::Unique,
+            Token::Function,
+            Token::Procedure,
+            Token::Returns,
+            Token::Language,
+            Token::Sql,
+            Token::PlPgSql,
+            Token::Declare,
+            Token::Cursor,
+            Token::Fetch,
+            Token::Close,
+            Token::Next,
+            Token::Prior,
+            Token::First,
+            Token::Last,
+            Token::Absolute,
+            Token::Relative,
+            Token::Forward,
+            Token::Backward,
+            Token::Setof,
+            Token::Variadic,
+            Token::Inout,
+            Token::Out,
+            Token::Immutable,
+            Token::Stable,
+            Token::Volatile,
+            Token::Cost,
+            Token::Rows,
+            Token::Primary,
+            Token::Key,
+            Token::Foreign,
+            Token::References,
+            Token::Default,
+            Token::Serial,
+            Token::AutoIncrement,
+            Token::EOF,
+        ];
+        assert_eq!(tokens, expected_tokens);
+    }
+
+    #[test]
+    fn test_tokenize_empty_input() {
+        let mut lexer = Lexer::new("");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::EOF]);
+    }
+
+    #[test]
+    fn test_tokenize_whitespace_only_input() {
+        let mut lexer = Lexer::new("   \t\n\r");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::EOF]);
+    }
+
+    #[test]
+    fn test_tokenize_identifiers_with_numbers_and_underscores() {
+        let mut lexer = Lexer::new("col_1 table_name2 _id");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Identifier("col_1".to_string()),
+                Token::Identifier("table_name2".to_string()),
+                Token::Identifier("_id".to_string()),
+                Token::EOF,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_keywords_case_insensitivity() {
+        let mut lexer = Lexer::new("select From WHERE");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Select, Token::From, Token::Where, Token::EOF,]);
+    }
+
+    #[test]
+    fn test_tokenize_string_with_special_chars() {
+        let mut lexer = Lexer::new("'Hello, World! 123 _ -'");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::String("Hello, World! 123 _ -".to_string()), Token::EOF,]);
+    }
+
+    #[test]
+    fn test_tokenize_empty_string() {
+        let mut lexer = Lexer::new("''");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::String("".to_string()), Token::EOF,]);
+    }
+
+    #[test]
+    fn test_tokenize_unterminated_string_error() {
+        let mut lexer = Lexer::new("'unterminated");
+        let result = lexer.tokenize();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ParseError::UnexpectedEOF);
+    }
+
+    #[test]
+    fn test_tokenize_parameters() {
+        let mut lexer = Lexer::new("$1 $10 $123");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(
+            tokens,
+            vec![Token::Parameter(1), Token::Parameter(10), Token::Parameter(123), Token::EOF,]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_invalid_parameter_error() {
+        let mut lexer = Lexer::new("$abc");
+        let result = lexer.tokenize();
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            ParseError::InvalidSyntax("Expected number after $".to_string())
+        );
+    }
+
+    #[test]
+    fn test_tokenize_dot_operator() {
+        let mut lexer = Lexer::new("mytable.mycolumn");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Identifier("mytable".to_string()),
+                Token::Dot,
+                Token::Identifier("mycolumn".to_string()),
+                Token::EOF,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_invalid_character_error() {
+        let mut lexer = Lexer::new("#");
+        let result = lexer.tokenize();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ParseError::UnexpectedToken("#".to_string()));
+    }
+
+    #[test]
+    fn test_tokenize_operator_error() {
+        let mut lexer = Lexer::new("!x");
+        let result = lexer.tokenize();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ParseError::UnexpectedToken("!".to_string()));
+    }
+
+    #[test]
+    fn test_tokenize_mixed_tokens_and_whitespace() {
+        let mut lexer = Lexer::new("  SELECT\n\t*   FROM  'my_table'  ; ");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Select,
+                Token::Star,
+                Token::From,
+                Token::String("my_table".to_string()),
+                Token::Semicolon,
+                Token::EOF,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_tokenize_numbers_followed_by_identifier() {
+        let mut lexer = Lexer::new("123abc");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(
+            tokens,
+            vec![Token::Number(123), Token::Identifier("abc".to_string()), Token::EOF,]
+        );
     }
 }

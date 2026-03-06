@@ -78,7 +78,6 @@ impl DiskManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::page::PageHeader;
     use tempfile::TempDir;
 
     #[test]
