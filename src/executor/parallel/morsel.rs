@@ -1,9 +1,9 @@
-use crate::executor::old_executor::SimpleTuple;
+use crate::executor::operators::executor::Tuple;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Clone)]
 pub struct Morsel {
-    pub tuples: Vec<SimpleTuple>,
+    pub tuples: Vec<Tuple>,
     pub start_offset: usize,
     pub end_offset: usize,
     pub partition_id: usize,

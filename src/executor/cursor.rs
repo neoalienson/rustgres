@@ -134,7 +134,7 @@ impl Default for CursorManager {
 mod tests {
     use super::*;
     use crate::catalog::Value;
-    use crate::executor::MockTupleExecutor;
+    use crate::executor::test_helpers::MockExecutor;
 
     fn make_tuple(val: i64) -> Tuple {
         let mut map = HashMap::new();
@@ -146,7 +146,7 @@ mod tests {
     fn test_declare_cursor() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
-        let executor = Box::new(MockTupleExecutor::new(tuples));
+        let executor = Box::new(MockExecutor::new(tuples));
         assert!(manager.declare("test_cursor".to_string(), executor).is_ok());
     }
 
@@ -154,7 +154,7 @@ mod tests {
     fn test_fetch_next() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
-        let executor = Box::new(MockTupleExecutor::new(tuples.clone()));
+        let executor = Box::new(MockExecutor::new(tuples.clone()));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         let result = manager.fetch_next("test_cursor").unwrap();
@@ -168,7 +168,7 @@ mod tests {
     fn test_fetch_prior() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
-        let executor = Box::new(MockTupleExecutor::new(tuples.clone()));
+        let executor = Box::new(MockExecutor::new(tuples.clone()));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         manager.fetch_next("test_cursor").unwrap(); // position = 1
@@ -182,7 +182,7 @@ mod tests {
     fn test_fetch_first() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
-        let executor = Box::new(MockTupleExecutor::new(tuples.clone()));
+        let executor = Box::new(MockExecutor::new(tuples.clone()));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         let result = manager.fetch_first("test_cursor").unwrap();
@@ -193,7 +193,7 @@ mod tests {
     fn test_fetch_last() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
-        let executor = Box::new(MockTupleExecutor::new(tuples.clone()));
+        let executor = Box::new(MockExecutor::new(tuples.clone()));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         let result = manager.fetch_last("test_cursor").unwrap();
@@ -204,7 +204,7 @@ mod tests {
     fn test_fetch_absolute() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
-        let executor = Box::new(MockTupleExecutor::new(tuples.clone()));
+        let executor = Box::new(MockExecutor::new(tuples.clone()));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         let result = manager.fetch_absolute("test_cursor", 1).unwrap();
@@ -218,7 +218,7 @@ mod tests {
     fn test_fetch_relative() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1), make_tuple(2), make_tuple(3)];
-        let executor = Box::new(MockTupleExecutor::new(tuples.clone()));
+        let executor = Box::new(MockExecutor::new(tuples.clone()));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         manager.fetch_next("test_cursor").unwrap();
@@ -230,7 +230,7 @@ mod tests {
     fn test_close_cursor() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1)];
-        let executor = Box::new(MockTupleExecutor::new(tuples));
+        let executor = Box::new(MockExecutor::new(tuples));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         assert!(manager.close("test_cursor").is_ok());
@@ -247,7 +247,7 @@ mod tests {
     fn test_fetch_beyond_end() {
         let manager = CursorManager::new();
         let tuples = vec![make_tuple(1)];
-        let executor = Box::new(MockTupleExecutor::new(tuples));
+        let executor = Box::new(MockExecutor::new(tuples));
         manager.declare("test_cursor".to_string(), executor).unwrap();
 
         manager.fetch_next("test_cursor").unwrap();

@@ -1,5 +1,5 @@
 use crate::catalog::Catalog;
-use crate::executor::old_executor::{OldExecutorError as ExecutorError, SimpleTuple};
+use crate::executor::operators::executor::{ExecutorError, Tuple};
 use crate::executor::parallel::config::ParallelConfig;
 use crate::executor::parallel::morsel::Morsel;
 use crate::executor::parallel::operator::ParallelOperator;
@@ -17,7 +17,7 @@ impl ParallelSeqScan {
         Self { table_name, catalog }
     }
 
-    pub fn execute(&self, config: &ParallelConfig) -> Result<Vec<SimpleTuple>, ExecutorError> {
+    pub fn execute(&self, config: &ParallelConfig) -> Result<Vec<Tuple>, ExecutorError> {
         let row_count = (&*self.catalog).row_count(&self.table_name);
         if row_count == 0 {
             return Ok(vec![]);
@@ -66,10 +66,11 @@ struct SeqScanOperator {
 impl ParallelOperator for SeqScanOperator {
     fn process_morsel(&self, mut morsel: Morsel) -> Result<Morsel, ExecutorError> {
         let row_count = (&*self.catalog).row_count(&self.table_name);
-        morsel.tuples.extend(
-            (morsel.start_offset..morsel.end_offset.min(row_count))
-                .map(|i| SimpleTuple { data: vec![i as u8] }),
-        );
+        morsel.tuples.extend((morsel.start_offset..morsel.end_offset.min(row_count)).map(|i| {
+            let mut tuple = std::collections::HashMap::new();
+            tuple.insert("id".to_string(), crate::catalog::Value::Int(i as i64));
+            tuple
+        }));
         Ok(morsel)
     }
 }
@@ -77,10 +78,11 @@ impl ParallelOperator for SeqScanOperator {
 impl ParallelOperator for ParallelSeqScan {
     fn process_morsel(&self, mut morsel: Morsel) -> Result<Morsel, ExecutorError> {
         let row_count = (&*self.catalog).row_count(&self.table_name);
-        morsel.tuples.extend(
-            (morsel.start_offset..morsel.end_offset.min(row_count))
-                .map(|i| SimpleTuple { data: vec![i as u8] }),
-        );
+        morsel.tuples.extend((morsel.start_offset..morsel.end_offset.min(row_count)).map(|i| {
+            let mut tuple = std::collections::HashMap::new();
+            tuple.insert("id".to_string(), crate::catalog::Value::Int(i as i64));
+            tuple
+        }));
         Ok(morsel)
     }
 }

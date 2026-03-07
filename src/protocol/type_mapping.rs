@@ -1,5 +1,5 @@
 use crate::catalog::Value;
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Duration};
+use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
 
 /// PostgreSQL type OIDs
 pub mod pg_types {
@@ -44,27 +44,36 @@ pub fn serialize_value(value: &Value) -> Option<Vec<u8>> {
             let epoch = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
             let date = epoch + Duration::days(*d as i64);
             Some(date.format("%Y-%m-%d").to_string().into_bytes())
-        },
+        }
         Value::Time(t) => {
             let time = NaiveTime::from_hms_micro_opt(
-                (*t / 3_600_000_000) as u32,  // hours
+                (*t / 3_600_000_000) as u32,                // hours
                 ((*t % 3_600_000_000) / 60_000_000) as u32, // minutes
-                ((*t % 60_000_000) / 1_000_000) as u32, // seconds
-                (*t % 1_000_000) as u32, // microseconds
-            ).unwrap();
+                ((*t % 60_000_000) / 1_000_000) as u32,     // seconds
+                (*t % 1_000_000) as u32,                    // microseconds
+            )
+            .unwrap();
             Some(time.format("%H:%M:%S.%6f").to_string().into_bytes())
-        },
+        }
         Value::Timestamp(ts) => {
             let epoch_date = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
             let epoch_time = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
             let epoch = NaiveDateTime::new(epoch_date, epoch_time);
             let timestamp = epoch + Duration::microseconds(*ts);
             Some(timestamp.format("%Y-%m-%dT%H:%M:%S").to_string().into_bytes())
-        },
+        }
         Value::Decimal(v, s) => {
             let scale_factor = 10_i128.pow(*s as u32);
-            Some(format!("{}.{:0>width$}", v / scale_factor, (v % scale_factor).abs(), width = *s as usize).into_bytes())
-        },
+            Some(
+                format!(
+                    "{}.{:0>width$}",
+                    v / scale_factor,
+                    (v % scale_factor).abs(),
+                    width = *s as usize
+                )
+                .into_bytes(),
+            )
+        }
         Value::Bytea(b) => {
             let hex_str = b.iter().map(|byte| format!("{:02x}", byte)).collect::<String>();
             Some(format!("\\x{}", hex_str).into_bytes())

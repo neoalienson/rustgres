@@ -205,9 +205,14 @@ impl<S: Read + Write> Connection<S> {
                         .iter()
                         .map(|c| format!("{}: {:?}", c.name, c.data_type))
                         .collect();
-                    Ok(ExecutionResult::CommandComplete(format!("DESCRIBE
-{}", cols.join("
-"))))
+                    Ok(ExecutionResult::CommandComplete(format!(
+                        "DESCRIBE
+{}",
+                        cols.join(
+                            "
+"
+                        )
+                    )))
                 } else {
                     Err(format!("Table '{}' does not exist", desc.table))
                 }
@@ -485,8 +490,10 @@ impl<S: Read + Write> Connection<S> {
             return Ok(());
         }
 
-        let len = i32::from_be_bytes([first_bytes[0], first_bytes[1], first_bytes[2], first_bytes[3]]);
-        let code = i32::from_be_bytes([first_bytes[4], first_bytes[5], first_bytes[6], first_bytes[7]]);
+        let len =
+            i32::from_be_bytes([first_bytes[0], first_bytes[1], first_bytes[2], first_bytes[3]]);
+        let code =
+            i32::from_be_bytes([first_bytes[4], first_bytes[5], first_bytes[6], first_bytes[7]]);
 
         if len == 8 && code == 80877103 {
             // SSL request
@@ -544,7 +551,7 @@ mod tests {
     use crate::parser::ast::ColumnDef;
     use std::io::{Cursor, Read, Write};
     use std::sync::Arc;
-    
+
     struct MockStream {
         input: Cursor<Vec<u8>>,
         output: Cursor<Vec<u8>>,
@@ -552,10 +559,7 @@ mod tests {
 
     impl MockStream {
         fn new(input_data: Vec<u8>) -> Self {
-            Self {
-                input: Cursor::new(input_data),
-                output: Cursor::new(Vec::new()),
-            }
+            Self { input: Cursor::new(input_data), output: Cursor::new(Vec::new()) }
         }
 
         fn get_output(&self) -> Vec<u8> {
@@ -644,7 +648,7 @@ mod tests {
         let mut stream = MockStream::new(input_stream_data);
         let mut conn = Connection::new(&mut stream, Arc::new(Catalog::new()));
 
-        let _ = conn.run(); 
+        let _ = conn.run();
 
         let output = stream.get_output();
         // Expect: 'N' for SSL rejection, then AuthenticationOk (R) and ReadyForQuery (Z)
@@ -877,9 +881,7 @@ mod tests {
         let catalog = Arc::new(Catalog::new());
         let conn = Connection::new(&mut stream, catalog.clone());
 
-        let rows = vec![
-            vec![Value::Int(1), Value::Text("Alice".to_string())],
-        ];
+        let rows = vec![vec![Value::Int(1), Value::Text("Alice".to_string())]];
         let exprs = vec![crate::parser::Expr::Column("nonexistent".to_string())];
         let schemas = vec![(
             "users".to_string(),
@@ -905,22 +907,21 @@ mod tests {
         let create_table_sql = "CREATE TABLE test_data (id INT);";
         let create_table_stmt_enum = Parser::new(create_table_sql).unwrap().parse().unwrap();
         if let Statement::CreateTable(create_table_stmt) = create_table_stmt_enum {
-            catalog.create_table_with_constraints(
-                create_table_stmt.table,
-                create_table_stmt.columns,
-                None,
-                vec![],
-            ).unwrap();
+            catalog
+                .create_table_with_constraints(
+                    create_table_stmt.table,
+                    create_table_stmt.columns,
+                    None,
+                    vec![],
+                )
+                .unwrap();
         } else {
             panic!("Expected CreateTable statement");
         }
         let insert_sql = "INSERT INTO test_data VALUES (1);";
         let insert_stmt_enum = Parser::new(insert_sql).unwrap().parse().unwrap();
         if let Statement::Insert(insert_stmt) = insert_stmt_enum {
-            catalog.insert(
-                &insert_stmt.table,
-                insert_stmt.values,
-            ).unwrap();
+            catalog.insert(&insert_stmt.table, insert_stmt.values).unwrap();
         } else {
             panic!("Expected Insert statement");
         }
@@ -956,22 +957,21 @@ mod tests {
         let create_table_sql = "CREATE TABLE products (pid INT, pname TEXT);";
         let create_table_stmt_enum = Parser::new(create_table_sql).unwrap().parse().unwrap();
         if let Statement::CreateTable(create_table_stmt) = create_table_stmt_enum {
-            catalog.create_table_with_constraints(
-                create_table_stmt.table,
-                create_table_stmt.columns,
-                None,
-                vec![],
-            ).unwrap();
+            catalog
+                .create_table_with_constraints(
+                    create_table_stmt.table,
+                    create_table_stmt.columns,
+                    None,
+                    vec![],
+                )
+                .unwrap();
         } else {
             panic!("Expected CreateTable statement");
         }
         let insert_sql = "INSERT INTO products VALUES (101, 'Laptop');";
         let insert_stmt_enum = Parser::new(insert_sql).unwrap().parse().unwrap();
         if let Statement::Insert(insert_stmt) = insert_stmt_enum {
-            catalog.insert(
-                &insert_stmt.table,
-                insert_stmt.values,
-            ).unwrap();
+            catalog.insert(&insert_stmt.table, insert_stmt.values).unwrap();
         } else {
             panic!("Expected Insert statement");
         }
@@ -997,7 +997,7 @@ mod tests {
         // Expect: 'N' for SSL rejection, then AuthOk, ReadyForQuery, RowDescription, DataRow, CommandComplete, ReadyForQuery
         let mut expected_output_prefix = b"N".to_vec();
         expected_output_prefix.extend_from_slice(b"R\0\0\0\x08\0\0\0\0Z\0\0\0\x05I");
-        
+
         assert!(output.starts_with(&expected_output_prefix));
         assert!(output.windows(4).any(|window| window == b"T\0\0\0")); // RowDescription
         assert!(output.windows(4).any(|window| window == b"D\0\0\0")); // DataRow

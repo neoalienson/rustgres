@@ -1,4 +1,4 @@
-use crate::executor::old_executor::OldExecutorError as ExecutorError;
+use crate::executor::operators::executor::ExecutorError;
 use crate::executor::parallel::morsel::Morsel;
 use crate::executor::parallel::operator::ParallelOperator;
 use crossbeam::channel::{bounded, Receiver, Sender};
@@ -77,7 +77,7 @@ impl WorkerPool {
         let task = Task { morsel, operator, result_sender };
         self.task_sender
             .send(task)
-            .map_err(|_| ExecutorError::Storage("Failed to submit task".to_string()))
+            .map_err(|_| ExecutorError::IoError("Failed to submit task".to_string()))
     }
 
     pub fn num_workers(&self) -> usize {
@@ -99,13 +99,16 @@ impl Drop for WorkerPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::executor::old_executor::SimpleTuple;
+    use crate::catalog::Value;
+    use crate::executor::test_helpers::TupleBuilder;
 
     struct TestOperator;
 
     impl ParallelOperator for TestOperator {
         fn process_morsel(&self, mut morsel: Morsel) -> Result<Morsel, ExecutorError> {
-            morsel.tuples.push(SimpleTuple { data: vec![1, 2, 3] });
+            let mut tuple = std::collections::HashMap::new();
+            tuple.insert("val".to_string(), Value::Int(1));
+            morsel.tuples.push(tuple);
             Ok(morsel)
         }
     }

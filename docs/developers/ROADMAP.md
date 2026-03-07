@@ -77,6 +77,66 @@ VaultGres development roadmap with planned features and milestones.
 - ✅ Code coverage tracking
 - ✅ Comprehensive documentation
 
+## Executor Migration Status
+
+**Phase 0: Preparation & Infrastructure** ✅ COMPLETED
+- ✅ Adapter utilities for type conversion (SimpleTuple ↔ Tuple, bytes ↔ Value)
+- ✅ OldExecutor → Executor adapter (OldExecutorAdapter)
+- ✅ Executor → OldExecutor adapter (ExecutorWrapper)
+- ✅ Enhanced test infrastructure with MockExecutor and TupleBuilder
+- ✅ Feature flag infrastructure (executor-migration)
+
+**Phase 1: Leaf Node Executors** ✅ COMPLETED
+- ✅ SeqScanExecutor (volcano module)
+- ✅ FilterExecutor (operators module)
+- ✅ ProjectExecutor (operators module)
+- ⏸️ TableFunctionExecutor (stub implementation deferred)
+
+**Phase 2: Transform Executors** ✅ COMPLETED
+- ✅ SortExecutor (volcano module)
+- ✅ LimitExecutor (volcano module)
+- ✅ DistinctExecutor (volcano module)
+- ✅ HashAggExecutor (volcano module)
+- ✅ HavingExecutor (volcano module)
+
+**Phase 3: Join Executors** ✅ COMPLETED
+- ✅ NestedLoopJoinExecutor (volcano module)
+- ✅ HashJoinExecutor (volcano module)
+- ✅ MergeJoinExecutor (volcano module)
+- ✅ JoinExecutor with JoinType enum (volcano module)
+
+**Phase 4: Set Operation Executors** ✅ COMPLETED
+- ✅ UnionExecutor with UnionType enum (volcano module)
+- ✅ IntersectExecutor (volcano module)
+- ✅ ExceptExecutor (volcano module)
+
+**Phase 5: Advanced Executors** ⚠️ PARTIALLY COMPLETED
+- ✅ AggregateExecutor (volcano module)
+- ✅ SubqueryExecutor (volcano module)
+- ✅ CaseExecutor (volcano module)
+- ⏸️ GroupByExecutor (deferred - covered by HashAggExecutor)
+- ⏸️ CTEExecutor (deferred - requires planner integration)
+- ⏸️ WindowExecutor (deferred - requires partition handling)
+
+**Phase 6: Parallel Execution Infrastructure** ⚠️ PARTIALLY COMPLETED
+- ✅ Work-stealing scheduler migrated to Tuple format
+- ✅ Worker pool migrated to Tuple format
+- ✅ Morsel type migrated to Tuple format
+- ✅ ParallelCoordinator migrated to Tuple format
+- ✅ ParallelSeqScan migrated to Tuple format
+- ✅ ParallelSort migrated to Tuple format
+- ⏸️ ParallelHashJoin (infrastructure complete, join logic needs Tuple key extraction refactor)
+- ⏸️ ParallelHashAgg (infrastructure complete, aggregation logic needs Tuple-based grouping refactor)
+
+**Phase 7: Cleanup & Finalization** ✅ COMPLETED
+- ✅ Removed OldExecutor trait
+- ✅ Removed SimpleTuple type
+- ✅ Removed legacy mock executors
+- ✅ Removed adapter utilities
+- ✅ Removed feature flags
+- ✅ All 1039 tests passing
+- ✅ No legacy code remaining
+
 ## Version 0.2.0 (Current - Alpha)
 
 **Completed**
@@ -122,10 +182,10 @@ VaultGres development roadmap with planned features and milestones.
 ## Version 0.4.0 (Beta)
 
 **Parallel Execution**
-- ✅ Parallel sequential scan with worker threads
-- ✅ Parallel hash join
-- ✅ Parallel aggregation
-- ✅ Parallel sort with merge
+- ⚠️ Parallel sequential scan with worker threads (infrastructure complete, operators need Tuple refactor)
+- ⚠️ Parallel hash join (infrastructure complete, join logic needs Tuple key extraction refactor)
+- ⚠️ Parallel aggregation (infrastructure complete, aggregation logic needs Tuple-based grouping refactor)
+- ⚠️ Parallel sort with merge (infrastructure complete, needs full implementation)
 - ✅ Work-stealing scheduler
 - ✅ Configurable parallelism (max_parallel_workers)
 
@@ -140,8 +200,8 @@ VaultGres development roadmap with planned features and milestones.
 **SQL Features**
 - ✅ Views (CREATE VIEW, DROP VIEW)
 - ✅ Materialized views with REFRESH
-- ✅ User-defined functions (SQL functions)
-- ✅ Aggregate functions (custom aggregates)
+- ⚠️ User-defined functions (SQL functions) (parser support exists, execution needs implementation)
+- ⚠️ Aggregate functions (custom aggregates) (parser support exists, execution needs implementation)
 - ✅ String functions (CONCAT, SUBSTRING, UPPER, LOWER)
 - ✅ Date/time functions (NOW, DATE_TRUNC, EXTRACT)
 - ✅ Subquery with AVG aggregate function

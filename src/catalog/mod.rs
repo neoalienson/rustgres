@@ -25,11 +25,11 @@ mod catalog_tests;
 mod datatype_tests;
 
 // Re-export public types
+pub use crate::parser::ast::{ColumnDef as Column, DataType};
 pub use catalog::Catalog;
 pub use check::CheckValidator;
 pub use datetime_functions::DateTimeFunctions;
 pub use function::{Function, FunctionLanguage, FunctionRegistry, FunctionVolatility, Parameter};
-pub use crate::parser::ast::{ColumnDef as Column, DataType};
 pub use schema::TableSchema;
 pub use string_functions::StringFunctions;
 pub use tuple::Tuple;

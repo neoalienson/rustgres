@@ -240,9 +240,9 @@ mod tests {
 
 mod evaluator_tests {
     use crate::catalog::Value;
-    use std::collections::HashMap;
-    use crate::parser::ast::{BinaryOperator, Expr, UnaryOperator};
     use crate::executor::plpgsql::evaluator::ExprEvaluator;
+    use crate::parser::ast::{BinaryOperator, Expr, UnaryOperator};
+    use std::collections::HashMap;
 
     #[test]
     fn test_eval_number() {
@@ -302,16 +302,10 @@ mod evaluator_tests {
     fn test_eval_unary_op_not_int() {
         let vars = HashMap::new();
         let evaluator = ExprEvaluator::new(&vars);
-        let expr = Expr::UnaryOp {
-            op: UnaryOperator::Not,
-            expr: Box::new(Expr::Number(0)),
-        };
+        let expr = Expr::UnaryOp { op: UnaryOperator::Not, expr: Box::new(Expr::Number(0)) };
         assert_eq!(evaluator.eval(&expr).unwrap(), Value::Bool(true));
 
-        let expr = Expr::UnaryOp {
-            op: UnaryOperator::Not,
-            expr: Box::new(Expr::Number(1)),
-        };
+        let expr = Expr::UnaryOp { op: UnaryOperator::Not, expr: Box::new(Expr::Number(1)) };
         assert_eq!(evaluator.eval(&expr).unwrap(), Value::Bool(false));
     }
 
@@ -319,16 +313,10 @@ mod evaluator_tests {
     fn test_eval_unary_op_not_int_as_bool() {
         let vars = HashMap::new();
         let evaluator = ExprEvaluator::new(&vars);
-        let expr = Expr::UnaryOp {
-            op: UnaryOperator::Not,
-            expr: Box::new(Expr::Number(0)),
-        }; // 0 is false
+        let expr = Expr::UnaryOp { op: UnaryOperator::Not, expr: Box::new(Expr::Number(0)) }; // 0 is false
         assert_eq!(evaluator.eval(&expr).unwrap(), Value::Bool(true));
 
-        let expr = Expr::UnaryOp {
-            op: UnaryOperator::Not,
-            expr: Box::new(Expr::Number(1)),
-        }; // 1 is true
+        let expr = Expr::UnaryOp { op: UnaryOperator::Not, expr: Box::new(Expr::Number(1)) }; // 1 is true
         assert_eq!(evaluator.eval(&expr).unwrap(), Value::Bool(false));
     }
 
@@ -557,10 +545,7 @@ mod evaluator_tests {
             op: BinaryOperator::StringConcat,
             right: Box::new(Expr::String(" world".to_string())),
         };
-        assert_eq!(
-            evaluator.eval(&concat).unwrap(),
-            Value::Text("hello world".to_string())
-        );
+        assert_eq!(evaluator.eval(&concat).unwrap(), Value::Text("hello world".to_string()));
     }
 
     #[test]
@@ -613,7 +598,7 @@ mod evaluator_tests {
         let evaluator = ExprEvaluator::new(&vars);
         // Use an Expr variant that is not explicitly handled in ExprEvaluator::eval
         // For example, Expr::Star is not handled in the match statement
-        let expr = Expr::Star; 
+        let expr = Expr::Star;
         let err = evaluator.eval(&expr).unwrap_err();
         assert_eq!(err, "Unsupported expression");
     }
@@ -674,10 +659,7 @@ mod evaluator_tests {
     fn test_eval_string_non_existent_placeholder() {
         let vars = HashMap::new();
         let evaluator = ExprEvaluator::new(&vars);
-        assert_eq!(
-            evaluator.eval_string("hello $name").unwrap(),
-            "hello $name"
-        );
+        assert_eq!(evaluator.eval_string("hello $name").unwrap(), "hello $name");
     }
 
     // is_true tests

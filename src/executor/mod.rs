@@ -2,36 +2,19 @@
 
 mod array_subquery;
 mod builtin;
-mod case;
 mod correlated;
-mod cte;
 mod cursor;
 mod derived_table;
-mod distinct;
 mod eval;
-mod except;
 mod function_cache;
-mod group_by;
-mod hash_agg;
-mod hash_join;
-mod having;
 mod index_only_scan;
-mod intersect;
-mod join;
 mod lateral;
-mod merge_join;
-mod mock;
 mod multiple_cte;
-mod old_executor; // Renamed from executor.rs - contains OldExecutor trait
-pub mod operators; // New module for compositional executor
+pub mod operators;
 mod plpgsql;
 mod recursive_cte;
-mod sort;
-mod subquery;
-mod union;
 mod unnest;
 pub mod volcano;
-mod window;
 
 #[cfg(test)]
 mod test_helpers;
@@ -72,43 +55,55 @@ pub mod parallel;
 // #[cfg(test)]
 // mod window_edge_tests;
 
-pub use array_subquery::ArraySubqueryExecutor;
-pub use builtin::BuiltinFunctions;
-pub use case::Case;
-pub use correlated::{CorrelatedExecutor, SubqueryKind};
-pub use cte::CTE;
-pub use cursor::CursorManager;
-pub use derived_table::DerivedTableExecutor;
-pub use distinct::Distinct;
-pub use eval::Eval;
-pub use except::Except;
-pub use function_cache::FunctionCache;
-pub use group_by::GroupBy;
-pub use hash_agg::HashAgg;
-pub use hash_join::HashJoin;
-pub use having::Having;
-pub use index_only_scan::IndexOnlyScan;
-pub use intersect::Intersect;
-pub use join::{Join, JoinType};
-pub use lateral::LateralSubqueryExecutor;
-pub use merge_join::MergeJoin;
-pub use mock::{MockExecutor, MockTupleExecutor};
-pub use multiple_cte::MultipleCTEExecutor;
-pub use old_executor::{OldExecutor, OldExecutorError, SimpleTuple, Value}; // old executor
-pub use operators::executor::{Executor, ExecutorError, Tuple}; // new executor trait
-pub use parallel::{ParallelConfig, ParallelExecutor};
-pub use plpgsql::PlPgSqlInterpreter;
-pub use recursive_cte::RecursiveCTEExecutor;
-pub use sort::Sort;
-pub use subquery::Subquery;
-pub use union::Union;
-pub use unnest::UnnestExecutor;
+// ============================================================================
+// Executor Exports
+// ============================================================================
 
-// Re-export volcano executors for backward compatibility
+pub use operators::executor::{Executor, ExecutorError, Tuple};
+
+// ============================================================================
+// Parallel Execution
+// ============================================================================
+
+pub use parallel::{ParallelConfig, ParallelExecutor};
+
+// ============================================================================
+// Volcano Executors (primary executor implementations)
+// ============================================================================
+
 pub use volcano::{
-    DistinctExecutor, FilterExecutor, HashAggExecutor, LimitExecutor, ProjectExecutor,
-    SeqScanExecutor, SortExecutor, SubqueryScanExecutor,
+    AggregateExecutor, AggregateFunction, CaseExecutor, DistinctExecutor, ExceptExecutor,
+    FilterExecutor, HashAggExecutor, HashJoinExecutor, HavingExecutor, IntersectExecutor,
+    JoinExecutor, JoinType, LimitExecutor, MergeJoinExecutor, NestedLoopJoinExecutor,
+    ProjectExecutor, SeqScanExecutor, SortExecutor, SubqueryExecutor, SubqueryScanExecutor,
+    UnionExecutor, UnionType,
 };
 
-// Type alias for backward compatibility
-pub type Limit = LimitExecutor;
+// ============================================================================
+// Other Executors and Utilities
+// ============================================================================
+
+pub use array_subquery::ArraySubqueryExecutor;
+pub use builtin::BuiltinFunctions;
+pub use correlated::{CorrelatedExecutor, SubqueryKind};
+pub use cursor::CursorManager;
+pub use derived_table::DerivedTableExecutor;
+pub use eval::Eval;
+pub use function_cache::FunctionCache;
+pub use index_only_scan::IndexOnlyScan;
+pub use lateral::LateralSubqueryExecutor;
+pub use multiple_cte::MultipleCTEExecutor;
+pub use plpgsql::PlPgSqlInterpreter;
+pub use recursive_cte::RecursiveCTEExecutor;
+pub use unnest::UnnestExecutor;
+
+// ============================================================================
+// Test Helpers (only compiled in test mode)
+// ============================================================================
+
+#[cfg(test)]
+pub use test_helpers::{
+    compare_executors, count_results, create_multi_column_schema, create_simple_schema,
+    run_executor, test_executor_lifecycle, tuple_with_value, MockExecutor as TestMockExecutor,
+    TupleBuilder,
+};

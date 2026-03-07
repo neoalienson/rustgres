@@ -1,4 +1,4 @@
-use crate::executor::old_executor::{OldExecutorError as ExecutorError, SimpleTuple};
+use crate::executor::operators::executor::{ExecutorError, Tuple};
 use crate::executor::parallel::morsel::{Morsel, MorselGenerator};
 use crate::executor::parallel::operator::ParallelOperator;
 use crate::executor::parallel::worker_pool::WorkerPool;
@@ -18,7 +18,7 @@ impl ParallelCoordinator {
         &self,
         operator: Arc<dyn ParallelOperator>,
         morsel_gen: Arc<MorselGenerator>,
-    ) -> Result<Vec<SimpleTuple>, ExecutorError> {
+    ) -> Result<Vec<Tuple>, ExecutorError> {
         let num_workers = self.worker_pool.num_workers();
         let (result_sender, result_receiver) = bounded(num_workers * 2);
 
@@ -51,13 +51,16 @@ impl ParallelCoordinator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::executor::test_helpers::TupleBuilder;
 
     struct TestOperator;
 
     impl ParallelOperator for TestOperator {
         fn process_morsel(&self, mut morsel: Morsel) -> Result<Morsel, ExecutorError> {
             for i in morsel.start_offset..morsel.end_offset {
-                morsel.tuples.push(SimpleTuple { data: vec![i as u8] });
+                let mut tuple = std::collections::HashMap::new();
+                tuple.insert("val".to_string(), crate::catalog::Value::Int(i as i64));
+                morsel.tuples.push(tuple);
             }
             Ok(morsel)
         }

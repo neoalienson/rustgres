@@ -276,9 +276,9 @@ impl Eval {
                         Ok(Value::Float(*l / *r))
                     }
                 }
-                _ => Err(ExecutorError::TypeMismatch(
-                    "DIVIDE requires numeric operands".to_string(),
-                )),
+                _ => {
+                    Err(ExecutorError::TypeMismatch("DIVIDE requires numeric operands".to_string()))
+                }
             },
             BinaryOperator::Modulo => match (left, right) {
                 (Value::Int(l), Value::Int(r)) => {
@@ -288,9 +288,9 @@ impl Eval {
                         Ok(Value::Int(*l % *r))
                     }
                 }
-                _ => Err(ExecutorError::TypeMismatch(
-                    "MODULO requires integer operands".to_string(),
-                )),
+                _ => {
+                    Err(ExecutorError::TypeMismatch("MODULO requires integer operands".to_string()))
+                }
             },
             BinaryOperator::StringConcat => {
                 let l_str = Self::value_to_string(left);
@@ -354,7 +354,9 @@ impl Eval {
     {
         match (left, right) {
             (Value::Int(l), Value::Int(r)) => Ok(Value::Bool(cmp_fn(l.cmp(r)))),
-            (Value::Float(l), Value::Float(r)) => Ok(Value::Bool(cmp_fn(l.partial_cmp(r).unwrap()))),
+            (Value::Float(l), Value::Float(r)) => {
+                Ok(Value::Bool(cmp_fn(l.partial_cmp(r).unwrap())))
+            }
             (Value::Text(l), Value::Text(r)) => Ok(Value::Bool(cmp_fn(l.cmp(r)))),
             _ => {
                 Err(ExecutorError::TypeMismatch("Comparison requires compatible types".to_string()))

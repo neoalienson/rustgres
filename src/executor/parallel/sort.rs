@@ -1,4 +1,4 @@
-use crate::executor::old_executor::{OldExecutorError as ExecutorError, SimpleTuple};
+use crate::executor::operators::executor::{ExecutorError, Tuple};
 use crate::executor::parallel::config::ParallelConfig;
 use crate::executor::parallel::morsel::Morsel;
 use crate::executor::parallel::operator::ParallelOperator;
@@ -16,106 +16,71 @@ impl ParallelSort {
         Self { child, ascending }
     }
 
-    pub fn execute(
-        &self,
-        config: &ParallelConfig,
-        row_count: usize,
-    ) -> Result<Vec<SimpleTuple>, ExecutorError> {
-        if row_count == 0 {
-            return Ok(vec![]);
-        }
-
+    pub fn execute(&self, config: &ParallelConfig) -> Result<Vec<Tuple>, ExecutorError> {
         let num_workers = config.max_workers();
         let pool = WorkerPool::new(num_workers);
-        let chunk_size = row_count.div_ceil(num_workers);
 
         let (result_sender, result_receiver) = bounded(num_workers);
 
+        // Submit local sort tasks
         for i in 0..num_workers {
-            let start = i * chunk_size;
-            let end = ((i + 1) * chunk_size).min(row_count);
-            if start >= row_count {
-                break;
-            }
             let morsel =
-                Morsel { tuples: vec![], start_offset: start, end_offset: end, partition_id: i };
+                Morsel { tuples: vec![], start_offset: 0, end_offset: 100, partition_id: i };
             pool.submit_task(morsel, Arc::clone(&self.child), result_sender.clone())?;
         }
         drop(result_sender);
 
-        let mut sorted_runs = Vec::new();
+        // Collect and merge sorted runs
+        let mut runs = Vec::new();
         while let Ok(result) = result_receiver.recv() {
             let morsel = result?;
-            let mut tuples = morsel.tuples;
-            tuples.sort_by(
-                |a, b| {
-                    if self.ascending {
-                        a.data.cmp(&b.data)
-                    } else {
-                        b.data.cmp(&a.data)
-                    }
-                },
-            );
-            sorted_runs.push(tuples);
+            runs.push(self.local_sort(morsel)?);
         }
 
-        Ok(self.merge_sorted_runs(sorted_runs))
+        Ok(self.merge_sorted_runs(runs))
     }
 
-    pub fn local_sort(&self, morsel: Morsel) -> Result<Vec<SimpleTuple>, ExecutorError> {
-        let result = self.child.process_morsel(morsel)?;
-        let mut tuples = result.tuples;
+    pub fn local_sort(&self, mut morsel: Morsel) -> Result<Vec<Tuple>, ExecutorError> {
+        let child_result = self.child.process_morsel(morsel)?;
+        let mut tuples = child_result.tuples;
 
-        tuples.sort_by(
-            |a, b| {
-                if self.ascending {
-                    a.data.cmp(&b.data)
-                } else {
-                    b.data.cmp(&a.data)
-                }
-            },
-        );
+        tuples.sort_by(|a: &Tuple, b: &Tuple| {
+            let val_a = a.values().next();
+            let val_b = b.values().next();
+            match (val_a, val_b) {
+                (Some(a), Some(b)) => a.cmp(b),
+                (Some(_), None) => std::cmp::Ordering::Greater,
+                (None, Some(_)) => std::cmp::Ordering::Less,
+                (None, None) => std::cmp::Ordering::Equal,
+            }
+        });
+
+        if !self.ascending {
+            tuples.reverse();
+        }
 
         Ok(tuples)
     }
 
-    pub fn merge_sorted_runs(&self, mut runs: Vec<Vec<SimpleTuple>>) -> Vec<SimpleTuple> {
-        if runs.is_empty() {
-            return vec![];
-        }
-
-        if runs.len() == 1 {
-            return runs.pop().unwrap();
-        }
-
+    pub fn merge_sorted_runs(&self, mut runs: Vec<Vec<Tuple>>) -> Vec<Tuple> {
         let mut result = Vec::new();
-        let mut indices = vec![0; runs.len()];
 
-        loop {
+        while runs.iter().any(|r| !r.is_empty()) {
             let mut min_idx = None;
             let mut min_val = None;
 
-            for (run_idx, run) in runs.iter().enumerate() {
-                if indices[run_idx] < run.len() {
-                    let val = &run[indices[run_idx]];
-                    let should_select = if self.ascending {
-                        min_val.is_none() || Some(&val.data) < min_val
-                    } else {
-                        min_val.is_none() || Some(&val.data) > min_val
-                    };
-                    if should_select {
-                        min_val = Some(&val.data);
-                        min_idx = Some(run_idx);
+            for (i, run) in runs.iter().enumerate() {
+                if let Some(first) = run.first() {
+                    if min_val.is_none() || first.values().next() < min_val {
+                        min_val = first.values().next();
+                        min_idx = Some(i);
                     }
                 }
             }
 
-            match min_idx {
-                Some(idx) => {
-                    result.push(runs[idx][indices[idx]].clone());
-                    indices[idx] += 1;
-                }
-                None => break,
+            if let Some(idx) = min_idx {
+                let tuple = runs[idx].remove(0);
+                result.push(tuple);
             }
         }
 
@@ -126,9 +91,11 @@ impl ParallelSort {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::catalog::Value;
+    use crate::executor::test_helpers::TupleBuilder;
 
     struct MockOperator {
-        tuples: Vec<SimpleTuple>,
+        tuples: Vec<Tuple>,
     }
 
     impl ParallelOperator for MockOperator {
@@ -141,9 +108,9 @@ mod tests {
     #[test]
     fn test_local_sort() {
         let tuples = vec![
-            SimpleTuple { data: vec![3] },
-            SimpleTuple { data: vec![1] },
-            SimpleTuple { data: vec![2] },
+            TupleBuilder::new().with_int("val", 3).build(),
+            TupleBuilder::new().with_int("val", 1).build(),
+            TupleBuilder::new().with_int("val", 2).build(),
         ];
 
         let child = Arc::new(MockOperator { tuples });
@@ -152,25 +119,31 @@ mod tests {
         let morsel = Morsel { tuples: vec![], start_offset: 0, end_offset: 3, partition_id: 0 };
 
         let result = sort.local_sort(morsel).unwrap();
-        assert_eq!(result[0].data, vec![1]);
-        assert_eq!(result[1].data, vec![2]);
-        assert_eq!(result[2].data, vec![3]);
+        assert_eq!(result[0].get("val"), Some(&Value::Int(1)));
+        assert_eq!(result[1].get("val"), Some(&Value::Int(2)));
+        assert_eq!(result[2].get("val"), Some(&Value::Int(3)));
     }
 
     #[test]
     fn test_merge_sorted_runs() {
-        let run1 = vec![SimpleTuple { data: vec![1] }, SimpleTuple { data: vec![3] }];
-        let run2 = vec![SimpleTuple { data: vec![2] }, SimpleTuple { data: vec![4] }];
+        let run1 = vec![
+            TupleBuilder::new().with_int("val", 1).build(),
+            TupleBuilder::new().with_int("val", 3).build(),
+        ];
+        let run2 = vec![
+            TupleBuilder::new().with_int("val", 2).build(),
+            TupleBuilder::new().with_int("val", 4).build(),
+        ];
 
         let child = Arc::new(MockOperator { tuples: vec![] });
         let sort = ParallelSort::new(child, true);
 
         let result = sort.merge_sorted_runs(vec![run1, run2]);
         assert_eq!(result.len(), 4);
-        assert_eq!(result[0].data, vec![1]);
-        assert_eq!(result[1].data, vec![2]);
-        assert_eq!(result[2].data, vec![3]);
-        assert_eq!(result[3].data, vec![4]);
+        assert_eq!(result[0].get("val"), Some(&Value::Int(1)));
+        assert_eq!(result[1].get("val"), Some(&Value::Int(2)));
+        assert_eq!(result[2].get("val"), Some(&Value::Int(3)));
+        assert_eq!(result[3].get("val"), Some(&Value::Int(4)));
     }
 
     #[test]

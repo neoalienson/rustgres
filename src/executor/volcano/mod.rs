@@ -1,0 +1,46 @@
+//! Volcano-style executors (pull-based, single next() method)
+//!
+//! This module contains executors that follow the Volcano model,
+//! where each executor only implements `next()` and buffers data
+//! in the constructor as needed.
+
+mod aggregate;
+mod case;
+mod distinct;
+mod except;
+mod filter;
+mod hash_agg;
+mod hash_join;
+mod having;
+mod intersect;
+mod join;
+mod limit;
+mod merge_join;
+mod nested_loop_join;
+mod project;
+mod seq_scan;
+mod sort;
+mod subquery;
+mod subquery_scan;
+mod union;
+
+pub use aggregate::{AggregateExecutor, AggregateFunction};
+pub use case::CaseExecutor;
+pub use distinct::DistinctExecutor;
+pub use except::ExceptExecutor;
+pub use filter::FilterExecutor;
+pub use hash_agg::HashAggExecutor;
+pub use hash_join::HashJoinExecutor;
+pub use having::HavingExecutor;
+pub use intersect::IntersectExecutor;
+pub use join::{JoinExecutor, JoinType};
+pub use limit::LimitExecutor;
+pub use merge_join::MergeJoinExecutor;
+pub use nested_loop_join::NestedLoopJoinExecutor;
+pub use project::ProjectExecutor;
+// Re-export SeqScanExecutor from operators for compatibility with planner
+pub use crate::executor::operators::seq_scan::SeqScanExecutor;
+pub use sort::SortExecutor;
+pub use subquery::SubqueryExecutor;
+pub use subquery_scan::SubqueryScanExecutor;
+pub use union::{UnionExecutor, UnionType};
