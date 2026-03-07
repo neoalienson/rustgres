@@ -1,4 +1,5 @@
 use crate::catalog::Value;
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Duration};
 
 /// PostgreSQL type OIDs
 pub mod pg_types {
@@ -39,12 +40,31 @@ pub fn serialize_value(value: &Value) -> Option<Vec<u8>> {
         Value::Text(s) => Some(s.as_bytes().to_vec()),
         Value::Json(j) => Some(j.as_bytes().to_vec()),
         Value::Array(_) => Some(b"[]".to_vec()),
-        Value::Date(d) => Some(d.to_string().into_bytes()),
-        Value::Time(t) => Some(t.to_string().into_bytes()),
-        Value::Timestamp(ts) => Some(ts.to_string().into_bytes()),
-        Value::Decimal(v, s) => Some(
-            format!("{}.{}", v / 10_i128.pow(*s as u32), v % 10_i128.pow(*s as u32)).into_bytes(),
-        ),
+        Value::Date(d) => {
+            let epoch = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
+            let date = epoch + Duration::days(*d as i64);
+            Some(date.format("%Y-%m-%d").to_string().into_bytes())
+        },
+        Value::Time(t) => {
+            let time = NaiveTime::from_hms_micro_opt(
+                (*t / 3_600_000_000) as u32,  // hours
+                ((*t % 3_600_000_000) / 60_000_000) as u32, // minutes
+                ((*t % 60_000_000) / 1_000_000) as u32, // seconds
+                (*t % 1_000_000) as u32, // microseconds
+            ).unwrap();
+            Some(time.format("%H:%M:%S.%6f").to_string().into_bytes())
+        },
+        Value::Timestamp(ts) => {
+            let epoch_date = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
+            let epoch_time = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+            let epoch = NaiveDateTime::new(epoch_date, epoch_time);
+            let timestamp = epoch + Duration::microseconds(*ts);
+            Some(timestamp.format("%Y-%m-%dT%H:%M:%S").to_string().into_bytes())
+        },
+        Value::Decimal(v, s) => {
+            let scale_factor = 10_i128.pow(*s as u32);
+            Some(format!("{}.{:0>width$}", v / scale_factor, (v % scale_factor).abs(), width = *s as usize).into_bytes())
+        },
         Value::Bytea(b) => {
             let hex_str = b.iter().map(|byte| format!("{:02x}", byte)).collect::<String>();
             Some(format!("\\x{}", hex_str).into_bytes())
@@ -136,5 +156,171 @@ mod tests {
         let (oid, size) = value_to_pg_type(&value);
         assert_eq!(oid, pg_types::TEXT);
         assert_eq!(size, -1);
+    }
+
+    #[test]
+    fn test_type_mapping_float() {
+        let value = Value::Float(3.14);
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::FLOAT8);
+        assert_eq!(size, 8);
+    }
+
+    #[test]
+    fn test_type_mapping_json() {
+        let value = Value::Json("{}".to_string());
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::TEXT);
+        assert_eq!(size, -1);
+    }
+
+    #[test]
+    fn test_type_mapping_array() {
+        let value = Value::Array(vec![]);
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::TEXT);
+        assert_eq!(size, -1);
+    }
+
+    #[test]
+    fn test_type_mapping_date() {
+        let value = Value::Date(Default::default());
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::INT4);
+        assert_eq!(size, 4);
+    }
+
+    #[test]
+    fn test_type_mapping_time() {
+        let value = Value::Time(Default::default());
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::INT8);
+        assert_eq!(size, 8);
+    }
+
+    #[test]
+    fn test_type_mapping_timestamp() {
+        let value = Value::Timestamp(Default::default());
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::INT8);
+        assert_eq!(size, 8);
+    }
+
+    #[test]
+    fn test_type_mapping_decimal() {
+        let value = Value::Decimal(12345, 2);
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::TEXT);
+        assert_eq!(size, -1);
+    }
+
+    #[test]
+    fn test_type_mapping_bytea() {
+        let value = Value::Bytea(vec![1, 2, 3]);
+        let (oid, size) = value_to_pg_type(&value);
+        assert_eq!(oid, pg_types::TEXT);
+        assert_eq!(size, -1);
+    }
+
+    #[test]
+    fn test_json_serialization() {
+        let value = Value::Json(r#"{"key": "value"}"#.to_string());
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(br#"{"key": "value"}"#.to_vec()));
+    }
+
+    #[test]
+    fn test_empty_json_serialization() {
+        let value = Value::Json("{}".to_string());
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"{}".to_vec()));
+    }
+
+    #[test]
+    fn test_array_serialization() {
+        let value = Value::Array(vec![Value::Int(1), Value::Int(2)]);
+        let serialized = serialize_value(&value);
+        // Current implementation for Array is always "[]"
+        assert_eq!(serialized, Some(b"[]".to_vec()));
+    }
+
+    #[test]
+    fn test_empty_array_serialization() {
+        let value = Value::Array(vec![]);
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"[]".to_vec()));
+    }
+
+    #[test]
+    fn test_date_serialization() {
+        let date_val = 8401; // 2023-01-01 is 8401 days from 2000-01-01
+        let value = Value::Date(date_val);
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"2023-01-01".to_vec()));
+    }
+
+    #[test]
+    fn test_time_serialization() {
+        let time_val = 45045000000; // 12:30:45 as microseconds from midnight
+        let value = Value::Time(time_val);
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"12:30:45.000000".to_vec()));
+    }
+
+    #[test]
+    fn test_timestamp_serialization() {
+        let timestamp_val = 725846400000000; // 2023-01-01T00:00:00 from 2000-01-01T00:00:00 UTC in microseconds
+        let value = Value::Timestamp(timestamp_val);
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"2023-01-01T00:00:00".to_vec()));
+    }
+
+    #[test]
+    fn test_decimal_serialization_positive() {
+        let value = Value::Decimal(12345, 2); // Represents 123.45
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"123.45".to_vec()));
+    }
+
+    #[test]
+    fn test_decimal_serialization_negative() {
+        let value = Value::Decimal(-12345, 2); // Represents -123.45
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"-123.45".to_vec()));
+    }
+
+    #[test]
+    fn test_decimal_serialization_zero() {
+        let value = Value::Decimal(0, 2); // Represents 0.00
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"0.00".to_vec()));
+    }
+
+    #[test]
+    fn test_decimal_serialization_different_scale() {
+        let value = Value::Decimal(123, 0); // Represents 123
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"123.0".to_vec()));
+    }
+
+    #[test]
+    fn test_bytea_serialization_empty() {
+        let value = Value::Bytea(vec![]);
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"\\x".to_vec()));
+    }
+
+    #[test]
+    fn test_bytea_serialization_normal() {
+        let value = Value::Bytea(vec![0xDE, 0xAD, 0xBE, 0xEF]);
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"\\xdeadbeef".to_vec()));
+    }
+
+    #[test]
+    fn test_bytea_serialization_with_zero() {
+        let value = Value::Bytea(vec![0x00, 0x01, 0xFF]);
+        let serialized = serialize_value(&value);
+        assert_eq!(serialized, Some(b"\\x0001ff".to_vec()));
     }
 }

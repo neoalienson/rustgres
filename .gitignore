@@ -36,3 +36,5 @@ test_wal/
 
 # Config overrides
 config.local.yaml
+
+tarpaulin-report.html

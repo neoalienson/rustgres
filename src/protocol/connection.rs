@@ -205,7 +205,9 @@ impl<S: Read + Write> Connection<S> {
                         .iter()
                         .map(|c| format!("{}: {:?}", c.name, c.data_type))
                         .collect();
-                    Ok(ExecutionResult::CommandComplete(format!("DESCRIBE\n{}", cols.join("\n"))))
+                    Ok(ExecutionResult::CommandComplete(format!("DESCRIBE
+{}", cols.join("
+"))))
                 } else {
                     Err(format!("Table '{}' does not exist", desc.table))
                 }
@@ -476,40 +478,38 @@ impl<S: Read + Write> Connection<S> {
     }
 
     pub fn run(&mut self) -> Result<(), ProtocolError> {
-        // Handle SSL negotiation request
-        let mut ssl_buf = [0u8; 8];
-        if self.stream.read_exact(&mut ssl_buf).is_ok() {
-            // Check for SSL request (length=8, code=80877103)
-            let len = i32::from_be_bytes([ssl_buf[0], ssl_buf[1], ssl_buf[2], ssl_buf[3]]);
-            let code = i32::from_be_bytes([ssl_buf[4], ssl_buf[5], ssl_buf[6], ssl_buf[7]]);
-
-            if len == 8 && code == 80877103 {
-                // Reject SSL with 'N'
-                log::debug!("SSL negotiation rejected");
-                self.stream.write_all(b"N")?;
-                self.stream.flush()?;
-            } else {
-                // Not SSL request, this is startup message
-                // Read remaining startup data
-                let mut data = vec![0u8; (len - 8) as usize];
-                self.stream.read_exact(&mut data)?;
-
-                let mut full_data = ssl_buf[4..8].to_vec();
-                full_data.extend_from_slice(&data);
-
-                let msg = Message::parse(0, &full_data)?;
-                log::debug!("Startup message: {:?}", msg);
-                self.authenticated = true;
-
-                Response::AuthenticationOk.write(&mut self.stream)?;
-                Response::ReadyForQuery.write(&mut self.stream)?;
-                self.stream.flush()?;
-            }
+        // Handle SSL negotiation request first
+        let mut first_bytes = [0u8; 8];
+        if self.stream.read_exact(&mut first_bytes).is_err() {
+            // Not enough data for SSL or startup, probably just a terminate
+            return Ok(());
         }
 
-        // If SSL was rejected, now handle actual startup
-        if !self.authenticated {
+        let len = i32::from_be_bytes([first_bytes[0], first_bytes[1], first_bytes[2], first_bytes[3]]);
+        let code = i32::from_be_bytes([first_bytes[4], first_bytes[5], first_bytes[6], first_bytes[7]]);
+
+        if len == 8 && code == 80877103 {
+            // SSL request
+            log::debug!("SSL negotiation rejected");
+            self.stream.write_all(b"N")?;
+            self.stream.flush()?;
+            // After rejecting SSL, a startup message is expected
             self.handle_startup()?;
+        } else {
+            // Not an SSL request, so it's a startup message.
+            // We've already read the first 8 bytes.
+            let mut remaining_data = vec![0u8; (len - 8) as usize];
+            self.stream.read_exact(&mut remaining_data)?;
+            let mut data = first_bytes[4..].to_vec();
+            data.extend_from_slice(&remaining_data);
+
+            let msg = Message::parse(0, &data)?;
+            log::debug!("Startup message: {:?}", msg);
+            self.authenticated = true;
+
+            Response::AuthenticationOk.write(&mut self.stream)?;
+            Response::ReadyForQuery.write(&mut self.stream)?;
+            self.stream.flush()?;
         }
 
         loop {
@@ -540,15 +540,467 @@ impl<S: Read + Write> Connection<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
+    use crate::catalog::{Column, DataType, TableSchema};
+    use crate::parser::ast::ColumnDef;
+    use std::io::{Cursor, Read, Write};
+    use std::sync::Arc;
+    
+    struct MockStream {
+        input: Cursor<Vec<u8>>,
+        output: Cursor<Vec<u8>>,
+    }
+
+    impl MockStream {
+        fn new(input_data: Vec<u8>) -> Self {
+            Self {
+                input: Cursor::new(input_data),
+                output: Cursor::new(Vec::new()),
+            }
+        }
+
+        fn get_output(&self) -> Vec<u8> {
+            self.output.get_ref().clone()
+        }
+    }
+
+    impl Read for MockStream {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            self.input.read(buf)
+        }
+    }
+
+    impl Write for MockStream {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.output.write(buf)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.output.flush()
+        }
+    }
+
+    // Helper to create a byte vector simulating a message from the client
+    fn create_message(msg_type: u8, payload: &[u8]) -> Vec<u8> {
+        let len = (payload.len() + 4) as i32; // Length includes itself
+        let mut buf = Vec::new();
+        buf.push(msg_type); // Message type tag
+        buf.extend_from_slice(&len.to_be_bytes());
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    // Helper for startup message without SSL
+    fn create_startup_message(payload: &[u8]) -> Vec<u8> {
+        let len = (payload.len() + 4) as i32;
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&len.to_be_bytes());
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    // Helper for SSLRequest
+    fn create_ssl_request() -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&8i32.to_be_bytes()); // length
+        buf.extend_from_slice(&80877103i32.to_be_bytes()); // SSLRequest code
+        buf
+    }
 
     #[test]
     fn test_connection_creation() {
-        use crate::catalog::Catalog;
-        use std::sync::Arc;
-        let stream = Cursor::new(Vec::new());
+        let mut stream = MockStream::new(vec![]);
         let catalog = Arc::new(Catalog::new());
-        let conn = Connection::new(stream, catalog);
+        let conn = Connection::new(&mut stream, catalog);
         assert!(!conn.authenticated);
+    }
+
+    #[test]
+    fn test_handle_startup_successful() {
+        let payload = b"\0\x03\0\0user\0testuser\0database\0testdb\0\0"; // Protocol version 3.0, user and database
+        let input_data = create_startup_message(payload);
+        let mut stream = MockStream::new(input_data);
+        let catalog = Arc::new(Catalog::new());
+        let mut conn = Connection::new(&mut stream, catalog);
+
+        conn.handle_startup().unwrap();
+        assert!(conn.authenticated);
+
+        let output = stream.get_output();
+        // Expected: AuthenticationOk (R) + ReadyForQuery (Z)
+        let expected_output = b"R\0\0\0\x08\0\0\0\0Z\0\0\0\x05I";
+        assert_eq!(&output[..], expected_output);
+    }
+
+    #[test]
+    fn test_handle_startup_ssl_rejected() {
+        let ssl_request = create_ssl_request();
+        let payload = b"\0\x03\0\0user\0testuser\0database\0testdb\0\0";
+        let startup_message = create_startup_message(payload);
+
+        let mut input_stream_data = Vec::new();
+        input_stream_data.extend_from_slice(&ssl_request);
+        input_stream_data.extend_from_slice(&startup_message);
+
+        let mut stream = MockStream::new(input_stream_data);
+        let mut conn = Connection::new(&mut stream, Arc::new(Catalog::new()));
+
+        let _ = conn.run(); 
+
+        let output = stream.get_output();
+        // Expect: 'N' for SSL rejection, then AuthenticationOk (R) and ReadyForQuery (Z)
+        let mut expected_output = b"N".to_vec(); // SSL rejection
+        expected_output.extend_from_slice(b"R\0\0\0\x08\0\0\0\0Z\0\0\0\x05I"); // AuthOk + ReadyForQuery
+
+        assert!(output.starts_with(&expected_output));
+    }
+
+    #[test]
+    fn test_handle_startup_malformed_message() {
+        // Malformed: length says 100, but payload is only 2 bytes
+        let malformed_payload = vec![0x03, 0x00]; // Protocol version 3.0
+
+        let mut input_data = Vec::new();
+        input_data.extend_from_slice(&100i32.to_be_bytes()); // Length 100
+        input_data.extend_from_slice(&malformed_payload);
+
+        let mut stream = Cursor::new(input_data);
+        let catalog = Arc::new(Catalog::new());
+        let mut conn = Connection::new(stream, catalog);
+
+        // Expect an error because the message is malformed or incomplete
+        let result = conn.handle_startup();
+        assert!(result.is_err());
+        // For Cursor, read_exact for more than available bytes results in an error
+        assert!(format!("{:?}", result.unwrap_err()).contains("failed to fill whole buffer"));
+    }
+
+    #[test]
+    fn test_handle_query_create_table() {
+        let create_table_sql = "CREATE TABLE users (id INT, name TEXT);";
+        let mut stream = MockStream::new(Vec::new());
+        let mut conn = Connection::new(&mut stream, Arc::new(Catalog::new()));
+        conn.authenticated = true;
+
+        conn.handle_query(create_table_sql).unwrap();
+
+        let output = stream.get_output();
+        // Expect CommandComplete (C) and ReadyForQuery (Z)
+        let expected_output = b"C\0\0\0\x11CREATE TABLE\0Z\0\0\0\x05I";
+        assert_eq!(output, expected_output);
+    }
+
+    #[test]
+    fn test_handle_query_insert_and_select() {
+        let catalog = Arc::new(Catalog::new());
+        let mut stream = MockStream::new(Vec::new());
+        let mut conn = Connection::new(&mut stream, catalog.clone());
+        conn.authenticated = true;
+
+        // Create table
+        let create_table_sql = "CREATE TABLE items (id INT, name TEXT);";
+        conn.handle_query(create_table_sql).unwrap();
+
+        // Insert data
+        let insert_sql = "INSERT INTO items VALUES (1, 'apple');";
+        conn.handle_query(insert_sql).unwrap();
+
+        // Select data
+        let select_sql = "SELECT id, name FROM items;";
+        conn.handle_query(select_sql).unwrap();
+
+        let output = stream.get_output();
+        // Expected: RowDescription (T), DataRow (D), CommandComplete (C), ReadyForQuery (Z)
+        // We check for the SELECT 1 command complete tag, but since we run multiple queries, we can't guarantee the whole buffer
+        assert!(output.ends_with(b"C\0\0\0\rSELECT 1\0Z\0\0\0\x05I")); // CommandComplete SELECT 1 + ReadyForQuery
+    }
+
+    #[test]
+    fn test_handle_query_syntax_error() {
+        let invalid_sql = "SELECT FROM users;"; // Missing column list
+        let mut stream = MockStream::new(Vec::new());
+        let mut conn = Connection::new(&mut stream, Arc::new(Catalog::new()));
+        conn.authenticated = true;
+
+        conn.handle_query(invalid_sql).unwrap();
+
+        let output = stream.get_output();
+        // Expect ErrorResponse (E) and ReadyForQuery (Z)
+        assert!(output.starts_with(b"E\0\0\0"));
+        assert!(output.windows(12).any(|window| window == b"Parse error:"));
+        assert!(output.ends_with(b"Z\0\0\0\x05I"));
+    }
+
+    #[test]
+    fn test_build_result_set_simple() {
+        let mut stream = MockStream::new(vec![]);
+        let catalog = Arc::new(Catalog::new());
+        let conn = Connection::new(&mut stream, catalog.clone());
+
+        let column_names = vec!["id".to_string(), "name".to_string()];
+        let rows = vec![
+            vec![Value::Int(1), Value::Text("Alice".to_string())],
+            vec![Value::Int(2), Value::Text("Bob".to_string())],
+        ];
+
+        let result_set = conn.build_result_set(&column_names, rows).unwrap();
+        assert_eq!(result_set.row_count(), 2);
+        assert_eq!(result_set.columns.len(), 2);
+        assert_eq!(result_set.columns[0].name, "id");
+        assert_eq!(result_set.columns[1].name, "name");
+    }
+
+    #[test]
+    fn test_build_result_set_star() {
+        let mut stream = MockStream::new(vec![]);
+        let catalog = Arc::new(Catalog::new());
+        let conn = Connection::new(&mut stream, catalog.clone());
+
+        let column_names = vec!["*".to_string()];
+        let rows = vec![
+            vec![Value::Int(1), Value::Text("Alice".to_string())],
+            vec![Value::Int(2), Value::Text("Bob".to_string())],
+        ];
+
+        let result_set = conn.build_result_set(&column_names, rows).unwrap();
+        assert_eq!(result_set.row_count(), 2);
+        assert_eq!(result_set.columns.len(), 2);
+        assert_eq!(result_set.columns[0].name, "column1");
+        assert_eq!(result_set.columns[1].name, "column2");
+    }
+
+    #[test]
+    fn test_build_result_set_empty() {
+        let mut stream = MockStream::new(vec![]);
+        let catalog = Arc::new(Catalog::new());
+        let conn = Connection::new(&mut stream, catalog.clone());
+
+        let column_names = vec!["id".to_string(), "name".to_string()];
+        let rows: Vec<Vec<Value>> = Vec::new();
+
+        let result_set = conn.build_result_set(&column_names, rows).unwrap();
+        assert_eq!(result_set.row_count(), 0);
+        assert_eq!(result_set.columns.len(), 2); // Still expect column metadata for schema
+        assert_eq!(result_set.columns[0].name, "id");
+        assert_eq!(result_set.columns[1].name, "name");
+    }
+
+    #[test]
+    fn test_project_columns_select_star() {
+        let mut stream = MockStream::new(vec![]);
+        let catalog = Arc::new(Catalog::new());
+        let conn = Connection::new(&mut stream, catalog.clone());
+
+        let rows = vec![
+            vec![Value::Int(1), Value::Text("Alice".to_string())],
+            vec![Value::Int(2), Value::Text("Bob".to_string())],
+        ];
+        let exprs = vec![crate::parser::Expr::Star];
+        let schemas = vec![(
+            "users".to_string(),
+            TableSchema::new(
+                "users".to_string(),
+                vec![
+                    Column::new("id".to_string(), DataType::Int),
+                    Column::new("name".to_string(), DataType::Text),
+                ],
+            ),
+        )];
+
+        let projected_rows = conn.project_columns(&rows, &exprs, &schemas).unwrap();
+        assert_eq!(projected_rows.len(), 2);
+        assert_eq!(projected_rows[0].len(), 2);
+        assert_eq!(projected_rows[0][0], Value::Int(1));
+    }
+
+    #[test]
+    fn test_project_columns_select_specific() {
+        let mut stream = MockStream::new(vec![]);
+        let catalog = Arc::new(Catalog::new());
+        let conn = Connection::new(&mut stream, catalog.clone());
+
+        let rows = vec![
+            vec![Value::Int(1), Value::Text("Alice".to_string())],
+            vec![Value::Int(2), Value::Text("Bob".to_string())],
+        ];
+        let exprs = vec![crate::parser::Expr::Column("name".to_string())];
+        let schemas = vec![(
+            "users".to_string(),
+            TableSchema::new(
+                "users".to_string(),
+                vec![
+                    Column::new("id".to_string(), DataType::Int),
+                    Column::new("name".to_string(), DataType::Text),
+                ],
+            ),
+        )];
+
+        let projected_rows = conn.project_columns(&rows, &exprs, &schemas).unwrap();
+        assert_eq!(projected_rows.len(), 2);
+        assert_eq!(projected_rows[0].len(), 1);
+        assert_eq!(projected_rows[0][0], Value::Text("Alice".to_string()));
+    }
+
+    #[test]
+    fn test_project_columns_qualified() {
+        let mut stream = MockStream::new(vec![]);
+        let catalog = Arc::new(Catalog::new());
+        let conn = Connection::new(&mut stream, catalog.clone());
+
+        let rows = vec![
+            vec![Value::Int(1), Value::Text("Alice".to_string())],
+            vec![Value::Int(2), Value::Text("Bob".to_string())],
+        ];
+        let exprs = vec![crate::parser::Expr::QualifiedColumn {
+            table: "u".to_string(),
+            column: "name".to_string(),
+        }];
+        let schemas = vec![(
+            "u".to_string(),
+            TableSchema::new(
+                "users".to_string(),
+                vec![
+                    Column::new("id".to_string(), DataType::Int),
+                    Column::new("name".to_string(), DataType::Text),
+                ],
+            ),
+        )];
+
+        let projected_rows = conn.project_columns(&rows, &exprs, &schemas).unwrap();
+        assert_eq!(projected_rows.len(), 2);
+        assert_eq!(projected_rows[0].len(), 1);
+        assert_eq!(projected_rows[0][0], Value::Text("Alice".to_string()));
+    }
+
+    #[test]
+    fn test_project_columns_not_found() {
+        let mut stream = MockStream::new(vec![]);
+        let catalog = Arc::new(Catalog::new());
+        let conn = Connection::new(&mut stream, catalog.clone());
+
+        let rows = vec![
+            vec![Value::Int(1), Value::Text("Alice".to_string())],
+        ];
+        let exprs = vec![crate::parser::Expr::Column("nonexistent".to_string())];
+        let schemas = vec![(
+            "users".to_string(),
+            TableSchema::new(
+                "users".to_string(),
+                vec![
+                    Column::new("id".to_string(), DataType::Int),
+                    Column::new("name".to_string(), DataType::Text),
+                ],
+            ),
+        )];
+
+        let result = conn.project_columns(&rows, &exprs, &schemas);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Column 'nonexistent' not found"));
+    }
+
+    #[test]
+    fn test_run_query_then_terminate() {
+        let catalog = Arc::new(Catalog::new());
+
+        // Setup: Create table and insert data using the catalog directly
+        let create_table_sql = "CREATE TABLE test_data (id INT);";
+        let create_table_stmt_enum = Parser::new(create_table_sql).unwrap().parse().unwrap();
+        if let Statement::CreateTable(create_table_stmt) = create_table_stmt_enum {
+            catalog.create_table_with_constraints(
+                create_table_stmt.table,
+                create_table_stmt.columns,
+                None,
+                vec![],
+            ).unwrap();
+        } else {
+            panic!("Expected CreateTable statement");
+        }
+        let insert_sql = "INSERT INTO test_data VALUES (1);";
+        let insert_stmt_enum = Parser::new(insert_sql).unwrap().parse().unwrap();
+        if let Statement::Insert(insert_stmt) = insert_stmt_enum {
+            catalog.insert(
+                &insert_stmt.table,
+                insert_stmt.values,
+            ).unwrap();
+        } else {
+            panic!("Expected Insert statement");
+        }
+
+        let startup_payload = b"\0\x03\0\0user\0testuser\0database\0testdb\0\0";
+        let startup_message = create_startup_message(startup_payload);
+        let query_message = create_message(b'Q', b"SELECT id FROM test_data;");
+        let terminate_message = create_message(b'X', b""); // Terminate message (empty payload)
+
+        let mut input_stream_data = Vec::new();
+        input_stream_data.extend_from_slice(&startup_message);
+        input_stream_data.extend_from_slice(&query_message);
+        input_stream_data.extend_from_slice(&terminate_message);
+
+        let mut stream = MockStream::new(input_stream_data);
+        let mut conn = Connection::new(&mut stream, catalog.clone());
+
+        conn.run().unwrap(); // Run the connection loop
+
+        let output = stream.get_output();
+        // Check for AuthenticationOk, ReadyForQuery, RowDescription, DataRow, CommandComplete, ReadyForQuery
+        assert!(output.starts_with(b"R\0\0\0\x08\0\0\0\0Z\0\0\0\x05I")); // AuthOk + ReadyForQuery
+        assert!(output.windows(4).any(|window| window == b"T\0\0\0")); // RowDescription
+        assert!(output.windows(4).any(|window| window == b"D\0\0\0")); // DataRow
+        assert!(output.ends_with(b"C\0\0\0\rSELECT 1\0Z\0\0\0\x05I")); // CommandComplete + ReadyForQuery
+    }
+
+    #[test]
+    fn test_run_ssl_startup_query_terminate() {
+        let catalog = Arc::new(Catalog::new());
+
+        // Setup: Create table and insert data using the catalog directly
+        let create_table_sql = "CREATE TABLE products (pid INT, pname TEXT);";
+        let create_table_stmt_enum = Parser::new(create_table_sql).unwrap().parse().unwrap();
+        if let Statement::CreateTable(create_table_stmt) = create_table_stmt_enum {
+            catalog.create_table_with_constraints(
+                create_table_stmt.table,
+                create_table_stmt.columns,
+                None,
+                vec![],
+            ).unwrap();
+        } else {
+            panic!("Expected CreateTable statement");
+        }
+        let insert_sql = "INSERT INTO products VALUES (101, 'Laptop');";
+        let insert_stmt_enum = Parser::new(insert_sql).unwrap().parse().unwrap();
+        if let Statement::Insert(insert_stmt) = insert_stmt_enum {
+            catalog.insert(
+                &insert_stmt.table,
+                insert_stmt.values,
+            ).unwrap();
+        } else {
+            panic!("Expected Insert statement");
+        }
+
+        let ssl_request = create_ssl_request();
+        let startup_payload = b"\0\x03\0\0user\0testuser\0database\0testdb\0\0";
+        let startup_message = create_startup_message(startup_payload);
+        let query_message = create_message(b'Q', b"SELECT pid, pname FROM products;");
+        let terminate_message = create_message(b'X', b"");
+
+        let mut input_stream_data = Vec::new();
+        input_stream_data.extend_from_slice(&ssl_request);
+        input_stream_data.extend_from_slice(&startup_message);
+        input_stream_data.extend_from_slice(&query_message);
+        input_stream_data.extend_from_slice(&terminate_message);
+
+        let mut stream = MockStream::new(input_stream_data);
+        let mut conn = Connection::new(&mut stream, catalog.clone());
+
+        conn.run().unwrap();
+
+        let output = stream.get_output();
+        // Expect: 'N' for SSL rejection, then AuthOk, ReadyForQuery, RowDescription, DataRow, CommandComplete, ReadyForQuery
+        let mut expected_output_prefix = b"N".to_vec();
+        expected_output_prefix.extend_from_slice(b"R\0\0\0\x08\0\0\0\0Z\0\0\0\x05I");
+        
+        assert!(output.starts_with(&expected_output_prefix));
+        assert!(output.windows(4).any(|window| window == b"T\0\0\0")); // RowDescription
+        assert!(output.windows(4).any(|window| window == b"D\0\0\0")); // DataRow
+        assert!(output.ends_with(b"C\0\0\0\rSELECT 1\0Z\0\0\0\x05I")); // CommandComplete + ReadyForQuery
     }
 }
