@@ -203,8 +203,45 @@ impl SelectExecutor {
                     .ok_or_else(|| format!("Column '{}' not found", name))?;
                 Ok(tuple.data[idx].clone())
             }
+            Expr::QualifiedColumn { column, .. } => {
+                // Handle qualified column names by stripping the table prefix
+                let idx = schema
+                    .columns
+                    .iter()
+                    .position(|c| &c.name == column)
+                    .ok_or_else(|| format!("Column '{}' not found", column))?;
+                Ok(tuple.data[idx].clone())
+            }
             Expr::Number(n) => Ok(Value::Int(*n)),
             Expr::String(s) => Ok(Value::Text(s.clone())),
+            Expr::Aggregate { func, arg } => {
+                // Evaluate aggregate expression from tuple data
+                // The tuple should already contain the aggregate result
+                let agg_name = match arg.as_ref() {
+                    Expr::Column(name) => format!("{:?}({})", func, name).to_lowercase(),
+                    Expr::QualifiedColumn { column, .. } => {
+                        format!("{:?}({})", func, column).to_lowercase()
+                    }
+                    Expr::Star => format!("{:?}(*)", func).to_lowercase(),
+                    _ => format!("{:?}(expr)", func).to_lowercase(),
+                };
+
+                // Try to find the aggregate result in the tuple by name using column_map
+                if let Some(&idx) = tuple.column_map.get(&agg_name) {
+                    if let Some(value) = tuple.data.get(idx) {
+                        return Ok(value.clone());
+                    }
+                }
+
+                // Fallback: try to find by position (for simple cases)
+                if let Expr::Star = arg.as_ref() {
+                    if let crate::parser::ast::AggregateFunc::Count = func {
+                        return Ok(Value::Int(tuple.data.len() as i64));
+                    }
+                }
+
+                Err(format!("Aggregate '{}' not found in tuple", agg_name))
+            }
             Expr::FunctionCall { name, args } => {
                 let mut evaluated_args = Vec::new();
                 for arg in args {

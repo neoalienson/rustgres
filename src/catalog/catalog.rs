@@ -18,7 +18,8 @@ use std::time::Duration;
 pub struct Catalog {
     pub(crate) tables: Arc<RwLock<HashMap<String, TableSchema>>>,
     pub(crate) views: Arc<RwLock<HashMap<String, SelectStmt>>>,
-    pub(crate) materialized_views: Arc<RwLock<HashMap<String, (SelectStmt, Vec<Vec<Value>>)>>>,
+    pub(crate) materialized_views:
+        Arc<RwLock<HashMap<String, (SelectStmt, Vec<Vec<Value>>, Vec<String>)>>>,
     pub(crate) triggers: Arc<RwLock<HashMap<String, CreateTriggerStmt>>>,
     pub(crate) indexes: Arc<RwLock<HashMap<String, CreateIndexStmt>>>,
     pub(crate) functions: Arc<RwLock<HashMap<String, Vec<Function>>>>,
@@ -50,10 +51,10 @@ impl Catalog {
         }
     }
 
-    pub fn new_with_data_dir(data_dir: &str) -> Self {
+    pub fn new_with_data_dir(data_dir: &str) -> Arc<Self> {
         let (tx, rx) = channel();
 
-        let catalog = Self {
+        let catalog = Arc::new(Self {
             tables: Arc::new(RwLock::new(HashMap::new())),
             views: Arc::new(RwLock::new(HashMap::new())),
             materialized_views: Arc::new(RwLock::new(HashMap::new())),
@@ -67,10 +68,11 @@ impl Catalog {
             txn_mgr: Arc::new(TransactionManager::new()),
             data_dir: Some(data_dir.to_string()),
             save_tx: Some(tx),
-        };
+        });
 
         let tables = Arc::clone(&catalog.tables);
         let views = Arc::clone(&catalog.views);
+        let materialized_views = Arc::clone(&catalog.materialized_views);
         let triggers = Arc::clone(&catalog.triggers);
         let indexes = Arc::clone(&catalog.indexes);
         let functions = Arc::clone(&catalog.functions);
@@ -93,6 +95,13 @@ impl Catalog {
                 let views_clone = views.read().unwrap().clone();
                 if let Err(e) = Persistence::save_views(&dir, &views_clone) {
                     log::error!("Async views save failed: {}", e);
+                }
+
+                let materialized_views_clone = materialized_views.read().unwrap().clone();
+                if let Err(e) =
+                    Persistence::save_materialized_views(&dir, &materialized_views_clone)
+                {
+                    log::error!("Async materialized views save failed: {}", e);
                 }
 
                 let triggers_clone = triggers.read().unwrap().clone();
@@ -126,6 +135,10 @@ impl Catalog {
 
         if let Ok(views) = Persistence::load_views(data_dir) {
             *catalog.views.write().unwrap() = views;
+        }
+
+        if let Ok(materialized_views) = Persistence::load_materialized_views(data_dir) {
+            *catalog.materialized_views.write().unwrap() = materialized_views;
         }
 
         if let Ok(triggers) = Persistence::load_triggers(data_dir) {
@@ -253,25 +266,85 @@ impl Catalog {
         self.views.read().unwrap().get(name).cloned()
     }
 
-    pub fn create_materialized_view(&self, name: String, query: SelectStmt) -> Result<(), String> {
+    pub fn create_materialized_view(
+        self: &Arc<Self>,
+        name: String,
+        query: SelectStmt,
+    ) -> Result<(), String> {
         let mut mvs = self.materialized_views.write().unwrap();
 
         if mvs.contains_key(&name) {
             return Err(format!("Materialized view '{}' already exists", name));
         }
 
-        mvs.insert(name, (query, Vec::new()));
+        // Use the planner directly with the full query (including JOINs)
+        use crate::planner::planner::Planner;
+        let planner = Planner::new_with_catalog(self.clone());
+        let mut plan = planner.plan(&query).map_err(|e| format!("{:?}", e))?;
+
+        // Collect results and column names
+        let mut data: Vec<Vec<Value>> = Vec::new();
+        let mut column_names: Vec<String> = Vec::new();
+
+        loop {
+            match plan.next() {
+                Ok(Some(tuple_hashmap)) => {
+                    if column_names.is_empty() {
+                        // Get column names from first row and sort them for consistent ordering
+                        let mut names: Vec<String> = tuple_hashmap.keys().cloned().collect();
+                        names.sort();
+                        column_names = names;
+                    }
+                    let row: Vec<Value> = column_names
+                        .iter()
+                        .map(|col| tuple_hashmap.get(col).cloned().unwrap_or(Value::Null))
+                        .collect();
+                    data.push(row);
+                }
+                Ok(None) => break,
+                Err(e) => return Err(format!("{:?}", e)),
+            }
+        }
+
+        mvs.insert(name, (query, data, column_names));
+        drop(mvs);
+
+        self.auto_save();
         Ok(())
     }
 
-    pub fn refresh_materialized_view(&self, name: &str) -> Result<(), String> {
+    pub fn refresh_materialized_view(self: &Arc<Self>, name: &str) -> Result<(), String> {
         let mut mvs = self.materialized_views.write().unwrap();
 
-        let (_query, data) = mvs
+        let (query, data, column_names) = mvs
             .get_mut(name)
             .ok_or_else(|| format!("Materialized view '{}' does not exist", name))?;
 
-        data.clear();
+        // Use the planner directly with the full query (including JOINs)
+        use crate::planner::planner::Planner;
+        let planner = Planner::new_with_catalog(self.clone());
+        let mut plan = planner.plan(query).map_err(|e| format!("{:?}", e))?;
+
+        // Collect results
+        let mut new_data: Vec<Vec<Value>> = Vec::new();
+        loop {
+            match plan.next() {
+                Ok(Some(tuple_hashmap)) => {
+                    let row: Vec<Value> = column_names
+                        .iter()
+                        .map(|col| tuple_hashmap.get(col).cloned().unwrap_or(Value::Null))
+                        .collect();
+                    new_data.push(row);
+                }
+                Ok(None) => break,
+                Err(e) => return Err(format!("{:?}", e)),
+            }
+        }
+
+        *data = new_data;
+        drop(mvs);
+
+        self.auto_save();
         Ok(())
     }
 
@@ -281,13 +354,23 @@ impl Catalog {
         if mvs.remove(name).is_none() && !if_exists {
             return Err(format!("Materialized view '{}' does not exist", name));
         }
+        drop(mvs);
 
+        self.auto_save();
         Ok(())
     }
 
     pub fn get_materialized_view(&self, name: &str) -> Option<Vec<Vec<Value>>> {
         let mvs = self.materialized_views.read().unwrap();
-        mvs.get(name).map(|(_, data)| data.clone())
+        mvs.get(name).map(|(_, data, _)| data.clone())
+    }
+
+    pub fn get_materialized_view_with_columns(
+        &self,
+        name: &str,
+    ) -> Option<(Vec<Vec<Value>>, Vec<String>)> {
+        let mvs = self.materialized_views.read().unwrap();
+        mvs.get(name).map(|(_, data, columns)| (data.clone(), columns.clone()))
     }
 
     pub fn create_trigger(&self, trigger: CreateTriggerStmt) -> Result<(), String> {

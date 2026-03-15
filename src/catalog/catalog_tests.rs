@@ -45,7 +45,7 @@ mod tests {
         let catalog = Catalog::new_with_data_dir(data_dir_path);
 
         assert!(catalog.data_dir.is_some());
-        assert_eq!(catalog.data_dir.unwrap(), data_dir_path);
+        assert_eq!(catalog.data_dir.clone().unwrap(), data_dir_path);
         assert!(catalog.save_tx.is_some());
 
         // Ensure the initial state is empty even with a data directory

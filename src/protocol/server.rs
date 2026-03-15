@@ -19,7 +19,7 @@ impl Server {
 
     pub fn bind_with_data_dir(addr: &str, data_dir: String) -> io::Result<Self> {
         let listener = TcpListener::bind(addr)?;
-        let catalog = Arc::new(Catalog::new_with_data_dir(&data_dir));
+        let catalog = Catalog::new_with_data_dir(&data_dir);
         Ok(Self { listener, catalog, data_dir })
     }
 

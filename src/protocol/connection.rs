@@ -229,6 +229,21 @@ impl<S: Read + Write> Connection<S> {
                     select_stmt.joins.len(),
                     select_stmt.where_clause.is_some()
                 );
+
+                // Check if this is a materialized view first
+                if let Some((mv_data, column_names)) =
+                    self.catalog.get_materialized_view_with_columns(&select_stmt.from)
+                {
+                    log::debug!(
+                        "Found materialized view: {} with {} columns",
+                        select_stmt.from,
+                        column_names.len()
+                    );
+                    // Return the stored data from the materialized view
+                    let result_set = self.build_result_set(&column_names, mv_data)?;
+                    return Ok(ExecutionResult::ResultSet(result_set));
+                }
+
                 if !select_stmt.joins.is_empty() {
                     return self.execute_join_query(select_stmt);
                 }

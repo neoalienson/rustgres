@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Value types stored in tuples
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Value {
     Int(i64),
     Float(f64),

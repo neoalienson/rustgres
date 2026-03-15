@@ -48,10 +48,13 @@ impl HashAggExecutor {
                 let mut group_tuple = Tuple::new();
                 // Initialize group-by columns
                 for expr in &group_by {
-                    if let Expr::Column(col_name) = expr {
-                        if let Some(val) = tuple.get(col_name) {
-                            group_tuple.insert(col_name.clone(), val.clone());
-                        }
+                    let col_name = match expr {
+                        Expr::Column(name) => name,
+                        Expr::QualifiedColumn { column, .. } => column,
+                        _ => continue, // Should be caught by planner
+                    };
+                    if let Some(val) = tuple.get(col_name) {
+                        group_tuple.insert(col_name.clone(), val.clone());
                     }
                 }
                 // Initialize aggregate states based on the aggregate function type
@@ -189,10 +192,18 @@ impl HashAggExecutor {
     fn compute_group_key(tuple: &Tuple, group_by: &[Expr]) -> Result<u64, ExecutorError> {
         let mut hasher = DefaultHasher::new();
         for expr in group_by {
-            if let Expr::Column(col_name) = expr {
-                if let Some(val) = tuple.get(col_name) {
-                    Self::hash_value(val, &mut hasher);
+            let col_name = match expr {
+                Expr::Column(name) => name,
+                Expr::QualifiedColumn { column, .. } => column,
+                _ => {
+                    return Err(ExecutorError::UnsupportedExpression(format!(
+                        "Unsupported GROUP BY expression: {:?}",
+                        expr
+                    )));
                 }
+            };
+            if let Some(val) = tuple.get(col_name) {
+                Self::hash_value(val, &mut hasher);
             }
         }
         Ok(hasher.finish())
@@ -238,11 +249,13 @@ impl HashAggExecutor {
     fn get_aggregate_name(expr: &Expr) -> String {
         match expr {
             Expr::Aggregate { func, arg } => {
-                if let Expr::Column(col_name) = arg.as_ref() {
-                    format!("{:?}({})", func, col_name).to_lowercase()
-                } else {
-                    format!("{:?}(expr)", func).to_lowercase()
-                }
+                let arg_name = match arg.as_ref() {
+                    Expr::Column(col_name) => col_name.clone(),
+                    Expr::QualifiedColumn { column, .. } => column.clone(),
+                    Expr::Star => "*".to_string(),
+                    _ => "expr".to_string(),
+                };
+                format!("{:?}({})", func, arg_name).to_lowercase()
             }
             Expr::Alias { alias, .. } => alias.clone(),
             _ => format!("{:?}", expr),

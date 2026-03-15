@@ -278,63 +278,83 @@ impl Planner {
 
         // Add group by columns
         for group_expr in group_by_exprs {
-            if let Expr::Column(col_name) = group_expr {
-                if let Some(col_def) = input_schema.columns.iter().find(|c| &c.name == col_name) {
-                    output_cols.push(col_def.clone());
-                } else {
-                    return Err(ExecutorError::ColumnNotFound(format!(
-                        "GROUP BY column '{}' not found in input schema",
-                        col_name
+            let col_name = match group_expr {
+                Expr::Column(name) => name,
+                Expr::QualifiedColumn { column, .. } => column,
+                _ => {
+                    return Err(ExecutorError::UnsupportedExpression(format!(
+                        "Unsupported GROUP BY expression: {:?}",
+                        group_expr
                     )));
                 }
+            };
+
+            if let Some(col_def) = input_schema.columns.iter().find(|c| &c.name == col_name) {
+                output_cols.push(col_def.clone());
             } else {
-                return Err(ExecutorError::UnsupportedExpression(format!(
-                    "Unsupported GROUP BY expression: {:?}",
-                    group_expr
+                return Err(ExecutorError::ColumnNotFound(format!(
+                    "GROUP BY column '{}' not found in input schema",
+                    col_name
                 )));
             }
         }
 
         // Add aggregate columns
         for agg_expr in agg_exprs {
-            if let Expr::Aggregate { func, arg } = agg_expr {
-                let agg_col_name = Self::get_aggregate_name(agg_expr);
+            // Handle both direct aggregates and aliases wrapping aggregates
+            let (func, arg, agg_col_name) = match agg_expr {
+                Expr::Aggregate { func, arg } => {
+                    let agg_col_name = Self::get_aggregate_name(agg_expr);
+                    (func, arg.as_ref(), agg_col_name)
+                }
+                Expr::Alias { alias, expr } => {
+                    if let Expr::Aggregate { func, arg } = expr.as_ref() {
+                        (func, arg.as_ref(), alias.clone())
+                    } else {
+                        return Err(ExecutorError::InternalError(
+                            "Non-aggregate expression passed as aggregate".to_string(),
+                        ));
+                    }
+                }
+                _ => {
+                    return Err(ExecutorError::InternalError(
+                        "Non-aggregate expression passed as aggregate".to_string(),
+                    ));
+                }
+            };
 
-                // Determine the data type for the aggregate column
-                let agg_data_type = match func {
-                    AggregateFunc::Count => DataType::Int,
-                    AggregateFunc::Sum => DataType::Int,
-                    AggregateFunc::Avg => DataType::Int,
-                    AggregateFunc::Min | AggregateFunc::Max => {
-                        if let Expr::Column(col_name) = arg.as_ref() {
-                            if let Some(col_def) =
-                                input_schema.columns.iter().find(|c| &c.name == col_name)
-                            {
-                                col_def.data_type.clone()
-                            } else {
-                                DataType::Text
-                            }
+            // Determine the data type for the aggregate column
+            let agg_data_type = match func {
+                AggregateFunc::Count => DataType::Int,
+                AggregateFunc::Sum => DataType::Int,
+                AggregateFunc::Avg => DataType::Int,
+                AggregateFunc::Min | AggregateFunc::Max => {
+                    if let Expr::Column(col_name) = arg {
+                        if let Some(col_def) =
+                            input_schema.columns.iter().find(|c| &c.name == col_name)
+                        {
+                            col_def.data_type.clone()
                         } else {
                             DataType::Text
                         }
+                    } else if let Expr::Star = arg {
+                        DataType::Int // COUNT(*) returns Int
+                    } else {
+                        DataType::Text
                     }
-                };
+                }
+            };
 
-                output_cols.push(ColumnDef {
-                    name: agg_col_name,
-                    data_type: agg_data_type,
-                    is_primary_key: false,
-                    is_unique: false,
-                    is_auto_increment: false,
-                    is_not_null: false,
-                    default_value: None,
-                    foreign_key: None,
-                });
-            } else {
-                return Err(ExecutorError::InternalError(
-                    "Non-aggregate expression passed as aggregate".to_string(),
-                ));
-            }
+            output_cols.push(ColumnDef {
+                name: agg_col_name,
+                data_type: agg_data_type,
+                is_primary_key: false,
+                is_unique: false,
+                is_auto_increment: false,
+                is_not_null: false,
+                default_value: None,
+                foreign_key: None,
+            });
         }
 
         Ok(TableSchema::new("aggregated".to_string(), output_cols))
@@ -523,11 +543,13 @@ impl Planner {
     fn get_aggregate_name(expr: &Expr) -> String {
         match expr {
             Expr::Aggregate { func, arg } => {
-                if let Expr::Column(col_name) = arg.as_ref() {
-                    format!("{:?}({})", func, col_name).to_lowercase()
-                } else {
-                    format!("{:?}(expr)", func).to_lowercase()
-                }
+                let col_name = match arg.as_ref() {
+                    Expr::Column(name) => name.clone(),
+                    Expr::QualifiedColumn { column, .. } => column.clone(),
+                    Expr::Star => "*".to_string(),
+                    _ => "expr".to_string(),
+                };
+                format!("{:?}({})", func, col_name).to_lowercase()
             }
             Expr::Alias { alias, .. } => alias.clone(),
             _ => format!("{:?}", expr),
@@ -893,5 +915,99 @@ mod tests {
         assert_eq!(schema.columns.len(), 2);
         assert_eq!(schema.columns[0].name, "name");
         assert_eq!(schema.columns[1].name, "total");
+    }
+
+    #[test]
+    fn test_derive_agg_schema_with_count_star_alias() {
+        // Test COUNT(*) AS sold_count (the materialized view scenario)
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
+                ColumnDef {
+                    name: "category".to_string(),
+                    data_type: DataType::Text,
+                    is_primary_key: false,
+                    is_unique: false,
+                    is_auto_increment: false,
+                    is_not_null: false,
+                    default_value: None,
+                    foreign_key: None,
+                },
+                ColumnDef {
+                    name: "amount".to_string(),
+                    data_type: DataType::Int,
+                    is_primary_key: false,
+                    is_unique: false,
+                    is_auto_increment: false,
+                    is_not_null: false,
+                    default_value: None,
+                    foreign_key: None,
+                },
+            ],
+        );
+
+        let group_by = vec![Expr::Column("category".to_string())];
+        let agg_exprs = vec![Expr::Alias {
+            alias: "sold_count".to_string(),
+            expr: Box::new(Expr::Aggregate {
+                func: AggregateFunc::Count,
+                arg: Box::new(Expr::Star),
+            }),
+        }];
+
+        let result = Planner::derive_agg_output_schema(&schema, &group_by, &agg_exprs);
+        assert!(result.is_ok(), "Aggregate schema derivation failed: {:?}", result.err());
+
+        let result_schema = result.unwrap();
+        assert_eq!(result_schema.columns.len(), 2);
+        assert_eq!(result_schema.columns[0].name, "category");
+        assert_eq!(result_schema.columns[1].name, "sold_count");
+        assert_eq!(result_schema.columns[1].data_type, DataType::Int);
+    }
+
+    #[test]
+    fn test_derive_agg_schema_with_qualified_column() {
+        // Test COUNT(qualified_column)
+        let schema = TableSchema::new(
+            "test".to_string(),
+            vec![
+                ColumnDef {
+                    name: "category".to_string(),
+                    data_type: DataType::Text,
+                    is_primary_key: false,
+                    is_unique: false,
+                    is_auto_increment: false,
+                    is_not_null: false,
+                    default_value: None,
+                    foreign_key: None,
+                },
+                ColumnDef {
+                    name: "id".to_string(),
+                    data_type: DataType::Int,
+                    is_primary_key: false,
+                    is_unique: false,
+                    is_auto_increment: false,
+                    is_not_null: false,
+                    default_value: None,
+                    foreign_key: None,
+                },
+            ],
+        );
+
+        let group_by = vec![Expr::Column("category".to_string())];
+        let agg_exprs = vec![Expr::Aggregate {
+            func: AggregateFunc::Count,
+            arg: Box::new(Expr::QualifiedColumn {
+                table: "t".to_string(),
+                column: "id".to_string(),
+            }),
+        }];
+
+        let result = Planner::derive_agg_output_schema(&schema, &group_by, &agg_exprs);
+        assert!(result.is_ok(), "Aggregate schema derivation failed: {:?}", result.err());
+
+        let result_schema = result.unwrap();
+        assert_eq!(result_schema.columns.len(), 2);
+        assert_eq!(result_schema.columns[1].name, "count(id)");
     }
 }

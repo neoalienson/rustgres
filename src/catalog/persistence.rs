@@ -68,6 +68,32 @@ impl Persistence {
         serde_json::from_str(&json).map_err(|e| format!("Failed to deserialize views: {}", e))
     }
 
+    pub fn save_materialized_views(
+        data_dir: &str,
+        views: &HashMap<String, (SelectStmt, Vec<Vec<Value>>, Vec<String>)>,
+    ) -> Result<(), String> {
+        let path = format!("{}/materialized_views.json", data_dir);
+        let json = serde_json::to_string(views)
+            .map_err(|e| format!("Failed to serialize materialized views: {}", e))?;
+        std::fs::write(&path, json)
+            .map_err(|e| format!("Failed to write materialized views: {}", e))?;
+        log::info!("💾 Saved {} materialized views", views.len());
+        Ok(())
+    }
+
+    pub fn load_materialized_views(
+        data_dir: &str,
+    ) -> Result<HashMap<String, (SelectStmt, Vec<Vec<Value>>, Vec<String>)>, String> {
+        let path = format!("{}/materialized_views.json", data_dir);
+        if !Path::new(&path).exists() {
+            return Ok(HashMap::new());
+        }
+        let json = std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read materialized views: {}", e))?;
+        serde_json::from_str(&json)
+            .map_err(|e| format!("Failed to deserialize materialized views: {}", e))
+    }
+
     pub fn save_triggers(
         data_dir: &str,
         triggers: &HashMap<String, CreateTriggerStmt>,
