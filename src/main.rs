@@ -68,13 +68,59 @@ fn main() -> std::io::Result<()> {
     let server_for_handler = server_clone.clone();
 
     ctrlc::set_handler(move || {
-        log::info!("\n🛑 Shutdown signal received");
+        log::info!("\n🛑 ctrlc: Shutdown signal received (SIGTERM/SIGINT)");
+        log::info!("💾 ctrlc: Forcing immediate save before shutdown...");
         if let Err(e) = server_for_handler.shutdown() {
-            log::error!("Failed to save catalog: {}", e);
+            log::error!("❌ ctrlc: Failed to save catalog: {}", e);
+        } else {
+            log::info!("✅ ctrlc: Catalog saved successfully before shutdown");
         }
+        log::info!("👋 ctrlc: Exiting...");
         std::process::exit(0);
     })
     .expect("Error setting Ctrl-C handler");
+
+    // Also handle SIGTERM explicitly for Docker
+    #[cfg(unix)]
+    {
+        use signal_hook::consts::signal::*;
+        use signal_hook::iterator::Signals;
+        use std::thread;
+
+        let server_for_signal = server_clone.clone();
+        
+        thread::spawn(move || {
+            log::info!("📡 Signal handler thread started, waiting for SIGTERM/SIGINT");
+            let mut signals = Signals::new(&[SIGTERM, SIGINT]).unwrap();
+            for signal in &mut signals {
+                match signal {
+                    SIGTERM => {
+                        log::info!("\n🛑 signal_hook: Received SIGTERM");
+                        log::info!("💾 signal_hook: Forcing immediate save...");
+                        if let Err(e) = server_for_signal.shutdown() {
+                            log::error!("❌ signal_hook: Failed to save catalog: {}", e);
+                        } else {
+                            log::info!("✅ signal_hook: Catalog saved successfully");
+                        }
+                        log::info!("👋 signal_hook: Exiting...");
+                        std::process::exit(0);
+                    }
+                    SIGINT => {
+                        log::info!("\n🛑 signal_hook: Received SIGINT");
+                        log::info!("💾 signal_hook: Forcing immediate save...");
+                        if let Err(e) = server_for_signal.shutdown() {
+                            log::error!("❌ signal_hook: Failed to save catalog: {}", e);
+                        } else {
+                            log::info!("✅ signal_hook: Catalog saved successfully");
+                        }
+                        log::info!("👋 signal_hook: Exiting...");
+                        std::process::exit(0);
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
 
     loop {
         match server_clone.accept() {

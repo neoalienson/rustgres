@@ -6,7 +6,6 @@ pub struct TestEnv {
     vaultgres_enabled: bool,
     postgres_enabled: bool,
     monitoring_enabled: bool,
-    persistence_enabled: bool,
     compose_project: String,
 }
 
@@ -16,7 +15,6 @@ impl TestEnv {
             vaultgres_enabled: false,
             postgres_enabled: false,
             monitoring_enabled: false,
-            persistence_enabled: false,
             compose_project: format!("e2e-{}", std::process::id()),
         }
     }
@@ -33,11 +31,6 @@ impl TestEnv {
 
     pub fn with_monitoring(mut self) -> Self {
         self.monitoring_enabled = true;
-        self
-    }
-
-    pub fn with_persistence(mut self) -> Self {
-        self.persistence_enabled = true;
         self
     }
 
@@ -100,7 +93,6 @@ impl TestEnv {
             compose_project: self.compose_project,
             vaultgres_port: if self.vaultgres_enabled { Some(5432) } else { None },
             postgres_port: if self.postgres_enabled { Some(5433) } else { None },
-            persistence_enabled: self.persistence_enabled,
         }
     }
 }
@@ -109,7 +101,6 @@ pub struct RunningEnv {
     compose_project: String,
     vaultgres_port: Option<u16>,
     postgres_port: Option<u16>,
-    persistence_enabled: bool,
 }
 
 impl RunningEnv {
@@ -143,12 +134,59 @@ impl RunningEnv {
     }
 
     pub fn restart(&self) {
-        eprintln!("[TestEnv] Stopping container...");
-        Command::new("docker")
-            .args(&["compose", "-p", &self.compose_project, "stop", "vaultgres"])
-            .output()
-            .expect("Failed to stop");
-        eprintln!("[TestEnv] Waiting 2s...");
+        self.restart_graceful(5);
+    }
+
+    pub fn restart_graceful(&self, wait_secs: u64) {
+        eprintln!("[TestEnv] Restarting container gracefully (SIGTERM via docker kill)...");
+        
+        // Check volume before restart using docker inspect
+        eprintln!("[TestEnv] Checking volume mount before restart...");
+        let container_name = format!("{}-vaultgres-1", self.compose_project);
+        let volume_info = Command::new("docker")
+            .args(&["inspect", "-f", "{{range .Mounts}}{{.Destination}} => {{.Name}}{{end}}", 
+                   &container_name])
+            .output();
+        if let Ok(output) = volume_info {
+            eprintln!("[TestEnv] Volume mounts: {}", String::from_utf8_lossy(&output.stdout));
+        }
+        
+        // Send SIGTERM directly to the container using docker kill
+        // This ensures the signal reaches PID 1 (vaultgres)
+        eprintln!("[TestEnv] Sending SIGTERM to container {}...", container_name);
+        let kill_result = Command::new("docker")
+            .args(&["kill", "-s", "SIGTERM", &container_name])
+            .output();
+        
+        match kill_result {
+            Ok(output) => {
+                if output.status.success() {
+                    eprintln!("[TestEnv] SIGTERM sent successfully");
+                } else {
+                    eprintln!("[TestEnv] Kill output: {}", String::from_utf8_lossy(&output.stderr));
+                }
+            }
+            Err(e) => eprintln!("[TestEnv] Failed to send SIGTERM: {}", e),
+        }
+        
+        // Wait for container to stop (with timeout)
+        eprintln!("[TestEnv] Waiting up to 30s for container to stop...");
+        for i in 0..30 {
+            let check = Command::new("docker")
+                .args(&["inspect", "-f", "{{.State.Running}}", &container_name])
+                .output();
+            
+            if let Ok(output) = check {
+                let running = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if running == "false" {
+                    eprintln!("[TestEnv] Container stopped after {}s", i);
+                    break;
+                }
+            }
+            thread::sleep(Duration::from_secs(1));
+        }
+        
+        eprintln!("[TestEnv] Waiting 2s after stop...");
         thread::sleep(Duration::from_secs(2));
         
         eprintln!("[TestEnv] Starting container...");
@@ -156,9 +194,60 @@ impl RunningEnv {
             .args(&["compose", "-p", &self.compose_project, "start", "vaultgres"])
             .output()
             .expect("Failed to start");
-        eprintln!("[TestEnv] Waiting 5s for restart...");
-        thread::sleep(Duration::from_secs(5));
+        eprintln!("[TestEnv] Waiting {}s for container to be ready...", wait_secs);
+        thread::sleep(Duration::from_secs(wait_secs));
+        
+        // Check volume after restart
+        eprintln!("[TestEnv] Checking volume mount after restart...");
+        let volume_info = Command::new("docker")
+            .args(&["inspect", "-f", "{{range .Mounts}}{{.Destination}} => {{.Name}}{{end}}", 
+                   &container_name])
+            .output();
+        if let Ok(output) = volume_info {
+            eprintln!("[TestEnv] Volume mounts: {}", String::from_utf8_lossy(&output.stdout));
+        }
+        
         eprintln!("[TestEnv] Restarted!");
+    }
+
+    pub fn restart_with_kill(&self, wait_secs: u64) {
+        eprintln!("[TestEnv] Killing container (SIGKILL - simulating crash)...");
+        // Kill sends SIGKILL - no graceful shutdown, simulates crash
+        Command::new("docker")
+            .args(&["compose", "-p", &self.compose_project, "kill", "vaultgres"])
+            .output()
+            .expect("Failed to kill");
+        eprintln!("[TestEnv] Waiting 1s...");
+        thread::sleep(Duration::from_secs(1));
+        
+        eprintln!("[TestEnv] Starting container...");
+        Command::new("docker")
+            .args(&["compose", "-p", &self.compose_project, "start", "vaultgres"])
+            .output()
+            .expect("Failed to start");
+        eprintln!("[TestEnv] Waiting {}s for restart...", wait_secs);
+        thread::sleep(Duration::from_secs(wait_secs));
+        eprintln!("[TestEnv] Restarted after kill!");
+    }
+
+    pub fn restart_with_stop_start(&self, wait_secs: u64) {
+        eprintln!("[TestEnv] Stopping container (SIGSTOP)...");
+        // Stop sends SIGSTOP - may or may not allow graceful shutdown depending on docker config
+        Command::new("docker")
+            .args(&["compose", "-p", &self.compose_project, "stop", "vaultgres", "-t", "5"])
+            .output()
+            .expect("Failed to stop");
+        eprintln!("[TestEnv] Waiting 1s...");
+        thread::sleep(Duration::from_secs(1));
+        
+        eprintln!("[TestEnv] Starting container...");
+        Command::new("docker")
+            .args(&["compose", "-p", &self.compose_project, "start", "vaultgres"])
+            .output()
+            .expect("Failed to start");
+        eprintln!("[TestEnv] Waiting {}s for restart...", wait_secs);
+        thread::sleep(Duration::from_secs(wait_secs));
+        eprintln!("[TestEnv] Restarted after stop/start!");
     }
 
     pub fn start_monitor(&self) -> MetricsMonitor {
@@ -168,9 +257,11 @@ impl RunningEnv {
 
 impl Drop for RunningEnv {
     fn drop(&mut self) {
+        eprintln!("[TestEnv] Cleaning up test environment (containers and volumes)...");
         let _ = Command::new("docker")
-            .args(&["compose", "-p", &self.compose_project, "down", "-v"])
+            .args(&["compose", "-p", &self.compose_project, "down", "-v", "--remove-orphans"])
             .output();
+        eprintln!("[TestEnv] Cleanup complete");
     }
 }
 

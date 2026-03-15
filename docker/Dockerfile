@@ -23,13 +23,16 @@ COPY tests ./tests
 COPY benches ./benches
 
 # Build release binary with static linking
-RUN cargo build --release --target x86_64-unknown-linux-musl
+# RUN cargo build --release --target x86_64-unknown-linux-musl
+# Build binary with static linking
+RUN cargo build --target x86_64-unknown-linux-musl
 
 # Runtime stage - use distroless for minimal attack surface
 FROM gcr.io/distroless/static:nonroot
 
 # Copy binary from builder
-COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/vaultgres /usr/local/bin/vaultgres
+# COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/vaultgres /usr/local/bin/vaultgres
+COPY --from=builder /build/target/x86_64-unknown-linux-musl/debug/vaultgres /usr/local/bin/vaultgres
 
 # Copy config file
 COPY docker/config.yaml /etc/vaultgres/config.yaml
@@ -49,6 +52,9 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Set config path
 ENV VAULTGRES_CONFIG=/etc/vaultgres/config.yaml
+
+# Stop signal for graceful shutdown
+STOPSIGNAL SIGTERM
 
 # Run the database
 ENTRYPOINT ["/usr/local/bin/vaultgres"]

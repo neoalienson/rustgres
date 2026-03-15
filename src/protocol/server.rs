@@ -33,9 +33,10 @@ impl Server {
     }
 
     pub fn shutdown(&self) -> Result<(), String> {
-        log::info!("💾 Saving catalog to disk...");
-        (&*self.catalog).save_to_disk(&self.data_dir)?;
-        log::info!("✅ Catalog saved successfully");
+        log::info!("💾 Shutdown: data_dir={}", self.data_dir);
+        log::info!("💾 Shutdown: forcing immediate save before shutdown...");
+        self.catalog.force_save()?;
+        log::info!("✅ Shutdown: catalog saved successfully");
         Ok(())
     }
 }

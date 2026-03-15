@@ -82,14 +82,20 @@ impl Catalog {
         thread::spawn(move || {
             let mut last_save = std::time::Instant::now();
             while rx.recv().is_ok() {
+                log::debug!("Background save thread: received save signal");
                 if last_save.elapsed() < Duration::from_millis(100) {
                     thread::sleep(Duration::from_millis(100) - last_save.elapsed());
                 }
 
                 let tables_clone = tables.read().unwrap().clone();
                 let data_clone = data.read().unwrap().clone();
+                log::debug!("Background save: saving {} tables with {} rows total", 
+                    tables_clone.len(), 
+                    data_clone.values().map(|v| v.len()).sum::<usize>());
                 if let Err(e) = Persistence::save(&dir, &tables_clone, &data_clone) {
                     log::error!("Async save failed: {}", e);
+                } else {
+                    log::debug!("Background save: tables saved successfully");
                 }
 
                 let views_clone = views.read().unwrap().clone();
@@ -120,25 +126,39 @@ impl Catalog {
                 }
 
                 last_save = std::time::Instant::now();
+                log::debug!("Background save: cycle complete");
             }
+            log::debug!("Background save thread: channel closed, exiting");
         });
 
         let mut tables_lock = catalog.tables.write().unwrap();
         let mut data_lock = catalog.data.write().unwrap();
+        log::info!("📂 Catalog::new_with_data_dir: Loading from disk: {}", data_dir);
         if let Err(e) =
             Persistence::load(data_dir, &mut tables_lock, &mut data_lock, &catalog.txn_mgr)
         {
-            log::error!("Failed to load catalog: {}", e);
+            log::error!("📂 Failed to load catalog from {}: {}", data_dir, e);
+        } else {
+            log::info!("✅ Loaded {} tables with {} rows total from {}",
+                tables_lock.len(),
+                data_lock.values().map(|v| v.len()).sum::<usize>(),
+                data_dir);
         }
         drop(tables_lock);
         drop(data_lock);
 
         if let Ok(views) = Persistence::load_views(data_dir) {
+            log::info!("📂 Loaded {} views from {}", views.len(), data_dir);
             *catalog.views.write().unwrap() = views;
+        } else {
+            log::debug!("No views found at {}", data_dir);
         }
 
         if let Ok(materialized_views) = Persistence::load_materialized_views(data_dir) {
+            log::info!("📂 Loaded {} materialized views from {}", materialized_views.len(), data_dir);
             *catalog.materialized_views.write().unwrap() = materialized_views;
+        } else {
+            log::debug!("No materialized views found at {}", data_dir);
         }
 
         if let Ok(triggers) = Persistence::load_triggers(data_dir) {
@@ -158,13 +178,21 @@ impl Catalog {
 
     fn auto_save(&self) {
         if let Some(ref tx) = self.save_tx {
+            log::debug!("auto_save: sending save signal, data_dir={:?}", self.data_dir);
             let _ = tx.send(());
+        } else {
+            log::debug!("auto_save: no save_tx channel (data_dir not set)");
         }
     }
 
     pub fn flush_saves(&self) {
         if self.data_dir.is_some() {
-            std::thread::sleep(std::time::Duration::from_millis(150));
+            log::info!("flush_saves: waiting for background save to complete, data_dir={:?}", self.data_dir);
+            // Wait longer to ensure background save completes
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            log::info!("flush_saves: done waiting for background save");
+        } else {
+            log::debug!("flush_saves: no data_dir, skipping");
         }
     }
 
@@ -220,10 +248,11 @@ impl Catalog {
         drop(tables);
 
         let mut data = self.data.write().unwrap();
-        data.insert(name, Vec::new());
+        data.insert(name.clone(), Vec::new());
         drop(data);
 
-        self.auto_save();
+        log::debug!("create_table: created table '{}', triggering synchronous save", name);
+        self.force_save()?;
         Ok(())
     }
 
@@ -249,16 +278,16 @@ impl Catalog {
     }
 
     pub fn create_view(&self, name: String, query: SelectStmt) -> Result<(), String> {
-        CrudHelper::create(&self.views, name, query, "View")?;
-        self.auto_save();
-        self.flush_saves();
+        CrudHelper::create(&self.views, name.clone(), query, "View")?;
+        log::debug!("create_view: created view '{}', triggering synchronous save", name);
+        self.force_save()?;
         Ok(())
     }
 
     pub fn drop_view(&self, name: &str, if_exists: bool) -> Result<(), String> {
         CrudHelper::drop(&self.views, name, if_exists, "View")?;
-        self.auto_save();
-        self.flush_saves();
+        log::debug!("drop_view: dropped view '{}', triggering synchronous save", name);
+        self.force_save()?;
         Ok(())
     }
 
@@ -306,10 +335,11 @@ impl Catalog {
             }
         }
 
-        mvs.insert(name, (query, data, column_names));
+        mvs.insert(name.clone(), (query, data, column_names));
         drop(mvs);
 
-        self.auto_save();
+        log::debug!("create_materialized_view: created materialized view '{}', triggering synchronous save", name);
+        self.force_save()?;
         Ok(())
     }
 
@@ -482,7 +512,9 @@ impl Catalog {
         drop(data);
 
         self.txn_mgr.commit(txn.xid).map_err(|e| e.to_string())?;
-        self.auto_save();
+        log::debug!("insert: inserted row into '{}', triggering synchronous save", table);
+        // Force immediate synchronous save after each insert to ensure data persistence
+        self.force_save()?;
         Ok(())
     }
 
@@ -538,7 +570,9 @@ impl Catalog {
         drop(data);
 
         self.txn_mgr.commit(txn.xid).map_err(|e| e.to_string())?;
-        self.auto_save();
+        log::debug!("batch_insert: inserted {} rows into '{}', triggering synchronous save", count, table);
+        // Force immediate synchronous save after batch insert
+        self.force_save()?;
         Ok(count)
     }
 
@@ -729,15 +763,71 @@ impl Catalog {
     }
 
     pub fn save_to_disk(&self, data_dir: &str) -> Result<(), String> {
+        log::info!("💾 save_to_disk: saving to data_dir={}", data_dir);
         let tables = self.tables.read().unwrap();
         let data = self.data.read().unwrap();
-        Persistence::save(data_dir, &tables, &data)
+        log::info!("💾 save_to_disk: {} tables, {} total rows", 
+            tables.len(), 
+            data.values().map(|v| v.len()).sum::<usize>());
+        let result = Persistence::save(data_dir, &tables, &data);
+        if result.is_ok() {
+            log::info!("✅ save_to_disk: save completed successfully");
+        } else {
+            log::error!("❌ save_to_disk: save failed: {:?}", result);
+        }
+        result
+    }
+
+    /// Force an immediate synchronous save of all catalog data
+    /// This blocks until the save is complete
+    pub fn force_save(&self) -> Result<(), String> {
+        if let Some(ref data_dir) = self.data_dir {
+            log::info!("💾 force_save: forcing immediate synchronous save to {}", data_dir);
+            
+            // Wait for any pending background saves to complete
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            
+            // Do a direct synchronous save to ensure data is persisted
+            let tables = self.tables.read().unwrap();
+            let data = self.data.read().unwrap();
+            let views = self.views.read().unwrap();
+            let materialized_views = self.materialized_views.read().unwrap();
+            let triggers = self.triggers.read().unwrap();
+            let indexes = self.indexes.read().unwrap();
+            let functions = self.functions.read().unwrap();
+            
+            log::info!("💾 force_save: saving {} tables with {} rows", 
+                tables.len(),
+                data.values().map(|v| v.len()).sum::<usize>());
+            
+            // Save all catalog components
+            Persistence::save(data_dir, &tables, &data)?;
+            Persistence::save_views(data_dir, &views)?;
+            Persistence::save_materialized_views(data_dir, &materialized_views)?;
+            Persistence::save_triggers(data_dir, &triggers)?;
+            Persistence::save_indexes(data_dir, &indexes)?;
+            Persistence::save_functions(data_dir, &functions)?;
+            
+            log::info!("✅ force_save: synchronous save completed successfully");
+            return Ok(());
+        }
+        log::debug!("force_save: no data_dir configured, skipping");
+        Ok(())
     }
 
     pub fn load_from_disk(&self, data_dir: &str) -> Result<(), String> {
+        log::info!("📂 load_from_disk: loading from data_dir={}", data_dir);
         let mut tables = self.tables.write().unwrap();
         let mut data = self.data.write().unwrap();
-        Persistence::load(data_dir, &mut tables, &mut data, &self.txn_mgr)
+        let result = Persistence::load(data_dir, &mut tables, &mut data, &self.txn_mgr);
+        if result.is_ok() {
+            log::info!("✅ load_from_disk: loaded {} tables, {} total rows", 
+                tables.len(), 
+                data.values().map(|v| v.len()).sum::<usize>());
+        } else {
+            log::error!("❌ load_from_disk: load failed: {:?}", result);
+        }
+        result
     }
 
     pub fn begin_transaction(&self) -> Result<(), String> {
