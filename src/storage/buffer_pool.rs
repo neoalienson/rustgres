@@ -150,11 +150,9 @@ impl BufferPool {
                 drop(frame);
 
                 // Write dirty page to disk
-                if dirty {
-                    if let Some(ref dm) = self.disk_manager {
-                        dm.write_page(page_id, &page)?;
-                        log::trace!("Flushed dirty page {} to disk", page_id.0);
-                    }
+                if dirty && let Some(ref dm) = self.disk_manager {
+                    dm.write_page(page_id, &page)?;
+                    log::trace!("Flushed dirty page {} to disk", page_id.0);
                 }
 
                 // Remove from page table
@@ -249,5 +247,33 @@ mod tests {
     #[should_panic(expected = "capacity must be positive")]
     fn test_buffer_pool_zero_capacity() {
         BufferPool::new(0);
+    }
+
+    #[test]
+    fn test_buffer_pool_eviction_dirty() {
+        use std::fs;
+        let db_dir = "test_bp_evict_dirty_dir";
+        let _ = fs::remove_dir_all(db_dir);
+        fs::create_dir_all(db_dir).unwrap();
+
+        let dm = Arc::new(DiskManager::new(db_dir).unwrap());
+        let pool = BufferPool::with_disk(2, dm.clone());
+
+        // Fetch a page, and mark it dirty.
+        pool.fetch(PageId(1)).unwrap();
+        pool.unpin(PageId(1), true).unwrap();
+
+        pool.fetch(PageId(2)).unwrap();
+        pool.unpin(PageId(2), false).unwrap();
+
+        // This fetch should evict page 1, which is dirty, so it should be written to disk.
+        pool.fetch(PageId(3)).unwrap();
+
+        // now page 1 should be on disk.
+        // let's try to read it directly with the disk manager.
+        // If it's there, read_page should succeed.
+        dm.read_page(PageId(1)).unwrap();
+
+        fs::remove_dir_all(db_dir).unwrap();
     }
 }

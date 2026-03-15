@@ -93,11 +93,9 @@ impl Index for GiSTIndex {
             self.root = Some(Box::new(GiSTNode::Leaf(LeafNode { keys: vec![], tids: vec![] })));
         }
 
-        if let Some(ref mut root) = self.root {
-            if let GiSTNode::Leaf(ref mut leaf) = **root {
-                leaf.keys.push(BoundingBox::new(key));
-                leaf.tids.push(tid);
-            }
+        if let Some(GiSTNode::Leaf(leaf)) = self.root.as_deref_mut() {
+            leaf.keys.push(BoundingBox::new(key));
+            leaf.tids.push(tid);
         }
 
         Ok(())

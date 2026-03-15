@@ -1,3 +1,4 @@
+use crate::catalog::Value;
 use crate::executor::operators::executor::{ExecutorError, Tuple};
 use crate::executor::parallel::config::ParallelConfig;
 use crate::executor::parallel::morsel::Morsel;
@@ -67,20 +68,23 @@ impl ParallelSort {
 
         while runs.iter().any(|r| !r.is_empty()) {
             let mut min_idx = None;
-            let mut min_val = None;
+            let mut min_val: Option<&Value> = None;
 
             for (i, run) in runs.iter().enumerate() {
-                if let Some(first) = run.first() {
-                    if min_val.is_none() || first.values().next() < min_val {
-                        min_val = first.values().next();
-                        min_idx = Some(i);
-                    }
+                if let Some(val) = run.first().and_then(|t| t.values().next())
+                    && min_val.map_or(true, |min| val < min)
+                {
+                    min_val = Some(val);
+                    min_idx = Some(i);
                 }
             }
 
             if let Some(idx) = min_idx {
                 let tuple = runs[idx].remove(0);
                 result.push(tuple);
+            } else {
+                // All remaining runs are empty or have tuples with no values
+                break;
             }
         }
 

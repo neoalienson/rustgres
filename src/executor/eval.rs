@@ -54,11 +54,10 @@ impl Eval {
                         let mut found = false;
                         for val_expr in values {
                             if let Ok(val) = Self::eval_expr_with_catalog(val_expr, tuple, catalog)
+                                && val == left_val
                             {
-                                if val == left_val {
-                                    found = true;
-                                    break;
-                                }
+                                found = true;
+                                break;
                             }
                         }
                         return Ok(Value::Bool(found));

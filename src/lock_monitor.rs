@@ -37,10 +37,10 @@ impl LockMonitor {
     }
 
     pub fn record_acquired(&self, txn_id: u64) {
-        if let Some(mut events) = self.events.get_mut(&txn_id) {
-            if let Some(last) = events.last_mut() {
-                last.acquired = true;
-            }
+        if let Some(mut events) = self.events.get_mut(&txn_id)
+            && let Some(last) = events.last_mut()
+        {
+            last.acquired = true;
         }
     }
 

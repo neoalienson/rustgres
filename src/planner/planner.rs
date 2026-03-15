@@ -82,63 +82,63 @@ impl Planner {
         };
 
         // Handle JOINs if present
-        if !stmt.joins.is_empty() {
-            if let Some(cat) = catalog {
-                // Build plans for each joined table and chain the joins
-                for join in &stmt.joins {
-                    let right_schema = cat
-                        .get_table(&join.table)
-                        .ok_or_else(|| {
-                            ExecutorError::InternalError(format!(
-                                "Table '{}' not found for join",
-                                join.table
-                            ))
-                        })?
-                        .clone();
+        if !stmt.joins.is_empty()
+            && let Some(cat) = catalog
+        {
+            // Build plans for each joined table and chain the joins
+            for join in &stmt.joins {
+                let right_schema = cat
+                    .get_table(&join.table)
+                    .ok_or_else(|| {
+                        ExecutorError::InternalError(format!(
+                            "Table '{}' not found for join",
+                            join.table
+                        ))
+                    })?
+                    .clone();
 
-                    let right_plan: Box<dyn Executor> = Box::new(SeqScanExecutor::new(
-                        join.table.clone(),
-                        right_schema.clone(),
-                        Arc::clone(&cat.data),
-                        Arc::clone(&cat.txn_mgr),
-                    ));
+                let right_plan: Box<dyn Executor> = Box::new(SeqScanExecutor::new(
+                    join.table.clone(),
+                    right_schema.clone(),
+                    Arc::clone(&cat.data),
+                    Arc::clone(&cat.txn_mgr),
+                ));
 
-                    // Create join condition - evaluate against combined tuple
-                    let join_condition = join.on.clone();
+                // Create join condition - evaluate against combined tuple
+                let join_condition = join.on.clone();
 
-                    // Build combined schema for this join step
-                    let mut combined_schema_for_join = current_schema.clone();
-                    combined_schema_for_join.columns.extend(right_schema.columns.clone());
+                // Build combined schema for this join step
+                let mut combined_schema_for_join = current_schema.clone();
+                combined_schema_for_join.columns.extend(right_schema.columns.clone());
 
-                    let condition = move |left: &Tuple, right: &Tuple| -> bool {
-                        // Combine left and right tuples for predicate evaluation
-                        let mut combined = left.clone();
-                        for (k, v) in right.iter() {
-                            combined.insert(k.clone(), v.clone());
-                        }
+                let condition = move |left: &Tuple, right: &Tuple| -> bool {
+                    // Combine left and right tuples for predicate evaluation
+                    let mut combined = left.clone();
+                    for (k, v) in right.iter() {
+                        combined.insert(k.clone(), v.clone());
+                    }
 
-                        match crate::executor::Eval::eval_expr(&join_condition, &combined) {
-                            Ok(Value::Bool(b)) => b,
-                            _ => false,
-                        }
-                    };
+                    match crate::executor::Eval::eval_expr(&join_condition, &combined) {
+                        Ok(Value::Bool(b)) => b,
+                        _ => false,
+                    }
+                };
 
-                    let join_executor = JoinExecutor::new(
-                        plan,
-                        right_plan,
-                        match join.join_type {
-                            crate::parser::ast::JoinType::Inner => JoinType::Inner,
-                            crate::parser::ast::JoinType::Left => JoinType::Left,
-                            crate::parser::ast::JoinType::Right => JoinType::Right,
-                            crate::parser::ast::JoinType::Full => JoinType::Full,
-                        },
-                        Box::new(condition),
-                    );
-                    plan = Box::new(join_executor);
+                let join_executor = JoinExecutor::new(
+                    plan,
+                    right_plan,
+                    match join.join_type {
+                        crate::parser::ast::JoinType::Inner => JoinType::Inner,
+                        crate::parser::ast::JoinType::Left => JoinType::Left,
+                        crate::parser::ast::JoinType::Right => JoinType::Right,
+                        crate::parser::ast::JoinType::Full => JoinType::Full,
+                    },
+                    Box::new(condition),
+                );
+                plan = Box::new(join_executor);
 
-                    // Update current schema to include right table columns
-                    current_schema.columns.extend(right_schema.columns.clone());
-                }
+                // Update current schema to include right table columns
+                current_schema.columns.extend(right_schema.columns.clone());
             }
         }
 
@@ -239,14 +239,11 @@ impl Planner {
         }
 
         // 7. Order By
-        if let Some(order_by_exprs) = &stmt.order_by {
-            if !order_by_exprs.is_empty() {
-                plan = Box::new(SortExecutor::new(
-                    plan,
-                    order_by_exprs.clone(),
-                    current_schema.clone(),
-                )?);
-            }
+        if let Some(order_by_exprs) = &stmt.order_by
+            && !order_by_exprs.is_empty()
+        {
+            plan =
+                Box::new(SortExecutor::new(plan, order_by_exprs.clone(), current_schema.clone())?);
         }
 
         // 8. Limit and Offset

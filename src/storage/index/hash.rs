@@ -55,16 +55,27 @@ impl Index for HashIndex {
         let bucket_idx = self.bucket_index(hash);
         let bucket = &mut self.buckets[bucket_idx];
 
-        if let Some(i) = bucket.entries.iter().position(|e| e.key == key) {
-            if let Some(pos) = bucket.entries[i].tids.iter().position(|&t| t == tid) {
-                bucket.entries[i].tids.remove(pos);
-                if bucket.entries[i].tids.is_empty() {
-                    bucket.entries.remove(i);
+        let mut entry_to_remove = None;
+        let mut tid_found = false;
+
+        for (i, entry) in bucket.entries.iter_mut().enumerate() {
+            if entry.key == key
+                && let Some(pos) = entry.tids.iter().position(|&t| t == tid)
+            {
+                entry.tids.remove(pos);
+                tid_found = true;
+                if entry.tids.is_empty() {
+                    entry_to_remove = Some(i);
                 }
-                return Ok(true);
+                break; // Found and processed, so we can stop.
             }
         }
-        Ok(false)
+
+        if let Some(i) = entry_to_remove {
+            bucket.entries.remove(i);
+        }
+
+        Ok(tid_found)
     }
 
     fn search(&self, key: &[u8]) -> Result<Vec<TupleId>, IndexError> {

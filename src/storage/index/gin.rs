@@ -55,11 +55,11 @@ impl Index for GINIndex {
         let mut deleted = false;
 
         for k in keys {
-            if let Some(posting_list) = self.posting_lists.get_mut(&k) {
-                if let Some(pos) = posting_list.tids.iter().position(|&t| t == tid) {
-                    posting_list.tids.remove(pos);
-                    deleted = true;
-                }
+            if let Some(posting_list) = self.posting_lists.get_mut(&k)
+                && let Some(pos) = posting_list.tids.iter().position(|&t| t == tid)
+            {
+                posting_list.tids.remove(pos);
+                deleted = true;
             }
         }
 
