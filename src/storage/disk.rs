@@ -26,7 +26,13 @@ impl DiskManager {
         let mut handles = self.file_handles.lock().unwrap();
 
         let file = handles.entry(file_path.to_string_lossy().to_string()).or_insert_with(|| {
-            OpenOptions::new().read(true).write(true).create(true).open(&file_path).unwrap()
+            OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(&file_path)
+                .unwrap()
         });
 
         let offset = self.page_offset(page_id);
@@ -43,7 +49,13 @@ impl DiskManager {
         let mut handles = self.file_handles.lock().unwrap();
 
         let file = handles.entry(file_path.to_string_lossy().to_string()).or_insert_with(|| {
-            OpenOptions::new().read(true).write(true).create(true).open(&file_path).unwrap()
+            OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(&file_path)
+                .unwrap()
         });
 
         let offset = self.page_offset(page_id);

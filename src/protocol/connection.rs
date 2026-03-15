@@ -150,7 +150,7 @@ impl<S: Read + Write> Connection<S> {
     fn execute_statement(&self, stmt: Statement) -> Result<ExecutionResult, String> {
         match stmt {
             Statement::CreateTable(create) => {
-                (&*self.catalog).create_table_with_constraints(
+                self.catalog.create_table_with_constraints(
                     create.table.clone(),
                     create.columns,
                     create.primary_key,
@@ -159,47 +159,47 @@ impl<S: Read + Write> Connection<S> {
                 Ok(ExecutionResult::CommandComplete("CREATE TABLE".to_string()))
             }
             Statement::DropTable(drop) => {
-                (&*self.catalog).drop_table(&drop.table, drop.if_exists)?;
+                self.catalog.drop_table(&drop.table, drop.if_exists)?;
                 Ok(ExecutionResult::CommandComplete("DROP TABLE".to_string()))
             }
             Statement::CreateView(create) => {
-                (&*self.catalog).create_view(create.name.clone(), *create.query)?;
+                self.catalog.create_view(create.name.clone(), *create.query)?;
                 Ok(ExecutionResult::CommandComplete("CREATE VIEW".to_string()))
             }
             Statement::DropView(drop) => {
-                (&*self.catalog).drop_view(&drop.name, drop.if_exists)?;
+                self.catalog.drop_view(&drop.name, drop.if_exists)?;
                 Ok(ExecutionResult::CommandComplete("DROP VIEW".to_string()))
             }
             Statement::CreateMaterializedView(create) => {
-                (&*self.catalog).create_materialized_view(create.name.clone(), *create.query)?;
+                self.catalog.create_materialized_view(create.name.clone(), *create.query)?;
                 Ok(ExecutionResult::CommandComplete("CREATE MATERIALIZED VIEW".to_string()))
             }
             Statement::RefreshMaterializedView(refresh) => {
-                (&*self.catalog).refresh_materialized_view(&refresh.name)?;
+                self.catalog.refresh_materialized_view(&refresh.name)?;
                 Ok(ExecutionResult::CommandComplete("REFRESH MATERIALIZED VIEW".to_string()))
             }
             Statement::DropMaterializedView(drop) => {
-                (&*self.catalog).drop_materialized_view(&drop.name, drop.if_exists)?;
+                self.catalog.drop_materialized_view(&drop.name, drop.if_exists)?;
                 Ok(ExecutionResult::CommandComplete("DROP MATERIALIZED VIEW".to_string()))
             }
             Statement::CreateTrigger(create) => {
-                (&*self.catalog).create_trigger(create)?;
+                self.catalog.create_trigger(create)?;
                 Ok(ExecutionResult::CommandComplete("CREATE TRIGGER".to_string()))
             }
             Statement::DropTrigger(drop) => {
-                (&*self.catalog).drop_trigger(&drop.name, drop.if_exists)?;
+                self.catalog.drop_trigger(&drop.name, drop.if_exists)?;
                 Ok(ExecutionResult::CommandComplete("DROP TRIGGER".to_string()))
             }
             Statement::CreateIndex(create) => {
-                (&*self.catalog).create_index(create)?;
+                self.catalog.create_index(create)?;
                 Ok(ExecutionResult::CommandComplete("CREATE INDEX".to_string()))
             }
             Statement::DropIndex(drop) => {
-                (&*self.catalog).drop_index(&drop.name, drop.if_exists)?;
+                self.catalog.drop_index(&drop.name, drop.if_exists)?;
                 Ok(ExecutionResult::CommandComplete("DROP INDEX".to_string()))
             }
             Statement::Describe(desc) => {
-                if let Some(schema) = (&*self.catalog).get_table(&desc.table) {
+                if let Some(schema) = self.catalog.get_table(&desc.table) {
                     let cols: Vec<String> = schema
                         .columns
                         .iter()
@@ -218,7 +218,7 @@ impl<S: Read + Write> Connection<S> {
                 }
             }
             Statement::Insert(insert) => {
-                (&*self.catalog).insert(&insert.table, insert.values)?;
+                self.catalog.insert(&insert.table, insert.values)?;
                 Ok(ExecutionResult::CommandComplete("INSERT 0 1".to_string()))
             }
             Statement::Select(select_stmt) => {
@@ -266,7 +266,7 @@ impl<S: Read + Write> Connection<S> {
                     }
                 }
 
-                let column_names = output_column_names.unwrap_or_else(Vec::new);
+                let column_names = output_column_names.unwrap_or_default();
 
                 log::trace!("planner execution returned {} rows", rows.len());
 
@@ -275,15 +275,12 @@ impl<S: Read + Write> Connection<S> {
                 Ok(ExecutionResult::ResultSet(result_set))
             }
             Statement::Update(update) => {
-                let count = (&*self.catalog).update(
-                    &update.table,
-                    update.assignments,
-                    update.where_clause,
-                )?;
+                let count =
+                    self.catalog.update(&update.table, update.assignments, update.where_clause)?;
                 Ok(ExecutionResult::CommandComplete(format!("UPDATE {}", count)))
             }
             Statement::Delete(delete) => {
-                let count = (&*self.catalog).delete(&delete.table, delete.where_clause)?;
+                let count = self.catalog.delete(&delete.table, delete.where_clause)?;
                 Ok(ExecutionResult::CommandComplete(format!("DELETE {}", count)))
             }
             _ => Ok(ExecutionResult::CommandComplete("SELECT 0".to_string())),
@@ -304,18 +301,20 @@ impl<S: Read + Write> Connection<S> {
         );
 
         let left_table = &select.from;
-        let left_schema = (&*self.catalog)
+        let left_schema = self
+            .catalog
             .get_table(left_table)
             .ok_or_else(|| format!("Table '{}' not found", left_table))?;
         let left_alias = select.table_alias.as_ref().unwrap_or(left_table);
 
         let mut all_schemas = vec![(left_alias.clone(), left_schema.clone())];
         for join in &select.joins {
-            let schema = (&*self.catalog)
+            let schema = self
+                .catalog
                 .get_table(&join.table)
                 .ok_or_else(|| format!("Table '{}' not found", join.table))?;
             let alias = join.alias.as_ref().unwrap_or(&join.table);
-            all_schemas.push((alias.clone(), schema));
+            all_schemas.push((alias.clone(), schema.clone()));
         }
 
         log::info!(
@@ -326,14 +325,14 @@ impl<S: Read + Write> Connection<S> {
                 .collect::<Vec<(String, String)>>() // Explicit type annotation
         );
 
-        let snapshot = (&*self.catalog).txn_mgr.get_snapshot();
-        let data = (&*self.catalog).data.read().unwrap();
+        let snapshot = self.catalog.txn_mgr.get_snapshot();
+        let data = self.catalog.data.read().unwrap();
         let left_tuples =
             data.get(left_table).ok_or_else(|| format!("Table '{}' has no data", left_table))?;
 
         let mut results = Vec::new();
         for left_tuple in left_tuples {
-            if !left_tuple.header.is_visible(&snapshot, &(&*self.catalog).txn_mgr) {
+            if !left_tuple.header.is_visible(&snapshot, &self.catalog.txn_mgr) {
                 continue;
             }
 
@@ -347,7 +346,7 @@ impl<S: Read + Write> Connection<S> {
 
                 let mut join_matched = false;
                 for right_tuple in right_tuples {
-                    if !right_tuple.header.is_visible(&snapshot, &(&*self.catalog).txn_mgr) {
+                    if !right_tuple.header.is_visible(&snapshot, &self.catalog.txn_mgr) {
                         continue;
                     }
 

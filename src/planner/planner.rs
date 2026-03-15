@@ -161,7 +161,7 @@ impl Planner {
         }
 
         // 3. HashAggExecutor (GROUP BY and Aggregation)
-        let has_group_by = stmt.group_by.as_ref().map_or(false, |gb| !gb.is_empty());
+        let has_group_by = stmt.group_by.as_ref().is_some_and(|gb| !gb.is_empty());
 
         if has_group_by || has_aggregates {
             // Derive the output schema for aggregation

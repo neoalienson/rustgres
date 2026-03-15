@@ -55,11 +55,15 @@ impl Page {
 
     /// Returns the page header
     pub fn header(&self) -> PageHeader {
+        // SAFETY: The first `PageHeader::SIZE` bytes of the page data are always a valid `PageHeader`.
+        // This is guaranteed by the `Page::new` constructor and the page layout discipline.
         unsafe { std::ptr::read(self.data.as_ptr() as *const PageHeader) }
     }
 
     /// Writes the page header
     fn write_header(&mut self, header: &PageHeader) {
+        // SAFETY: The first `PageHeader::SIZE` bytes of the page data are reserved for the `PageHeader`.
+        // This write is safe because it only affects the header portion of the page.
         unsafe {
             std::ptr::write(self.data.as_mut_ptr() as *mut PageHeader, *header);
         }

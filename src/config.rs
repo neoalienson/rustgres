@@ -60,8 +60,10 @@ impl Config {
         let config: Config = serde_yaml::from_str(&content)?;
         Ok(config)
     }
+}
 
-    pub fn default() -> Self {
+impl Default for Config {
+    fn default() -> Self {
         Self {
             server: ServerConfig {
                 host: "127.0.0.1".to_string(),
