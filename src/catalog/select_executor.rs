@@ -55,19 +55,19 @@ impl SelectExecutor {
         schema: &TableSchema,
         txn_mgr: &Arc<TransactionManager>,
     ) -> Result<Vec<Vec<Value>>, String> {
-        if columns.len() == 1
-            && let Some(Expr::Aggregate { .. }) = columns.first()
-        {
-            log::debug!("Taking Aggregator path: {:?}", columns[0]);
-            return Aggregator::execute(
-                catalog,
-                table,
-                &columns[0],
-                where_clause,
-                tuples,
-                schema,
-                txn_mgr,
-            );
+        if columns.len() == 1 {
+            if let Some(Expr::Aggregate { .. }) = columns.first() {
+                log::debug!("Taking Aggregator path: {:?}", columns[0]);
+                return Aggregator::execute(
+                    catalog,
+                    table,
+                    &columns[0],
+                    where_clause,
+                    tuples,
+                    schema,
+                    txn_mgr,
+                );
+            }
         }
 
         log::trace!("Taking normal SELECT path, columns={:?}", columns);

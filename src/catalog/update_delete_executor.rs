@@ -21,10 +21,10 @@ impl UpdateDeleteExecutor {
                 continue;
             }
 
-            if let Some(predicate) = where_clause
-                && !PredicateEvaluator::evaluate(predicate, &tuple.data, schema)?
-            {
-                continue;
+            if let Some(predicate) = where_clause {
+                if !PredicateEvaluator::evaluate(predicate, &tuple.data, schema)? {
+                    continue;
+                }
             }
 
             Self::apply_assignments(tuple, assignments, schema)?;
@@ -80,10 +80,10 @@ impl UpdateDeleteExecutor {
                 continue;
             }
 
-            if let Some(predicate) = where_clause
-                && !PredicateEvaluator::evaluate(predicate, &tuple.data, schema)?
-            {
-                continue;
+            if let Some(predicate) = where_clause {
+                if !PredicateEvaluator::evaluate(predicate, &tuple.data, schema)? {
+                    continue;
+                }
             }
 
             tuple.header.delete(xid);

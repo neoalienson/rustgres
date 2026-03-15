@@ -81,12 +81,12 @@ impl BTree {
 
     /// Deletes a key from the tree
     pub fn delete(&mut self, key: &Key) -> Result<bool> {
-        if let Some(Node::Leaf(leaf)) = self.root.as_deref_mut()
-            && let Ok(idx) = leaf.keys.binary_search(key)
-        {
-            leaf.keys.remove(idx);
-            leaf.values.remove(idx);
-            return Ok(true);
+        if let Some(Node::Leaf(leaf)) = self.root.as_deref_mut() {
+            if let Ok(idx) = leaf.keys.binary_search(key) {
+                leaf.keys.remove(idx);
+                leaf.values.remove(idx);
+                return Ok(true);
+            }
         }
         Ok(false)
     }

@@ -83,21 +83,22 @@ impl AggregateExecutor {
                     count += 1;
                 }
                 AggregateFunction::Count => {
-                    if let Some(col) = &self.column
-                        && let Some(val) = tuple.get(col)
-                        && !matches!(val, Value::Null)
-                    {
-                        count += 1;
+                    if let Some(col) = &self.column {
+                        if let Some(val) = tuple.get(col) {
+                            if !matches!(val, Value::Null) {
+                                count += 1;
+                            }
+                        }
                     }
                 }
                 _ => {
-                    if let Some(col) = &self.column
-                        && let Some(&Value::Int(i)) = tuple.get(col)
-                    {
-                        sum += i;
-                        count += 1;
-                        min = Some(min.map_or(i, |m| m.min(i)));
-                        max = Some(max.map_or(i, |m| m.max(i)));
+                    if let Some(col) = &self.column {
+                        if let Some(&Value::Int(i)) = tuple.get(col) {
+                            sum += i;
+                            count += 1;
+                            min = Some(min.map_or(i, |m| m.min(i)));
+                            max = Some(max.map_or(i, |m| m.max(i)));
+                        }
                     }
                 }
             }

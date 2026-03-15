@@ -109,22 +109,22 @@ impl PredicateEvaluator {
             BinaryOperator::Between => {
                 let left_val =
                     Self::evaluate_expr_with_subquery(left, tuple, schema, subquery_eval)?;
-                if let Expr::List(values) = right
-                    && values.len() == 2
-                {
-                    let lower = Self::evaluate_expr_with_subquery(
-                        &values[0],
-                        tuple,
-                        schema,
-                        subquery_eval,
-                    )?;
-                    let upper = Self::evaluate_expr_with_subquery(
-                        &values[1],
-                        tuple,
-                        schema,
-                        subquery_eval,
-                    )?;
-                    return Ok(left_val >= lower && left_val <= upper);
+                if let Expr::List(values) = right {
+                    if values.len() == 2 {
+                        let lower = Self::evaluate_expr_with_subquery(
+                            &values[0],
+                            tuple,
+                            schema,
+                            subquery_eval,
+                        )?;
+                        let upper = Self::evaluate_expr_with_subquery(
+                            &values[1],
+                            tuple,
+                            schema,
+                            subquery_eval,
+                        )?;
+                        return Ok(left_val >= lower && left_val <= upper);
+                    }
                 }
                 Err("BETWEEN requires two values".to_string())
             }

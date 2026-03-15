@@ -71,11 +71,11 @@ impl ParallelSort {
             let mut min_val: Option<&Value> = None;
 
             for (i, run) in runs.iter().enumerate() {
-                if let Some(val) = run.first().and_then(|t| t.values().next())
-                    && min_val.map_or(true, |min| val < min)
-                {
-                    min_val = Some(val);
-                    min_idx = Some(i);
+                if let Some(val) = run.first().and_then(|t| t.values().next()) {
+                    if min_val.map_or(true, |min| val < min) {
+                        min_val = Some(val);
+                        min_idx = Some(i);
+                    }
                 }
             }
 

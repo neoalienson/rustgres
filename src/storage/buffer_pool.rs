@@ -150,9 +150,11 @@ impl BufferPool {
                 drop(frame);
 
                 // Write dirty page to disk
-                if dirty && let Some(ref dm) = self.disk_manager {
-                    dm.write_page(page_id, &page)?;
-                    log::trace!("Flushed dirty page {} to disk", page_id.0);
+                if dirty {
+                    if let Some(ref dm) = self.disk_manager {
+                        dm.write_page(page_id, &page)?;
+                        log::trace!("Flushed dirty page {} to disk", page_id.0);
+                    }
                 }
 
                 // Remove from page table

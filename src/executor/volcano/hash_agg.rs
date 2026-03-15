@@ -48,10 +48,10 @@ impl HashAggExecutor {
                 let mut group_tuple = Tuple::new();
                 // Initialize group-by columns
                 for expr in &group_by {
-                    if let Expr::Column(col_name) = expr
-                        && let Some(val) = tuple.get(col_name)
-                    {
-                        group_tuple.insert(col_name.clone(), val.clone());
+                    if let Expr::Column(col_name) = expr {
+                        if let Some(val) = tuple.get(col_name) {
+                            group_tuple.insert(col_name.clone(), val.clone());
+                        }
                     }
                 }
                 // Initialize aggregate states based on the aggregate function type
@@ -189,10 +189,10 @@ impl HashAggExecutor {
     fn compute_group_key(tuple: &Tuple, group_by: &[Expr]) -> Result<u64, ExecutorError> {
         let mut hasher = DefaultHasher::new();
         for expr in group_by {
-            if let Expr::Column(col_name) = expr
-                && let Some(val) = tuple.get(col_name)
-            {
-                Self::hash_value(val, &mut hasher);
+            if let Expr::Column(col_name) = expr {
+                if let Some(val) = tuple.get(col_name) {
+                    Self::hash_value(val, &mut hasher);
+                }
             }
         }
         Ok(hasher.finish())

@@ -59,15 +59,15 @@ impl Index for HashIndex {
         let mut tid_found = false;
 
         for (i, entry) in bucket.entries.iter_mut().enumerate() {
-            if entry.key == key
-                && let Some(pos) = entry.tids.iter().position(|&t| t == tid)
-            {
-                entry.tids.remove(pos);
-                tid_found = true;
-                if entry.tids.is_empty() {
-                    entry_to_remove = Some(i);
+            if entry.key == key {
+                if let Some(pos) = entry.tids.iter().position(|&t| t == tid) {
+                    entry.tids.remove(pos);
+                    tid_found = true;
+                    if entry.tids.is_empty() {
+                        entry_to_remove = Some(i);
+                    }
+                    break; // Found and processed, so we can stop.
                 }
-                break; // Found and processed, so we can stop.
             }
         }
 
